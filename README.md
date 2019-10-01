@@ -25,7 +25,7 @@
 
 ### 说说getty的性能和稳定性：
 
-硬件条件：cpu：i7-7700 | 内存：16G | 网络：局域网 | 操作系统：win10家庭版
+硬件条件：cpu：i7-7700 | 内存：16G | 网络：局域网 | 操作系统：win10家庭版 | jdk 8
 
 经过本人简单的测试，整体的性能和稳定性还是不错的：
 
@@ -36,3 +36,16 @@
 2、开启了SSL以后发送一百万条文本消息大概耗时3.8秒，这个性能也算乐观，因为毕竟SSL本身对消息的加密和解密是非常消耗性能的。
 
 ![图片名称](https://github.com/gogym/getty/blob/master/img/bbb.png)
+
+3、同时开启10条连接，每条连接发送一百万条文本消息，每条连接平均耗时是比较均衡的，平均三百多毫秒。性能非常可观
+
+![图片名称](https://github.com/gogym/getty/blob/master/img/ccc.png)
+
+4、服务器启动时的内存消耗，启动时内存消耗非常小，占用还不到40m
+
+![图片名称](https://github.com/gogym/getty/blob/master/img/ddd.png)
+
+5、连续发送一百万条消息时的内存消耗，大概消耗160m左右，而且内存回收也非常迅速
+
+![图片名称](https://github.com/gogym/getty/blob/master/img/eee.png)
+
