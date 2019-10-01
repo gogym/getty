@@ -28,3 +28,11 @@
 硬件条件：cpu：i7-7700 | 内存：16G | 网络：局域网 | 操作系统：win10家庭版
 
 经过本人简单的测试，整体的性能和稳定性还是不错的：
+
+1、单连接发送一百万条文本消息耗时277毫秒，这个性能总体上还过得去。
+
+![图片名称](https://github.com/gogym/getty/blob/master/img/aaa.png)
+
+2、开启了SSL以后发送一百万条文本消息大概耗时3.8秒，这个性能也算乐观，因为毕竟SSL本身对消息的加密和解密是非常消耗性能的。
+
+[图片名称](https://github.com/gogym/getty/blob/master/img/bbb.png)
