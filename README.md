@@ -35,4 +35,4 @@
 
 2、开启了SSL以后发送一百万条文本消息大概耗时3.8秒，这个性能也算乐观，因为毕竟SSL本身对消息的加密和解密是非常消耗性能的。
 
-[图片名称](https://github.com/gogym/getty/blob/master/img/bbb.png)
+![图片名称](https://github.com/gogym/getty/blob/master/img/bbb.png)
