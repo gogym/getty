@@ -202,7 +202,7 @@
             <roles>
                 <role>getty作者</role>
             </roles>
-            <url></url>
+            <url>https://github.com/gogym/getty</url>
             <timezone>GMT+8</timezone>
             <properties>
                 <picUrl></picUrl>
