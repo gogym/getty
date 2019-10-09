@@ -1,0 +1,22 @@
+syntax = "proto3"; //指定版本，必须要写（proto3、proto2）
+import "google/protobuf/any.proto";
+ 
+//生成类的类名  
+option java_outer_classname = "AddFriendReqClass";
+ 
+
+message AddFriendReq{
+
+string senderId=1;// 发送人ID
+
+string senderName=2;//发送人名称
+
+string senderHeadImgUrl=3;//发送人头像URL
+ 
+string receiverId=4;// 接收人ID
+
+int32 msgType=5;//消息类型
+
+string body=6;//消息体
+
+}

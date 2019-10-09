@@ -1,0 +1,19 @@
+syntax = "proto3"; //指定版本，必须要写（proto3、proto2）
+ 
+//生成类的类名  
+option java_outer_classname = "GroupChatReqClass";
+ 
+
+message GroupChatReq{
+
+string senderId=1;// 发送人ID
+ 
+string groupId=2;// 群ID
+
+int32 msgType=3;//消息类型
+
+string body=4;//消息体
+
+string atUserId=5;//需要@的人的id
+
+}

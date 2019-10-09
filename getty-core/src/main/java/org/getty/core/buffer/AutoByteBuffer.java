@@ -145,6 +145,20 @@ public class AutoByteBuffer {
         return writerIndex - readerIndex;
     }
 
+
+    /**
+     * 当前是否有可读
+     *
+     * @return boolean
+     * @params []
+     */
+    public boolean hasRemaining() {
+        if ((writerIndex - readerIndex) > 0) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 当前可写入数据量，每次触发扩容后都不一样
      *

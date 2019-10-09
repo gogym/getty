@@ -1,16 +1,16 @@
-package org.getty.string.client;
+package org.getty.protobuf.client;
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.client.AioClientStarter;
+import org.getty.core.handler.codec.protobuf.ProtobufEncoder;
+import org.getty.core.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import org.getty.core.handler.codec.string.DelimiterFrameDecoder;
 import org.getty.core.handler.codec.string.StringDecoder;
 import org.getty.core.handler.codec.string.StringEncoder;
-import org.getty.core.handler.ssl.SslConfig;
-import org.getty.core.handler.ssl.SslHandler;
-import org.getty.core.handler.ssl.SslService;
 import org.getty.core.pipeline.ChannelInitializer;
 import org.getty.core.pipeline.DefaultChannelPipeline;
 import org.getty.core.util.ThreadPool;
+import org.getty.protobuf.packet.MessageClass;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -27,7 +27,7 @@ public class ImClient {
             threadPool.execute(new Runnable() {
                 @Override
                 public void run() {
-                    test(3333);
+                    test(5555);
                 }
             });
             i++;
@@ -43,12 +43,11 @@ public class ImClient {
             public void initChannel(AioChannel channel) throws Exception {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
-                //字符串编码器
-                defaultChannelPipeline.addLast(new StringEncoder());
-                //指定结束符解码器
-                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
-                //字符串解码器
-                defaultChannelPipeline.addLast(new StringDecoder());
+
+
+                defaultChannelPipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
+                defaultChannelPipeline.addLast(new ProtobufEncoder());
+
                 //定义消息解码器
                 defaultChannelPipeline.addLast(new SimpleHandler());
             }
@@ -63,18 +62,15 @@ public class ImClient {
         try {
             Thread.sleep(1000);
             AioChannel aioChannel = client.getAioChannel();
-            String s = "me\r\n";
-            byte[] msgBody = s.getBytes("utf-8");
-            long ct = System.currentTimeMillis();
 
-            int i = 0;
-            for (; i < 1000000; i++) {
-                aioChannel.writeAndFlush(msgBody);
+
+            MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
+            builder.setId("123");
+
+            for (int i = 0; i < 10; i++) {
+                aioChannel.writeAndFlush(builder.build().toByteArray());
+                System.out.printf(""+i);
             }
-
-            long lt = System.currentTimeMillis();
-            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-            System.out.printf("发送消息数量：" + i + "条\r\n");
 
 
         } catch (Exception e) {

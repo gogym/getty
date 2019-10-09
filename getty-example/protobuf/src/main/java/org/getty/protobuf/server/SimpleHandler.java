@@ -1,11 +1,12 @@
-package org.getty.string.socket;
+package org.getty.protobuf.server;
 
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.pipeline.PipelineDirection;
 import org.getty.core.pipeline.in.SimpleChannelInboundHandler;
+import org.getty.protobuf.packet.MessageClass;
 
-public class SimpleHandler extends SimpleChannelInboundHandler<String> {
+public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Message> {
     @Override
     public void channelAdded(AioChannel aioChannel) {
         System.out.println("连接过来了");
@@ -18,8 +19,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
 
     @Override
-    public void channelRead0(AioChannel aioChannel, String str) {
-        System.out.println("读取消息:" + str);
+    public void channelRead0(AioChannel aioChannel, MessageClass.Message str) {
+        System.out.println("读取消息:" + str.getId());
 
 //        try {
 //            byte[]  msgBody = (str + "\r\n").getBytes("utf-8");

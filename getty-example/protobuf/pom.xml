@@ -9,8 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>string</artifactId>
-
+    <artifactId>protobuf</artifactId>
 
     <dependencies>
 
@@ -77,7 +76,18 @@
             <groupId>org.getty</groupId>
             <artifactId>getty-core</artifactId>
         </dependency>
-        
+
+
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.8.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>3.8.0</version>
+        </dependency>
 
     </dependencies>
 

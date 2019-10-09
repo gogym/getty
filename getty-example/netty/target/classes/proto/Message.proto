@@ -1,0 +1,23 @@
+syntax = "proto3"; //指定版本，必须要写（proto3、proto2）
+import "google/protobuf/any.proto";
+
+//生成类的类名  
+option java_outer_classname = "MessageClass";
+ 
+message Message{
+
+string identify=1;// 协议标志
+ 
+string version=2;// 协议版本
+ 
+int32 reqType=4;// 请求类型
+ 
+int64 msgTime=6;//消息时间
+
+string id=7;//消息唯一ID
+
+string serverIdentify=9;//服务器标志
+
+google.protobuf.Any body=8;
+
+}

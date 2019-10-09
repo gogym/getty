@@ -7,6 +7,7 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import org.getty.test.packet.MessageClass;
 import org.getty.test.server.GimServerInitializer;
 
 public class NettyClient {
@@ -29,7 +30,7 @@ public class NettyClient {
                         .option(EpollChannelOption.SO_REUSEPORT, true)//SO_REUSEPORT支持多个进程或者线程绑定到同一端口，提高服务器程序的性能
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000).handler(new GimClientInitializer());//连接超时时间
 
-                future = bootstrap.connect("127.0.0.1", 8333);
+                future = bootstrap.connect("127.0.0.1", 3333);
 
                 // 添加future监听
                 future.addListener(new ChannelFutureListener() {
@@ -40,15 +41,24 @@ public class NettyClient {
                         } else {
                             System.out.println("连接成功");
                             Channel c = f.channel();
-                            String s = "me\r\n";
-                            byte[] msgBody = s.getBytes("utf-8");
-                            long ct = System.currentTimeMillis();
-                            for (int i = 0; i < 1000000; i++) {
-                                c.writeAndFlush(msgBody);
+
+                            MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
+                            builder.setId("123");
+
+                            for (int i = 0; i < 100; i++) {
+                                c.writeAndFlush(builder.build());
                             }
 
-                            long lt = System.currentTimeMillis();
-                            System.out.println("耗时：" + (lt - ct));
+
+//                            String s = "me\r\n";
+//                            byte[] msgBody = s.getBytes("utf-8");
+//                            long ct = System.currentTimeMillis();
+//                            for (int i = 0; i < 1000000; i++) {
+//                                c.writeAndFlush(msgBody);
+//                            }
+//
+//                            long lt = System.currentTimeMillis();
+//                            System.out.println("耗时：" + (lt - ct));
 
 
                         }

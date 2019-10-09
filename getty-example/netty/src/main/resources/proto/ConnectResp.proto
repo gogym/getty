@@ -1,0 +1,15 @@
+syntax = "proto3"; //指定版本，必须要写（proto3、proto2）
+//生成类的类名  
+option java_outer_classname = "ConnectRespClass";
+ 
+//message是固定的。UserInfo是类名，可以随意指定，符合规范即可
+message ConnectResp{
+ 
+//参数类型 参数名称=字段编码值
+string senderId=1;// 发送人ID
+
+int32 result=2;//业务结果
+
+string msg=3;//结果描述信息
+
+}
