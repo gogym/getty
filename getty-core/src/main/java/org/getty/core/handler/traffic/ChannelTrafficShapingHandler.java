@@ -33,9 +33,9 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
     long intervalTotalReadTmp = 0;
     long intervalTotalWriteTmp = 0;
 
-
-    private long totalReadNum;
-    private long totolWriteNum;
+    //读写次数
+    private long totalReadCount;
+    private long totolWriteCount;
 
     //线程池
     ThreadPool pool;
@@ -48,7 +48,6 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
             intervalTotalReadTmp = 0;
             intervalTotalWrite = intervalTotalWriteTmp;
             intervalTotalWriteTmp = 0;
-            System.out.println(":" + totalReadNum);
         }, 0, checkInterval, TimeUnit.MILLISECONDS);
     }
 
@@ -59,12 +58,12 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
             case CHANNEL_READ:
                 totalRead += bytes.length;
                 intervalTotalReadTmp += bytes.length;
-                totalReadNum++;
+                totalReadCount++;
                 break;
             case CHANNEL_WRITE:
                 totalWrite += bytes.length;
                 intervalTotalWriteTmp += bytes.length;
-                totolWriteNum++;
+                totolWriteCount++;
                 break;
             case CHANNEL_CLOSED:
                 pool.shutdown();
@@ -91,4 +90,14 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
     public long getIntervalTotalWrite() {
         return intervalTotalWrite;
     }
+
+    public long getTotalReadCount() {
+        return totalReadCount;
+    }
+
+    public long getTotolWriteCount() {
+        return totolWriteCount;
+    }
+
+
 }

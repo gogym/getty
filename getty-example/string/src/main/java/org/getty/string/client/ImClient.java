@@ -5,12 +5,14 @@ import org.getty.core.channel.client.AioClientStarter;
 import org.getty.core.handler.codec.string.DelimiterFrameDecoder;
 import org.getty.core.handler.codec.string.StringDecoder;
 import org.getty.core.handler.codec.string.StringEncoder;
+import org.getty.core.handler.ssl.ClientAuth;
 import org.getty.core.handler.ssl.SslConfig;
 import org.getty.core.handler.ssl.SslHandler;
 import org.getty.core.handler.ssl.SslService;
 import org.getty.core.pipeline.ChannelInitializer;
 import org.getty.core.pipeline.DefaultChannelPipeline;
 import org.getty.core.util.ThreadPool;
+import org.springframework.util.ResourceUtils;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -23,7 +25,7 @@ public class ImClient {
         ThreadPool threadPool = new ThreadPool(ThreadPool.FixedThread, 10);
 
         int i = 0;
-        while (i < 5) {
+        while (i < 1) {
 
             test(5555);
             i++;
@@ -39,6 +41,14 @@ public class ImClient {
             public void initChannel(AioChannel channel) throws Exception {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+
+
+                SslConfig sSLConfig = new SslConfig();
+                sSLConfig.setClientMode(true);
+                SslService sSLService = new SslService(sSLConfig);
+                //defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
+
+
                 //字符串编码器
                 defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
@@ -57,14 +67,14 @@ public class ImClient {
         }
 
         try {
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             AioChannel aioChannel = client.getAioChannel();
             String s = "me\r\n";
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 1000000; i++) {
+            for (; i < 5; i++) {
                 aioChannel.writeAndFlush(msgBody);
             }
 

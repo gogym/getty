@@ -47,7 +47,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
                 exceptIndex = 0;
             } else if (++exceptIndex == endFLag.length) {
                 //传递到下一个解码器
-                super.decode(aioChannel, bytes);
+                super.decode(aioChannel, preBuffer.readAllWriteBytesArray());
                 preBuffer.clear();
                 exceptIndex = 0;
             }

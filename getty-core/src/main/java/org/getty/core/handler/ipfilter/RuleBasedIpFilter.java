@@ -25,27 +25,29 @@ import java.util.List;
 public class RuleBasedIpFilter implements IpFilterRule {
     private static final Logger logger = LoggerFactory.getLogger(RuleBasedIpFilter.class);
 
-    List<IpRange> blackIps;
+    List<IpRange> ips;
+    IpFilterRuleType ipFilterRuleType;
 
-    public RuleBasedIpFilter(List<IpRange> blackIps) {
-        if (blackIps == null) {
+    public RuleBasedIpFilter(List<IpRange> ips, IpFilterRuleType ipFilterRuleType) {
+        if (ips == null) {
             logger.warn("blackIps was null");
         }
-        this.blackIps = blackIps;
+        this.ips = ips;
+        this.ipFilterRuleType = ipFilterRuleType;
     }
 
 
     @Override
     public boolean matches(InetSocketAddress remoteAddress) {
 
-        if (blackIps == null) {
+        if (ips == null) {
             return true;
         }
         // ip转成long类型
         String ip = remoteAddress.getHostString();
         long ipLong = NetWorkUtil.ipToLong(ip);
 
-        for (IpRange ipRange : blackIps) {
+        for (IpRange ipRange : ips) {
             long ipStart = NetWorkUtil.ipToLong(ipRange.getIpStart());
             long ipEnd = NetWorkUtil.ipToLong(ipRange.getIpEnd());
             // 比较ip区间
@@ -53,15 +55,13 @@ public class RuleBasedIpFilter implements IpFilterRule {
                 return true;
             }
         }
-
         return false;
-
     }
 
     @Override
     public IpFilterRuleType ruleType() {
         // 返回拒绝则表示拒绝连接，返回接受则表示可以连接
-        return IpFilterRuleType.REJECT;
+        return ipFilterRuleType;
     }
 
 }

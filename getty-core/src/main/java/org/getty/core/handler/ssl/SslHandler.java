@@ -61,7 +61,8 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
                 aioChannel.writeToChannel(b);
                 byteBuffer = null;
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(), e);
+                sslService.getSsl().close();
             }
         } else if (bytes != null) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
@@ -78,7 +79,7 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
                     sslService.getSsl().encrypt(byteBuffer);
                 }
             } catch (SSLException e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(), e);
             }
             //super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
         }
@@ -125,7 +126,7 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
                 aioChannel.writeToChannel(b);
                 wrappedBytes = null;
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(),e);
             }
         }
 

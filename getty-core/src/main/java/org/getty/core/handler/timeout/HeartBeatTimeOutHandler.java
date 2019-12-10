@@ -33,7 +33,6 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
             if (loss_connect_time > 2) {
                 // 超过3次检测没有心跳就关闭这个连接
                 try {
-                    System.out.println("[关闭不活跃的channel:" + aioChannel.getRemoteAddress().getHostString() + "]");
                     logger.info("[closed inactive channel:" + aioChannel.getRemoteAddress().getHostString() + "]");
                 } catch (IOException e) {
                     e.printStackTrace();

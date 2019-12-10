@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * 时间：2019/9/27
  */
 public final class BufferWriter extends OutputStream {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BufferWriter.class);
+    private static final Logger logger = LoggerFactory.getLogger(BufferWriter.class);
     //缓冲页
     private final Chunk chunk;
     //当前缓冲区，写出完塞到items
@@ -74,13 +74,17 @@ public final class BufferWriter extends OutputStream {
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
         if (closed) {
-            throw new IOException("OutputStream has closed");
+            IOException ioException = new IOException("OutputStream has closed");
+            logger.error(ioException.getMessage(), ioException);
+            throw ioException;
         }
         if (len == 0 || b.length == 0) {
             return;
         }
         if (off < 0 || off > b.length) {
-            throw new IndexOutOfBoundsException();
+            RuntimeException runtimeException = new IndexOutOfBoundsException();
+            logger.error(runtimeException.getMessage(), runtimeException);
+            throw runtimeException;
         }
 
         //上锁

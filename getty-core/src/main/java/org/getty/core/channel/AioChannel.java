@@ -154,7 +154,7 @@ public class AioChannel {
      */
     private synchronized void close(boolean immediate) {
         if (status == CHANNEL_STATUS_CLOSED) {
-            logger.warn("ignore, Channel:{} is closed:", getChannelId());
+            logger.warn("Channel:{} is closed:", getChannelId());
             return;
         }
 
@@ -269,7 +269,8 @@ public class AioChannel {
 
             if (eof) {
                 RuntimeException exception = new RuntimeException("socket channel is shutdown");
-                invokePipeline(ChannelState.INPUT_SHUTDOWN, exception);
+                logger.error(exception.getMessage(), exception);
+                invokePipeline(ChannelState.INPUT_SHUTDOWN);
                 close();
                 return;
             }
@@ -419,31 +420,18 @@ public class AioChannel {
 
     //------------------------------------------------------------------------------
 
+
     /**
      * 正向执行管道处理
      */
     private void invokePipeline(ChannelState channelStateEnum) {
-        invokePipeline(channelStateEnum, null, null);
+        invokePipeline(channelStateEnum, null);
     }
 
     /**
      * 正向执行管道处理
      */
     private void invokePipeline(ChannelState channelStateEnum, byte[] bytes) {
-        invokePipeline(channelStateEnum, bytes, null);
-    }
-
-    /**
-     * 正向执行管道处理
-     */
-    private void invokePipeline(ChannelState channelStateEnum, Throwable cause) {
-        invokePipeline(channelStateEnum, null, cause);
-    }
-
-    /**
-     * 正向执行管道处理
-     */
-    private void invokePipeline(ChannelState channelStateEnum, byte[] bytes, Throwable cause) {
 
         Iterator<ChannelHandlerAdapter> iterator = defaultChannelPipeline.getIterator();
         while (iterator.hasNext()) {
@@ -457,19 +445,11 @@ public class AioChannel {
 
 
     /**
-     * 反向执行管道处理
-     */
-    private void reverseInvokePipeline(ChannelState channelStateEnum, byte[] bytes) {
-        reverseInvokePipeline(channelStateEnum, bytes, null);
-    }
-
-    /**
      * 反向执行管道
      *
      * @param channelStateEnum
-     * @param cause
      */
-    private void reverseInvokePipeline(ChannelState channelStateEnum, byte[] bytes, Throwable cause) {
+    private void reverseInvokePipeline(ChannelState channelStateEnum, byte[] bytes) {
 
         Iterator<ChannelHandlerAdapter> iterator = defaultChannelPipeline.getReverseIterator();
         while (iterator.hasNext()) {
