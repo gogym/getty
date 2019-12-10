@@ -21,7 +21,7 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
 
         switch (channelStateEnum) {
             case NEW_CHANNEL:
@@ -31,11 +31,12 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
                 channelClosed(aioChannel);
                 break;
             case DECODE_EXCEPTION:
-                exceptionCaught(aioChannel, cause, pipelineDirection);
+                Throwable throwable = new Throwable("decode exception");
+                exceptionCaught(aioChannel, throwable, pipelineDirection);
             default:
                 break;
         }
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 
 

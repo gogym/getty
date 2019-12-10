@@ -46,12 +46,12 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         switch (channelStateEnum) {
             case CHANNEL_READ:
                 loss_connect_time = 0;
                 break;
         }
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 }

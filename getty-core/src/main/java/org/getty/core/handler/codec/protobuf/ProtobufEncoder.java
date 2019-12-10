@@ -8,8 +8,8 @@ package org.getty.core.handler.codec.protobuf;/*
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
+import org.getty.core.handler.codec.MessageToByteEncoder;
 import org.getty.core.pipeline.PipelineDirection;
-import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
 
 /**
  * 类名：ProtobufEncoder.java
@@ -17,14 +17,14 @@ import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
  * 修改人：gogym
  * 时间：2019/10/9
  */
-public class ProtobufEncoder extends ChannelOutboundHandlerAdapter {
+public class ProtobufEncoder extends MessageToByteEncoder {
     @Override
     public void encode(AioChannel aioChannel, byte[] bytes) {
 
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 }

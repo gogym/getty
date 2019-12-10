@@ -5,11 +5,13 @@
  * 邮箱：189155278@qq.com
  * 时间：2019/9/27
  */
-package org.getty.core.pipeline;
+package org.getty.core.pipeline.all;
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
 import org.getty.core.handler.timeout.IdleState;
+import org.getty.core.pipeline.ChannelHandlerAdapter;
+import org.getty.core.pipeline.PipelineDirection;
 import org.getty.core.pipeline.in.ChannelInboundHandlerAdapter;
 import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
 
@@ -22,7 +24,7 @@ import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
 public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdapter {
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //需要先判断数据流向
         ChannelHandlerAdapter channelHandlerAdapter = this;
         if (pipelineDirection == PipelineDirection.IN) {
@@ -42,7 +44,7 @@ public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdap
         }
 
         if (channelHandlerAdapter != null) {
-            channelHandlerAdapter.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+            channelHandlerAdapter.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
         } else {
             //当输出责任链已经走完，如果方向是out.则需要写到通道里
             if (pipelineDirection == PipelineDirection.OUT) {

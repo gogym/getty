@@ -9,6 +9,7 @@ package org.getty.core.handler.codec.string;
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
+import org.getty.core.handler.codec.MessageToByteEncoder;
 import org.getty.core.pipeline.PipelineDirection;
 import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
 
@@ -18,7 +19,7 @@ import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class StringEncoder extends ChannelOutboundHandlerAdapter {
+public class StringEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, byte[] bytes) {
@@ -27,9 +28,9 @@ public class StringEncoder extends ChannelOutboundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-        encode(aioChannel, bytes);
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        //encode(aioChannel, bytes);
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 
 

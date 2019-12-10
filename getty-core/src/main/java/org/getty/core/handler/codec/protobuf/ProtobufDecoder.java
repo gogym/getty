@@ -12,6 +12,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import org.getty.core.buffer.AutoByteBuffer;
 import org.getty.core.channel.AioChannel;
+import org.getty.core.handler.codec.ByteToMessageDecoder;
 import org.getty.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 
@@ -21,7 +22,7 @@ import org.getty.core.pipeline.in.ChannelInboundHandlerAdapter;
  * 修改人：gogym
  * 时间：2019/10/9
  */
-public class ProtobufDecoder extends ChannelInboundHandlerAdapter {
+public class ProtobufDecoder extends ByteToMessageDecoder {
 
 
     private static final boolean HAS_PARSER;

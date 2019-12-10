@@ -9,8 +9,8 @@ package org.getty.core.handler.codec.protobuf;/*
 import org.getty.core.buffer.AutoByteBuffer;
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
+import org.getty.core.handler.codec.MessageToByteEncoder;
 import org.getty.core.pipeline.PipelineDirection;
-import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
 
 /**
  * 类名：ProtobufVarint32LengthFieldPrepender.java
@@ -18,7 +18,7 @@ import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
  * 修改人：gogym
  * 时间：2019/10/9
  */
-public class ProtobufVarint32LengthFieldPrepender extends ChannelOutboundHandlerAdapter {
+public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, byte[] bytes) {
@@ -27,7 +27,7 @@ public class ProtobufVarint32LengthFieldPrepender extends ChannelOutboundHandler
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes,  AioChannel aioChannel, PipelineDirection pipelineDirection) {
         int bodyLen = bytes.length;
         int headerLen = computeRawVarint32Size(bodyLen);
         byte[] b = new byte[headerLen + bodyLen];
@@ -40,7 +40,7 @@ public class ProtobufVarint32LengthFieldPrepender extends ChannelOutboundHandler
         } catch (AutoByteBuffer.ByteBufferException e) {
             e.printStackTrace();
         }
-        super.handler(channelStateEnum, b, cause, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, b, aioChannel, pipelineDirection);
     }
 
     /**

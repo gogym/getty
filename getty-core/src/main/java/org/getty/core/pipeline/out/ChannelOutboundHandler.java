@@ -7,6 +7,7 @@
  */
 package org.getty.core.pipeline.out;
 
+import org.getty.core.channel.AioChannel;
 import org.getty.core.pipeline.ChannelboundHandler;
 
 /**
@@ -16,4 +17,13 @@ import org.getty.core.pipeline.ChannelboundHandler;
  * 时间：2019/9/27
  */
 public interface ChannelOutboundHandler extends ChannelboundHandler {
+
+    /**
+     * 消息编码
+     *
+     * @return void
+     * @params [aioChannel, bytes]
+     */
+    void encode(AioChannel aioChannel, byte[] bytes);
+
 }

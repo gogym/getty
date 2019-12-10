@@ -12,7 +12,7 @@ import org.getty.core.channel.ChannelState;
 import org.getty.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import org.getty.core.handler.ssl.sslfacade.ISSLListener;
 import org.getty.core.handler.ssl.sslfacade.ISessionClosedListener;
-import org.getty.core.pipeline.ChannelInOutBoundHandlerAdapter;
+import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import org.getty.core.pipeline.PipelineDirection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +35,6 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     private ChannelState channelStateEnum;
-    private Throwable cause;
 
     public SslHandler(AioChannel aioChannel) {
         this.aioChannel = aioChannel;
@@ -45,10 +44,9 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
 
         this.channelStateEnum = channelStateEnum;
-        this.cause = cause;
 
         if (!sslService.getSsl().isHandshakeCompleted() && bytes != null) {
             //握手
@@ -85,7 +83,6 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
             //super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
         }
     }
-
 
 
     /**
@@ -137,7 +134,7 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
             //消息解码
             byte[] b = new byte[plainBytes.remaining()];
             plainBytes.get(b, 0, b.length);
-            SslHandler.super.handler(channelStateEnum, b, cause, aioChannel, PipelineDirection.IN);
+            SslHandler.super.handler(channelStateEnum, b, aioChannel, PipelineDirection.IN);
         }
     }
 

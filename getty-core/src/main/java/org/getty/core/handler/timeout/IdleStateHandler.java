@@ -9,7 +9,7 @@ package org.getty.core.handler.timeout;
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
-import org.getty.core.pipeline.ChannelInOutBoundHandlerAdapter;
+import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import org.getty.core.pipeline.PipelineDirection;
 import org.getty.core.util.ThreadPool;
 import org.slf4j.Logger;
@@ -62,7 +62,7 @@ public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         switch (channelStateEnum) {
             case CHANNEL_READ:
                 readerIdle = false;
@@ -76,7 +76,7 @@ public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
             default:
                 break;
         }
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 
 

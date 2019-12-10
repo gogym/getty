@@ -11,7 +11,7 @@ import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
 import org.getty.core.handler.timeout.IdleState;
 import org.getty.core.pipeline.ChannelHandlerAdapter;
-import org.getty.core.pipeline.ChannelInOutBoundHandlerAdapter;
+import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import org.getty.core.pipeline.PipelineDirection;
 
 /**
@@ -27,17 +27,17 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
     public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
         if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            channelHandlerAdapter.exceptionCaught(aioChannel, cause,pipelineDirection);
+            channelHandlerAdapter.exceptionCaught(aioChannel, cause, pipelineDirection);
         }
     }
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //把任务传递给下一个处理器
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
         if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
-            channelHandlerAdapter.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+            channelHandlerAdapter.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
         } else {
             //没有下一个处理器，表示责任链已经走完，写出
             aioChannel.writeToChannel(bytes);
@@ -52,12 +52,5 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
         }
     }
 
-    /**
-     * 消息编码
-     *
-     * @return void
-     * @params [aioChannel, bytes]
-     */
-    public abstract void encode(AioChannel aioChannel, byte[] bytes);
 
 }

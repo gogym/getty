@@ -9,7 +9,7 @@ package org.getty.core.handler.traffic;
 
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
-import org.getty.core.pipeline.ChannelInOutBoundHandlerAdapter;
+import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import org.getty.core.pipeline.PipelineDirection;
 import org.getty.core.util.ThreadPool;
 
@@ -54,7 +54,7 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         switch (channelStateEnum) {
             case CHANNEL_READ:
                 totalRead += bytes.length;
@@ -72,7 +72,7 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
             default:
                 break;
         }
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 
 

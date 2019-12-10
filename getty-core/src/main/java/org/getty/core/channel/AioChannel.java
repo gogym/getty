@@ -16,6 +16,7 @@ import org.getty.core.channel.internal.ReadCompletionHandler;
 import org.getty.core.channel.internal.WriteCompletionHandler;
 import org.getty.core.handler.ssl.SslService;
 import org.getty.core.pipeline.*;
+import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import org.getty.core.pipeline.in.ChannelInboundHandlerAdapter;
 import org.getty.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import org.slf4j.Logger;
@@ -448,12 +449,10 @@ public class AioChannel {
         while (iterator.hasNext()) {
             ChannelHandlerAdapter channelHandlerAdapter = iterator.next();
             if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
-                channelHandlerAdapter.handler(channelStateEnum, bytes, cause, this, PipelineDirection.IN);
+                channelHandlerAdapter.handler(channelStateEnum, bytes, this, PipelineDirection.IN);
                 return;
             }
         }
-        //没有对应的处理器，置空
-        bytes = null;
     }
 
 
@@ -476,11 +475,11 @@ public class AioChannel {
         while (iterator.hasNext()) {
             ChannelHandlerAdapter channelHandlerAdapter = iterator.next();
             if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
-                channelHandlerAdapter.handler(channelStateEnum, bytes, cause, this, PipelineDirection.OUT);
+                channelHandlerAdapter.handler(channelStateEnum, bytes, this, PipelineDirection.OUT);
                 return;
             }
         }
-        //如果没有对应的处理器，直接输出
+        //如果没有对应的处理器，直接输出到wirter
         writeAndFlush0(bytes);
     }
 

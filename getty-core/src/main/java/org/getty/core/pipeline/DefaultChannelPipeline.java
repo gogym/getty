@@ -27,41 +27,25 @@ public class DefaultChannelPipeline {
     }
 
 
+    //正向获取责任链
     public Iterator<ChannelHandlerAdapter> getIterator() {
         return pipeList.iterator();
     }
 
+    //反向获取责任链
     public Iterator<ChannelHandlerAdapter> getReverseIterator() {
         LinkedList<ChannelHandlerAdapter> newList = reverseLinkedList(pipeList);
         return newList.iterator();
     }
 
 
+    //翻转集合
     private LinkedList<ChannelHandlerAdapter> reverseLinkedList(LinkedList<ChannelHandlerAdapter> list) {
         LinkedList<ChannelHandlerAdapter> newLinkedList = new LinkedList<>();
         for (ChannelHandlerAdapter object : list) {
             newLinkedList.add(0, object);
         }
         return newLinkedList;
-    }
-
-
-    /**
-     * 该方法会把原集合翻转
-     *
-     * @param list
-     * @return
-     */
-    private LinkedList<ChannelHandlerAdapter> reverseList(LinkedList<ChannelHandlerAdapter> list) {
-        if (list == null) {
-            throw new NullPointerException("无法翻转空列");
-        }
-        if (list.size() == 1) {
-            return list;
-        }
-        ChannelHandlerAdapter i = list.removeFirst();
-        reverseList(list).add(i);
-        return list;
     }
 
     /**
@@ -77,7 +61,7 @@ public class DefaultChannelPipeline {
     }
 
     /**
-     * 反向获取第一个处理器
+     * 获取最后一个处理器
      *
      * @return
      */
@@ -121,7 +105,7 @@ public class DefaultChannelPipeline {
     }
 
     /**
-     * 添加到后面
+     * 添加到最后一位
      *
      * @return void
      * @params [channelHandlerAdapter]
@@ -141,6 +125,12 @@ public class DefaultChannelPipeline {
     }
 
 
+    /**
+     * 清理责任链
+     *
+     * @return void
+     * @params []
+     */
     public void clean() {
         pipeList.clear();
     }

@@ -27,10 +27,10 @@ public class DefaultFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes,  AioChannel aioChannel, PipelineDirection pipelineDirection) {
         if (null != bytes) {
             decode(aioChannel, bytes);
         }
-        super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
     }
 }

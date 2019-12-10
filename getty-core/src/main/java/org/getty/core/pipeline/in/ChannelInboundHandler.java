@@ -1,6 +1,6 @@
 /**
  * 包名：org.getty.core.pipeline.in
- * 版权：Copyright by www.getty.com 
+ * 版权：Copyright by www.getty.com
  * 描述：
  * 邮箱：189155278@qq.com
  * 时间：2019/9/27
@@ -19,12 +19,36 @@ import org.getty.core.pipeline.ChannelboundHandler;
  */
 public interface ChannelInboundHandler extends ChannelboundHandler {
 
+    /**
+     * 连接
+     *
+     * @return void
+     * @params [aioChannel]
+     */
     void channelAdded(AioChannel aioChannel);
 
+    /**
+     * 连接关闭
+     *
+     * @return void
+     * @params [aioChannel]
+     */
     void channelClosed(AioChannel aioChannel);
 
+    /**
+     * 消息读取
+     *
+     * @return void
+     * @params [aioChannel, obj]
+     */
     void channelRead(AioChannel aioChannel, Object obj);
 
+    /**
+     * 消息解码
+     *
+     * @return void
+     * @params [aioChannel, bytes]
+     */
     void decode(AioChannel aioChannel, byte[] bytes);
 
 }

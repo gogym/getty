@@ -25,7 +25,7 @@ public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
 
         if (channelStateEnum == ChannelState.CHANNEL_READ) {
             AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer(bytes.length);
@@ -55,7 +55,7 @@ public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
                 throw new RuntimeException("protobuf decode error", e);
             }
         } else {
-            super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+            super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
         }
     }
 

@@ -11,7 +11,7 @@ import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.ChannelState;
 import org.getty.core.handler.timeout.IdleState;
 import org.getty.core.pipeline.ChannelHandlerAdapter;
-import org.getty.core.pipeline.ChannelInOutBoundHandlerAdapter;
+import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import org.getty.core.pipeline.PipelineDirection;
 
 /**
@@ -24,58 +24,102 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
 
     @Override
     public void channelAdded(AioChannel aioChannel) {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                break;
+            }
+        }
+        if (channelHandlerAdapter != null) {
             ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelAdded(aioChannel);
         }
+
     }
 
     @Override
     public void channelClosed(AioChannel aioChannel) {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                break;
+            }
+        }
+        if (channelHandlerAdapter != null) {
             ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelClosed(aioChannel);
         }
     }
 
     @Override
     public void channelRead(AioChannel aioChannel, Object obj) {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                break;
+            }
+        }
+        if (channelHandlerAdapter != null) {
             ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelRead(aioChannel, obj);
         }
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause,PipelineDirection pipelineDirection) {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-            channelHandlerAdapter.exceptionCaught(aioChannel, cause,pipelineDirection);
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
+                break;
+            }
+        }
+        if (channelHandlerAdapter != null) {
+            channelHandlerAdapter.exceptionCaught(aioChannel, cause, pipelineDirection);
         }
     }
 
     @Override
     public void decode(AioChannel aioChannel, byte[] bytes) {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                break;
+            }
+        }
+        if (channelHandlerAdapter != null) {
             ((ChannelInboundHandlerAdapter) channelHandlerAdapter).decode(aioChannel, bytes);
         }
     }
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //把任务传递给下一个处理器
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
-            channelHandlerAdapter.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
+                break;
+            }
         }
+        if (channelHandlerAdapter != null) {
+            channelHandlerAdapter.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+        }
+
     }
 
     @Override
     public void userEventTriggered(AioChannel aioChannel, IdleState evt) {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(this);
-        if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
+        ChannelHandlerAdapter channelHandlerAdapter = this;
+        while (true) {
+            channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
+            if (channelHandlerAdapter == null || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
+                break;
+            }
+        }
+        if (channelHandlerAdapter != null) {
             channelHandlerAdapter.userEventTriggered(aioChannel, evt);
         }
     }
