@@ -50,8 +50,8 @@ public final class BufferWriter extends OutputStream {
     //当前是否已关闭
     private boolean closed = false;
 
-    public BufferWriter(Chunk bufferPage, Function<BufferWriter, Void> flushFunction, int writeQueueSize) {
-        this.chunk = bufferPage;
+    public BufferWriter(Chunk chunk, Function<BufferWriter, Void> flushFunction, int writeQueueSize) {
+        this.chunk = chunk;
         this.function = flushFunction;
         this.items = new ChunkPage[writeQueueSize];
     }
@@ -63,7 +63,12 @@ public final class BufferWriter extends OutputStream {
     @Deprecated
     @Override
     public void write(int b) throws IOException {
-        throw new IOException("don't use this method");
+        byte[] bytes = new byte[4];
+        bytes[0] = (byte) (b & 0xFF);
+        bytes[1] = (byte) ((b >> 8) & 0xFF);
+        bytes[2] = (byte) ((b >> 16) & 0xFF);
+        bytes[3] = (byte) ((b >> 24) & 0xFF);
+        write(bytes, 0, bytes.length);
     }
 
     @Override
@@ -91,9 +96,9 @@ public final class BufferWriter extends OutputStream {
 
                 ByteBuffer writeBuffer = chunkPage.buffer();
                 int minSize = writeBuffer.remaining();
-                if (minSize == 0 || closed) {
+                if (minSize == 0) {
                     chunkPage.clean();
-                    throw new IOException("writeBuffer.remaining:" + writeBuffer.remaining() + " closed:" + closed);
+                    throw new IOException("writeBuffer.remaining:" + writeBuffer.remaining());
                 }
                 //写入数据
                 writeBuffer.put(b, off, minSize);

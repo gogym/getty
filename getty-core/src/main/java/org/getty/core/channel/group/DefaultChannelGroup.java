@@ -139,19 +139,13 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "(name: " + name()
-                + ", size: " + size() + ')';
+        return this.getClass().getSimpleName() + "(name: " + name() + ", size: " + size() + ')';
     }
 
 
     /**
      * 移除监听
      */
-    private final ChannelFutureListener remover = new ChannelFutureListener() {
-        @Override
-        public void operationComplete(AioChannel aioChannel) {
-            remove(aioChannel);
-        }
-    };
+    private final ChannelFutureListener remover = aioChannel -> remove(aioChannel);
 
 }

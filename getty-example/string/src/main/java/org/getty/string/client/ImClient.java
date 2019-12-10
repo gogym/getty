@@ -23,13 +23,9 @@ public class ImClient {
         ThreadPool threadPool = new ThreadPool(ThreadPool.FixedThread, 10);
 
         int i = 0;
-        while (i < 1) {
-            threadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    test(5555);
-                }
-            });
+        while (i < 5) {
+
+            test(5555);
             i++;
         }
     }

@@ -40,10 +40,13 @@ public class AioConfig {
     private final int flowControlSize = 20;
     //释放流控阈值
     private final int releaseFlowControlSize = 10;
+
     //消息体缓存大小，默认512
     private int readBufferSize = 512;
-    //输出器缓存块数量大小，既数组长度，经多次测试同一连接发送一百万条消息，该值为最佳
+
+    //输出器缓存数组大小，既数组长度，经多次测试同一连接发送一百万条消息，该值为最佳
     private int writeQueueCapacity = 1024 * 1024;
+
     //服务器IP
     private String host;
     //服务器端口号
@@ -52,6 +55,8 @@ public class AioConfig {
     private Map<SocketOption<Object>, Object> socketOptions;
     //是否开启零拷贝
     private final Boolean isDirect = true;
+
+    //------------------------------------------------------------------------------------------------
 
     public final String getHost() {
         return host;
@@ -102,8 +107,7 @@ public class AioConfig {
 
     @Override
     public String toString() {
-        return "AioConfig{" +
-                ", readBufferSize=" + readBufferSize +
+        return "AioConfig{readBufferSize=" + readBufferSize +
                 ", host='" + host == null ? "localhost" : host + '\'' +
                 ", port=" + port +
                 ", socketOptions=" + socketOptions +

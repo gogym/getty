@@ -11,7 +11,5 @@ package org.getty.core.pipeline;
 import org.getty.core.channel.AioChannel;
 
 public abstract class ChannelInitializer implements ChannelPipeline {
-
     public abstract void initChannel(AioChannel aioChannel) throws Exception;
-
 }

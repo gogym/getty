@@ -38,7 +38,7 @@ public class AioServerStarter {
     //Server端服务配置
     protected AioServerConfig config = new AioServerConfig();
     //内存池
-    protected ChunkPool bufferPool;
+    protected ChunkPool chunkPool;
     //读回调事件处理
     protected ReadCompletionHandler aioReadCompletionHandler;
     //写回调事件处理
@@ -47,7 +47,7 @@ public class AioServerStarter {
     protected ChannelPipeline channelInitializer;
     //线程池
     private ThreadPool workerThreadPool;
-    //客户端创建回调函数
+    //为客户端创建回调函数
     private Function<AsynchronousSocketChannel, AioChannel> aioChannelFunction;
     //io服务端
     private AsynchronousServerSocketChannel serverSocketChannel = null;
@@ -63,6 +63,8 @@ public class AioServerStarter {
     private int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
 
     /**
+     * 简单启动
+     *
      * @param port 服务端口
      */
     public AioServerStarter(int port) {
@@ -70,14 +72,19 @@ public class AioServerStarter {
     }
 
     /**
+     * 指定host启动
+     *
      * @param host 服务地址
      * @param port 服务端口
      */
     public AioServerStarter(String host, int port) {
         config.setHost(host);
+        config.setPort(port);
     }
 
     /**
+     * 指定配置启动
+     *
      * @param config
      * @return
      */
@@ -123,11 +130,15 @@ public class AioServerStarter {
     public void start() throws Exception {
         //打印框架信息
         LOGGER.info("\r\n" + AioServerConfig.BANNER + "\r\n  getty version:(" + AioServerConfig.VERSION + ")");
-        start0(channel -> new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, bufferPool.allocateBufferPage(), channelInitializer));
+
+        if (channelInitializer == null) {
+            throw new RuntimeException("ChannelPipeline can't be null");
+        }
+        start0(channel -> new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool.allocateChunk(), channelInitializer));
     }
 
     /**
-     * 启动
+     * 内部启动
      *
      * @throws IOException
      */
@@ -142,7 +153,9 @@ public class AioServerStarter {
             aioWriteCompletionHandler = new WriteCompletionHandler();
 
             //实例化内存池
-            this.bufferPool = new ChunkPool(config.getServerPageSize(), bossThreadNum + workerThreadNum, config.isDirect());
+            this.chunkPool = new ChunkPool(config.getServerChunkSize(), bossThreadNum + workerThreadNum, config.isDirect());
+
+            //函数式方法
             this.aioChannelFunction = aioChannelFunction;
 
             //IO线程分组
@@ -180,13 +193,7 @@ public class AioServerStarter {
                         //通过线程池创建客户端连接通道
                         workerThreadPool.execute(() -> {
                             //开始创建客户端会话
-                            if (channelInitializer != null) {
-                                createChannel(channel);
-                            } else {
-                                LOGGER.error("ChannelPipeline can't be null");
-                                //关闭通道
-                                closeChannel(channel);
-                            }
+                            createChannel(channel);
                         });
                     } catch (Exception e) {
                         LOGGER.error("AsynchronousSocketChannel accept Exception", e);
@@ -229,10 +236,18 @@ public class AioServerStarter {
     private void closeChannel(AsynchronousSocketChannel channel) {
         try {
             channel.shutdownInput();
-            channel.shutdownOutput();
-            channel.close();
         } catch (IOException e) {
             LOGGER.debug(e.getMessage(), e);
+        }
+        try {
+            channel.shutdownOutput();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            channel.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -255,13 +270,15 @@ public class AioServerStarter {
             if (!asynchronousChannelGroup.isTerminated()) {
                 asynchronousChannelGroup.shutdownNow();
             }
-            //该方法必须在shutdown或shutdownNow后执行
+            //该方法必须在shutdown或shutdownNow后执行,才会生效。否则会造成死锁
+            //大概意思是这样的：该方法调用会被阻塞，并且在以下几种情况任意一种发生时都会导致该方法的执行:
+            // 即shutdown方法被调用之后，或者参数中定义的timeout时间到达或者当前线程被打断，这几种情况任意一个发生了都会导致该方法在所有任务完成之后才执行。
             asynchronousChannelGroup.awaitTermination(5, TimeUnit.SECONDS);
 
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
         } catch (InterruptedException e) {
-            LOGGER.error("shutdown exception", e);
+            LOGGER.error("server shutdown exception", e);
         }
     }
 

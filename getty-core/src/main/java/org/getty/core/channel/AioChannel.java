@@ -124,7 +124,7 @@ public class AioChannel {
             return null;
         }, aioConfig.getWriteQueueCapacity());
 
-        //触发回调
+        //触发责任链回调
         invokePipeline(ChannelState.NEW_CHANNEL);
     }
 
@@ -196,7 +196,9 @@ public class AioChannel {
         } catch (IOException e) {
             logger.debug("close channel exception", e);
         }
+        //更新状态
         status = CHANNEL_STATUS_CLOSED;
+        //触发责任链通知
         invokePipeline(ChannelState.CHANNEL_CLOSED);
 
         //最后需要清空责任链
@@ -224,6 +226,12 @@ public class AioChannel {
 
     //--------------------------------------------------------------------------
 
+    /**
+     * 读取socket通道内的数据
+     *
+     * @return void
+     * @params []
+     */
     protected void continueRead() {
         if (status == CHANNEL_STATUS_CLOSED) {
             return;
@@ -232,7 +240,7 @@ public class AioChannel {
     }
 
     /**
-     * 从通道中读取数据
+     * 从通道socket中读取数据
      *
      * @param buffer
      */
@@ -242,7 +250,7 @@ public class AioChannel {
 
 
     /**
-     * 触发通道的读回调操作
+     * socket通道的读回调操作
      */
     public void readFromChannel(boolean eof) {
 
@@ -259,21 +267,23 @@ public class AioChannel {
             }
 
             if (eof) {
-                RuntimeException exception = new RuntimeException("channel is shutdown");
-                invokePipeline(ChannelState.DECODE_EXCEPTION, exception);
+                RuntimeException exception = new RuntimeException("socket channel is shutdown");
+                invokePipeline(ChannelState.INPUT_SHUTDOWN, exception);
                 close();
                 return;
             }
+            //触发读取完成，处理后续操作
             readCompleted(readBuffer);
         }
     }
 
     /**
-     * 读取完成
+     * socket读取完成
      *
      * @param readBuffer
      */
     public void readCompleted(ByteBuffer readBuffer) {
+
         if (readBuffer == null) {
             return;
         }
@@ -288,13 +298,13 @@ public class AioChannel {
             readBuffer.position(readBuffer.limit());
             readBuffer.limit(readBuffer.capacity());
         }
-        //继续读取
+        //再次调用读取方法。循环监听socket通道数据的读取
         continueRead();
     }
 
 
     /**
-     * 消息读取到管道
+     * 消息读取到责任链管道
      *
      * @param bytes
      */
@@ -305,13 +315,23 @@ public class AioChannel {
 //-------------------------------------------------------------------------------------------------
 
     /**
-     * 写数据到管道
+     * 写数据到责任链管道
      *
      * @param bytes
      */
     public void writeAndFlush(byte[] bytes) {
         reverseInvokePipeline(ChannelState.CHANNEL_WRITE, bytes);
     }
+
+    /**
+     * 直接写到socket通道
+     *
+     * @param bytes
+     */
+    public void writeToChannel(byte[] bytes) {
+        writeAndFlush0(bytes);
+    }
+
 
     /**
      * 写数据到wirter
@@ -328,17 +348,7 @@ public class AioChannel {
 
 
     /**
-     * 直接写到wirter
-     *
-     * @param bytes
-     */
-    public void writeToChannel(byte[] bytes) {
-        writeAndFlush0(bytes);
-    }
-
-
-    /**
-     * 写到通道
+     * 写到socket通道
      */
     protected final void writeToChannel0(ByteBuffer buffer) {
         channel.write(buffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
@@ -370,9 +380,10 @@ public class AioChannel {
         if (writeChunkPage != null) {
             //再次写
             continueWrite(writeChunkPage);
+            //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
             return;
         }
-        //写完释放信息量
+        //完全写完释放信息量
         semaphore.release();
     }
 

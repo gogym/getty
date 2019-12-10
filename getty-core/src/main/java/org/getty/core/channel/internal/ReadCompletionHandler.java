@@ -28,9 +28,6 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, AioChan
     //控制线程的并发数量
     private Semaphore semaphore;
 
-    public ReadCompletionHandler() {
-    }
-
     public ReadCompletionHandler(ThreadPool executorService, Semaphore semaphore) {
         this.executorService = executorService;
         this.semaphore = semaphore;

@@ -30,7 +30,12 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
      */
     public abstract void handler(ChannelState channelStateEnum, byte[] bytes, Throwable cause, AioChannel aioChannel, PipelineDirection pipelineDirection);
 
-
+    /**
+     * 该方法类似一个心态起搏器，执行读或写操作会被触发
+     *
+     * @return void
+     * @params [aioChannel, evt]
+     */
     public abstract void userEventTriggered(AioChannel aioChannel, IdleState evt);
 
 }

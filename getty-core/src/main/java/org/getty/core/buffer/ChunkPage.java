@@ -58,8 +58,7 @@ public final class ChunkPage {
 
     public void clean() {
         if (clean) {
-            System.err.println("buffer has cleaned");
-            throw new RuntimeException();
+            throw new RuntimeException("buffer has cleaned");
         }
         clean = true;
         if (chunk != null) {
@@ -71,10 +70,7 @@ public final class ChunkPage {
 
     @Override
     public String toString() {
-        return "ChunkPage{" +
-                "position=" + position +
-                ", limit=" + limit +
-                '}';
+        return "ChunkPage{position=" + position + ", limit=" + limit + '}';
     }
 
 

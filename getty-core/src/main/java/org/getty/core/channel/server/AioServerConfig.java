@@ -21,14 +21,14 @@ import java.util.Map;
  */
 public final class AioServerConfig extends AioConfig {
 
-    //服务器端内存大小
-    private Integer serverPageSize = 1024 * 1024 * 16;
+    //服务器端内存大小,默认8mb
+    private Integer serverChunkSize = 1024 * 1024 * 8;
 
-    public Integer getServerPageSize() {
-        return serverPageSize;
+    public Integer getServerChunkSize() {
+        return serverChunkSize;
     }
 
-    public void setServerPageSize(Integer serverPageSize) {
-        this.serverPageSize = serverPageSize;
+    public void setServerChunkSize(Integer serverChunkSize) {
+        this.serverChunkSize = serverChunkSize;
     }
 }

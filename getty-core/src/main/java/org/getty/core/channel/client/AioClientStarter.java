@@ -21,7 +21,6 @@ import java.net.SocketOption;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
-import java.nio.channels.NoConnectionPendingException;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 
@@ -37,8 +36,10 @@ public class AioClientStarter {
 
     //客户端服务配置。
     private AioClientConfig aioClientConfig = new AioClientConfig();
+    //aio通道
     private AioChannel aioChannel;
-    private ChunkPool bufferPool = null;
+    //内存池
+    private ChunkPool chunkPool = null;
     //线程池
     private ThreadPool workerThreadPool;
     //IO线程组。
@@ -47,6 +48,8 @@ public class AioClientStarter {
     protected ChannelPipeline channelInitializer;
 
     /**
+     * 简单启动
+     *
      * @param host 服务器地址
      * @param port 服务器端口号
      */
@@ -57,16 +60,17 @@ public class AioClientStarter {
 
 
     /**
+     * 配置文件启动
+     *
      * @return
      * @params [aioClientConfig]
      */
     public AioClientStarter(AioClientConfig aioClientConfig) {
         if (null == aioClientConfig.getHost() || "".equals(aioClientConfig.getHost())) {
-            throw new NullPointerException("host is null");
+            throw new NullPointerException("The connection host is null.");
         }
-
         if (0 == aioClientConfig.getPort()) {
-            throw new NullPointerException("port is null");
+            throw new NullPointerException("The connection port is null.");
         }
         this.aioClientConfig = aioClientConfig;
     }
@@ -87,9 +91,14 @@ public class AioClientStarter {
      * 启动客户端。
      */
     public final void start() throws Exception {
+
+        if (this.channelInitializer == null) {
+            throw new NullPointerException("The ChannelPipeline is null.");
+        }
         //初始化worker线程池
-        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 2);
+        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, Thread::new);
+        //调用内部启动
         start0(asynchronousChannelGroup);
     }
 
@@ -103,9 +112,10 @@ public class AioClientStarter {
 
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
 
-        if (bufferPool == null) {
-            bufferPool = new ChunkPool(aioClientConfig.getClientPageSize(), 1, aioClientConfig.isDirect());
+        if (chunkPool == null) {
+            chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), 1, aioClientConfig.isDirect());
         }
+
         if (aioClientConfig.getSocketOptions() != null) {
             for (Map.Entry<SocketOption<Object>, Object> entry : aioClientConfig.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
@@ -118,15 +128,15 @@ public class AioClientStarter {
         socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
             @Override
             public void completed(Void result, AsynchronousSocketChannel attachment) {
-                logger.info("connect success");
+                logger.info("server connect success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool, new Semaphore(1)), new WriteCompletionHandler(), bufferPool.allocateBufferPage(), channelInitializer);
+                aioChannel = new AioChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool, new Semaphore(1)), new WriteCompletionHandler(), chunkPool.allocateChunk(), channelInitializer);
                 aioChannel.starRead();
             }
 
             @Override
             public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                logger.error("connect error", exc);
+                logger.error("server connect error", exc);
             }
         });
     }
@@ -148,6 +158,7 @@ public class AioClientStarter {
         //仅Client内部创建的ChannelGroup需要shutdown
         if (asynchronousChannelGroup != null) {
             asynchronousChannelGroup.shutdown();
+            asynchronousChannelGroup = null;
         }
     }
 
@@ -187,7 +198,7 @@ public class AioClientStarter {
                 if (aioChannel.getSSLService().getSsl().isHandshakeCompleted()) {
                     return aioChannel;
                 }
-                throw new RuntimeException("ssl handshcke no completed");
+                throw new RuntimeException("The SSL handshcke is not yet complete");
             }
             return aioChannel;
         }

@@ -14,8 +14,8 @@ package org.getty.core.buffer;
  * 时间：2019/9/27
  */
 public class ChunkPool {
-    private Chunk[] bufferPageList;
 
+    private Chunk[] chunkArray;
     private volatile int cursor = -1;
 
     /**
@@ -23,15 +23,15 @@ public class ChunkPool {
      * @param poolSize 个数
      */
     public ChunkPool(final int pageSize, final int poolSize, final boolean isDirect) {
-        bufferPageList = new Chunk[poolSize];
+        chunkArray = new Chunk[poolSize];
         for (int i = 0; i < poolSize; i++) {
-            bufferPageList[i] = new Chunk(pageSize, isDirect);
+            chunkArray[i] = new Chunk(pageSize, isDirect);
         }
     }
 
-    public Chunk allocateBufferPage() {
-        cursor = (cursor + 1) % bufferPageList.length;
-        Chunk page = bufferPageList[cursor];
-        return page;
+    public Chunk allocateChunk() {
+        cursor = (cursor + 1) % chunkArray.length;
+        Chunk chunk = chunkArray[cursor];
+        return chunk;
     }
 }
