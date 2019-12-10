@@ -63,7 +63,7 @@ public class ImServer implements CommandLineRunner {
                 //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 2, 0));
                 //defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
 
-                //defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
+                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
                 //defaultChannelPipeline.addLast(new FixedLengthFrameDecoder(4));
                 defaultChannelPipeline.addLast(new StringDecoder());
 
