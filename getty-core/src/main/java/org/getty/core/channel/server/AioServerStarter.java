@@ -48,8 +48,6 @@ public class AioServerStarter {
     protected ChannelPipeline channelInitializer;
     //线程池
     private ThreadPool workerThreadPool;
-    //为客户端创建回调函数
-    private Function<AsynchronousSocketChannel, AioChannel> aioChannelFunction;
     //io服务端
     private AsynchronousServerSocketChannel serverSocketChannel = null;
     //io线程池
@@ -135,7 +133,7 @@ public class AioServerStarter {
         if (channelInitializer == null) {
             throw new RuntimeException("ChannelPipeline can't be null");
         }
-        start0(channel -> new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool, channelInitializer));
+        start0();
     }
 
     /**
@@ -143,7 +141,7 @@ public class AioServerStarter {
      *
      * @throws IOException
      */
-    private final void start0(Function<AsynchronousSocketChannel, AioChannel> aioChannelFunction) throws IOException {
+    private final void start0() throws IOException {
         try {
 
             //初始化worker线程池
@@ -155,9 +153,6 @@ public class AioServerStarter {
 
             //实例化内存池
             this.chunkPool = new ChunkPool(config.getServerChunkSize(), config.getPoolableSize(), new Time(), config.isDirect());
-
-            //函数式方法
-            this.aioChannelFunction = aioChannelFunction;
 
             //IO线程分组
             asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, Thread::new);
@@ -218,7 +213,7 @@ public class AioServerStarter {
     private void createChannel(AsynchronousSocketChannel channel) {
         AioChannel aioChannel = null;
         try {
-            aioChannel = aioChannelFunction.apply(channel);
+            aioChannel = new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool, channelInitializer);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {

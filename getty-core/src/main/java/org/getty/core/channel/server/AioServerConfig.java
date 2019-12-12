@@ -21,8 +21,8 @@ import java.util.Map;
  */
 public final class AioServerConfig extends AioConfig {
 
-    //服务器端内存大小,默认8mb
-    private Integer serverChunkSize = 1024 * 1024 * 8;
+    //服务器端内存大小,默认20mb
+    private Integer serverChunkSize = 20 * 1024 * 1024;
 
     public Integer getServerChunkSize() {
         return serverChunkSize;
