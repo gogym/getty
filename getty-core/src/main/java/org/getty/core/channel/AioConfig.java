@@ -44,9 +44,6 @@ public class AioConfig {
     //消息体缓存大小，默认512
     private int readBufferSize = 512;
 
-    //输出器缓存数组大小，既数组长度，经多次测试同一连接发送一百万条消息，该值为最佳
-    private int writeQueueCapacity = 1024 * 1024;
-
     //可回收的内存大小
     private int poolableSize = 256;
 
@@ -94,14 +91,6 @@ public class AioConfig {
             socketOptions = new HashMap<>();
         }
         socketOptions.put(socketOption, f);
-    }
-
-    public int getWriteQueueCapacity() {
-        return writeQueueCapacity;
-    }
-
-    public void setWriteQueueCapacity(int writeQueueCapacity) {
-        this.writeQueueCapacity = writeQueueCapacity;
     }
 
     public Boolean isDirect() {
