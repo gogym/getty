@@ -11,5 +11,6 @@ package org.getty.core.function;
  * 这是函数式编程，基于一个输入值确定一个输出值，参考于google  Guava
  */
 public interface Function<F, T> {
-    T apply(F var);
+    T apply(F input);
+    boolean equals(Object object);
 }
