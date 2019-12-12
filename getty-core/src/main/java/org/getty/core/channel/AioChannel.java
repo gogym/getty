@@ -13,6 +13,7 @@ import org.getty.core.buffer.ChunkPool;
 import org.getty.core.channel.group.ChannelFutureListener;
 import org.getty.core.channel.internal.ReadCompletionHandler;
 import org.getty.core.channel.internal.WriteCompletionHandler;
+import org.getty.core.function.Function;
 import org.getty.core.handler.ssl.SslService;
 import org.getty.core.pipeline.*;
 import org.getty.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
@@ -35,7 +36,7 @@ import java.util.concurrent.TimeUnit;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class AioChannel {
+public class AioChannel implements Function<BufferWriter, Void>{
     private static final Logger logger = LoggerFactory.getLogger(AioChannel.class);
     /**
      * 已关闭
@@ -99,15 +100,15 @@ public class AioChannel {
      * @param readCompletionHandler
      * @param writeCompletionHandler
      */
-    public AioChannel(AsynchronousSocketChannel channel, final AioConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ChunkPool chunk, ChannelPipeline channelPipeline) {
+    public AioChannel(AsynchronousSocketChannel channel, final AioConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
         this.aioConfig = config;
-        this.chunkPool = chunk;
+        this.chunkPool = chunkPool;
         try {
             //初始化读缓冲区
-            this.readByteBuffer = chunk.allocate(config.getReadBufferSize(), 3000);
+            this.readByteBuffer = chunkPool.allocate(config.getReadBufferSize(), 1000);
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
@@ -115,19 +116,7 @@ public class AioChannel {
         }
 
         //写通道
-        bufferWriter = new BufferWriter(chunk, var -> {
-            //获取信息量
-            if (!semaphore.tryAcquire()) {
-                return null;
-            }
-            AioChannel.this.writeByteBuffer = var.poll();
-            if (null == writeByteBuffer) {
-                semaphore.release();
-            } else {
-                AioChannel.this.continueWrite(writeByteBuffer);
-            }
-            return null;
-        });
+        bufferWriter = new BufferWriter(chunkPool,this);
 
         //触发责任链回调
         invokePipeline(ChannelState.NEW_CHANNEL);
@@ -485,5 +474,20 @@ public class AioChannel {
 
     public void setChannelFutureListener(ChannelFutureListener channelFutureListener) {
         this.channelFutureListener = channelFutureListener;
+    }
+
+    @Override
+    public Void apply(BufferWriter input) {
+        //获取信息量
+        if (!semaphore.tryAcquire()) {
+            return null;
+        }
+        AioChannel.this.writeByteBuffer = input.poll();
+        if (null == writeByteBuffer) {
+            semaphore.release();
+        } else {
+            AioChannel.this.continueWrite(writeByteBuffer);
+        }
+        return null;
     }
 }
