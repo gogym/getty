@@ -50,11 +50,11 @@ public class ImClient {
 
 
                 //字符串编码器
-                defaultChannelPipeline.addLast(new StringEncoder());
+                //defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
-                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
+                // defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
                 //字符串解码器
-                defaultChannelPipeline.addLast(new StringDecoder());
+                // defaultChannelPipeline.addLast(new StringDecoder());
                 //定义消息解码器
                 defaultChannelPipeline.addLast(new SimpleHandler());
             }
@@ -67,14 +67,16 @@ public class ImClient {
         }
 
         try {
-            Thread.sleep(3000);
+            Thread.sleep(2000);
             AioChannel aioChannel = client.getAioChannel();
-            String s = "me\r\n";
-            byte[] msgBody = s.getBytes("utf-8");
+//            String s = "me\r\n";
+//            byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 5; i++) {
+            for (; i < 100; i++) {
+                String s = i + "me\r\n";
+                byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);
             }
 

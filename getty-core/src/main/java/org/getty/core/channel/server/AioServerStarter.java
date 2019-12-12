@@ -8,6 +8,7 @@
 package org.getty.core.channel.server;
 
 import org.getty.core.buffer.ChunkPool;
+import org.getty.core.buffer.Time;
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.internal.ReadCompletionHandler;
 import org.getty.core.channel.internal.WriteCompletionHandler;
@@ -134,7 +135,7 @@ public class AioServerStarter {
         if (channelInitializer == null) {
             throw new RuntimeException("ChannelPipeline can't be null");
         }
-        start0(channel -> new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool.allocateChunk(), channelInitializer));
+        start0(channel -> new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool, channelInitializer));
     }
 
     /**
@@ -149,11 +150,11 @@ public class AioServerStarter {
             workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
 
             //实例化读写回调
-            aioReadCompletionHandler = new ReadCompletionHandler(workerThreadPool, new Semaphore(bossShareToWorkerThreadNum));
+            aioReadCompletionHandler = new ReadCompletionHandler(workerThreadPool);
             aioWriteCompletionHandler = new WriteCompletionHandler();
 
             //实例化内存池
-            this.chunkPool = new ChunkPool(config.getServerChunkSize(), bossThreadNum + workerThreadNum, config.isDirect());
+            this.chunkPool = new ChunkPool(config.getServerChunkSize(), config.getPoolableSize(), new Time(), config.isDirect());
 
             //函数式方法
             this.aioChannelFunction = aioChannelFunction;

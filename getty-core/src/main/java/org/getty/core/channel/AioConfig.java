@@ -47,6 +47,9 @@ public class AioConfig {
     //输出器缓存数组大小，既数组长度，经多次测试同一连接发送一百万条消息，该值为最佳
     private int writeQueueCapacity = 1024 * 1024;
 
+    //可回收的内存大小
+    private int poolableSize = 256;
+
     //服务器IP
     private String host;
     //服务器端口号
@@ -103,6 +106,14 @@ public class AioConfig {
 
     public Boolean isDirect() {
         return isDirect;
+    }
+
+    public int getPoolableSize() {
+        return poolableSize;
+    }
+
+    public void setPoolableSize(int poolableSize) {
+        this.poolableSize = poolableSize;
     }
 
     @Override

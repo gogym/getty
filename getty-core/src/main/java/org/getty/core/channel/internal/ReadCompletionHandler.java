@@ -25,24 +25,18 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, AioChan
     private static final Logger LOGGER = LoggerFactory.getLogger(ReadCompletionHandler.class);
     //线程池
     private ThreadPool executorService;
-    //控制线程的并发数量
-    private Semaphore semaphore;
 
-    public ReadCompletionHandler(ThreadPool executorService, Semaphore semaphore) {
+    public ReadCompletionHandler(ThreadPool executorService) {
         this.executorService = executorService;
-        this.semaphore = semaphore;
     }
 
     @Override
     public void completed(final Integer result, final AioChannel aioChannel) {
 
-        //if (semaphore.tryAcquire()) {
         //通过多线程形式读取
         executorService.execute(() -> {
             aioChannel.readFromChannel(result == -1);
-            //semaphore.release();
         });
-        //}
     }
 
     @Override

@@ -8,6 +8,7 @@
 package org.getty.core.channel.client;
 
 import org.getty.core.buffer.ChunkPool;
+import org.getty.core.buffer.Time;
 import org.getty.core.channel.AioChannel;
 import org.getty.core.channel.internal.ReadCompletionHandler;
 import org.getty.core.channel.internal.WriteCompletionHandler;
@@ -113,7 +114,7 @@ public class AioClientStarter {
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
 
         if (chunkPool == null) {
-            chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), 1, aioClientConfig.isDirect());
+            chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), aioClientConfig.getPoolableSize(), new Time(), aioClientConfig.isDirect());
         }
 
         if (aioClientConfig.getSocketOptions() != null) {
@@ -130,7 +131,7 @@ public class AioClientStarter {
             public void completed(Void result, AsynchronousSocketChannel attachment) {
                 logger.info("server connect success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool, new Semaphore(1)), new WriteCompletionHandler(), chunkPool.allocateChunk(), channelInitializer);
+                aioChannel = new AioChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelInitializer);
                 aioChannel.starRead();
             }
 

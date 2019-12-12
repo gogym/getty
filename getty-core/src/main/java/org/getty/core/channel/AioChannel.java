@@ -8,9 +8,8 @@
 package org.getty.core.channel;
 
 
-import org.getty.core.buffer.Chunk;
 import org.getty.core.buffer.BufferWriter;
-import org.getty.core.buffer.ChunkPage;
+import org.getty.core.buffer.ChunkPool;
 import org.getty.core.channel.group.ChannelFutureListener;
 import org.getty.core.channel.internal.ReadCompletionHandler;
 import org.getty.core.channel.internal.WriteCompletionHandler;
@@ -53,13 +52,18 @@ public class AioChannel {
     protected AsynchronousSocketChannel channel;
 
     /**
+     * 内存池
+     */
+    protected ChunkPool chunkPool;
+
+    /**
      * 读缓冲。
      */
-    protected ChunkPage readChunkPage;
+    protected ByteBuffer readByteBuffer;
     /**
      * 写缓冲
      */
-    protected ChunkPage writeChunkPage;
+    protected ByteBuffer writeByteBuffer;
     /**
      * 会话当前状态
      */
@@ -95,15 +99,15 @@ public class AioChannel {
      * @param readCompletionHandler
      * @param writeCompletionHandler
      */
-    public AioChannel(AsynchronousSocketChannel channel, final AioConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, Chunk chunk, ChannelPipeline channelPipeline) {
+    public AioChannel(AsynchronousSocketChannel channel, final AioConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ChunkPool chunk, ChannelPipeline channelPipeline) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
         this.aioConfig = config;
-
-        //初始化读缓冲区
-        this.readChunkPage = chunk.allocate(config.getReadBufferSize());
+        this.chunkPool = chunk;
         try {
+            //初始化读缓冲区
+            this.readByteBuffer = chunk.allocate(config.getReadBufferSize(), 3000);
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
@@ -116,14 +120,14 @@ public class AioChannel {
             if (!semaphore.tryAcquire()) {
                 return null;
             }
-            AioChannel.this.writeChunkPage = var.poll();
-            if (writeChunkPage == null) {
+            AioChannel.this.writeByteBuffer = var.poll();
+            if (null == writeByteBuffer) {
                 semaphore.release();
             } else {
-                AioChannel.this.continueWrite(writeChunkPage);
+                AioChannel.this.continueWrite(writeByteBuffer);
             }
             return null;
-        }, aioConfig.getWriteQueueCapacity());
+        });
 
         //触发责任链回调
         invokePipeline(ChannelState.NEW_CHANNEL);
@@ -143,16 +147,9 @@ public class AioChannel {
 
 
     /**
-     * 强制关闭
+     * 立即关闭会话
      */
-    public final void close() {
-        close(true);
-    }
-
-    /**
-     * 是否立即关闭会话
-     */
-    private synchronized void close(boolean immediate) {
+    public synchronized void close() {
         if (status == CHANNEL_STATUS_CLOSED) {
             logger.warn("Channel:{} is closed:", getChannelId());
             return;
@@ -168,14 +165,12 @@ public class AioChannel {
         }
 
 
-        if (readChunkPage != null) {
-            readChunkPage.clean();
-            readChunkPage = null;
+        if (readByteBuffer != null) {
+            chunkPool.deallocate(readByteBuffer);
         }
 
-        if (writeChunkPage != null) {
-            writeChunkPage.clean();
-            writeChunkPage = null;
+        if (writeByteBuffer != null) {
+            chunkPool.deallocate(writeByteBuffer);
         }
 
         if (channelFutureListener != null) {
@@ -195,7 +190,7 @@ public class AioChannel {
         try {
             channel.close();
         } catch (IOException e) {
-            logger.debug("close channel exception", e);
+            logger.error("close channel exception", e);
         }
         //更新状态
         status = CHANNEL_STATUS_CLOSED;
@@ -237,7 +232,7 @@ public class AioChannel {
         if (status == CHANNEL_STATUS_CLOSED) {
             return;
         }
-        readFromChannel0(readChunkPage.buffer());
+        readFromChannel0(readByteBuffer);
     }
 
     /**
@@ -255,18 +250,16 @@ public class AioChannel {
      */
     public void readFromChannel(boolean eof) {
 
-        final ByteBuffer readBuffer = this.readChunkPage.buffer();
+        final ByteBuffer readBuffer = this.readByteBuffer;
         //读取缓冲区数据到管道
         if (null != readBuffer) {
             readBuffer.flip();
-
             //读取缓冲区数据，输送到责任链
             while (readBuffer.hasRemaining()) {
                 byte[] bytes = new byte[readBuffer.remaining()];
                 readBuffer.get(bytes, 0, bytes.length);
                 readToPipeline(bytes);
             }
-
             if (eof) {
                 RuntimeException exception = new RuntimeException("socket channel is shutdown");
                 logger.error(exception.getMessage(), exception);
@@ -361,8 +354,8 @@ public class AioChannel {
      *
      * @param writeBuffer
      */
-    private void continueWrite(ChunkPage writeBuffer) {
-        writeToChannel0(writeBuffer.buffer());
+    private void continueWrite(ByteBuffer writeBuffer) {
+        writeToChannel0(writeBuffer);
     }
 
 
@@ -372,16 +365,17 @@ public class AioChannel {
      */
     public void writeCompleted() {
 
-        if (writeChunkPage == null) {
-            writeChunkPage = bufferWriter.poll();
-        } else if (!writeChunkPage.buffer().hasRemaining()) {
-            writeChunkPage.clean();
+        if (writeByteBuffer == null) {
+            writeByteBuffer = bufferWriter.poll();
+        } else if (!writeByteBuffer.hasRemaining()) {
+            chunkPool.deallocate(writeByteBuffer);
             //写完再次获取
-            writeChunkPage = bufferWriter.poll();
+            writeByteBuffer = bufferWriter.poll();
         }
-        if (writeChunkPage != null) {
+
+        if (writeByteBuffer != null) {
             //再次写
-            continueWrite(writeChunkPage);
+            continueWrite(writeByteBuffer);
             //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
             return;
         }
@@ -414,7 +408,7 @@ public class AioChannel {
      */
     private void assertChannel() throws IOException {
         if (status == CHANNEL_STATUS_CLOSED || channel == null) {
-            throw new IOException("session is closed");
+            throw new IOException("channel is closed");
         }
     }
 
