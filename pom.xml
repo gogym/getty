@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.getty</groupId>
+    <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
@@ -193,24 +193,87 @@
         </license>
     </licenses>
 
+    <scm>
+        <connection>scm:git:git://github.com/gogym/getty.git</connection>
+        <developerConnection>scm:git:ssh://github.com:gogym/getty.git</developerConnection>
+        <url>https://github.com/gogym/getty/tree/master</url>
+    </scm>
 
     <developers>
         <developer>
-            <id>getty</id>
             <name>gogym</name>
             <email>189155278@qq.com</email>
-            <roles>
-                <role>getty作者</role>
-            </roles>
             <url>https://github.com/gogym/getty</url>
-            <timezone>GMT+8</timezone>
-            <properties>
-                <picUrl></picUrl>
-            </properties>
-            <organization>getty</organization>
-            <organizationUrl>https://github.com/gogym/getty</organizationUrl>
         </developer>
     </developers>
 
+    <!-- 使用个人资料：由于生成javadoc和源jar以及使用GPG签署组件是一个相当耗时的过程，因此这些执行通常与正常的构建配置隔离并移动到配置文件中。然后，在通过激活配置文件执行部署时，将使用此配置文件。 -->
+    <profiles>
+        <profile>
+            <id>ossrh</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <!-- 要生成Javadoc和Source jar文件，您必须配置javadoc和源Maven插件 -->
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-source-plugin</artifactId>
+                            <version>2.2.1</version>
+                            <executions>
+                                <execution>
+                                    <id>attach-sources</id>
+                                    <goals>
+                                        <goal>jar-no-fork</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+                         <plugin>
+                             <groupId>org.apache.maven.plugins</groupId>
+                             <artifactId>maven-javadoc-plugin</artifactId>
+                             <version>2.9.1</version>
+                             <executions>
+                                 <execution>
+                                     <id>attach-javadocs</id>
+                                     <goals>
+                                         <goal>jar</goal>
+                                     </goals>
+                                 </execution>
+                             </executions>
+                         </plugin>
+                        <!--  必须配置GPG插件用于使用以下配置对组件进行签名 -->
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-gpg-plugin</artifactId>
+                            <version>1.5</version>
+                            <executions>
+                                <execution>
+                                    <id>sign-artifacts</id>
+                                    <phase>verify</phase>
+                                    <goals>
+                                        <goal>sign</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
+            <!-- 【注】snapshotRepository 与 repository 中的 id 一定要与 setting.xml 中 server 的 id 保持一致！ -->
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>ossrh</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+                </snapshotRepository>
+                <repository>
+                    <id>ossrh</id>
+                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 
 </project>
