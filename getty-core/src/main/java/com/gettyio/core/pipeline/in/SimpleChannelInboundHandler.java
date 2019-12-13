@@ -48,9 +48,8 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
     /**
      * 解码后的消息输出
-     *
-     * @return void
-     * @params [aioChannel, t]
+     * @param aioChannel 通道
+     * @param t 解密后的消息
      */
     public abstract void channelRead0(AioChannel aioChannel, T t);
 

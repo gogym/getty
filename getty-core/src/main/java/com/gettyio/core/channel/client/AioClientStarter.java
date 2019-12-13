@@ -62,8 +62,7 @@ public class AioClientStarter {
     /**
      * 配置文件启动
      *
-     * @return
-     * @params [aioClientConfig]
+     * @param aioClientConfig 配置
      */
     public AioClientStarter(AioClientConfig aioClientConfig) {
         if (null == aioClientConfig.getHost() || "".equals(aioClientConfig.getHost())) {
@@ -79,8 +78,8 @@ public class AioClientStarter {
     /**
      * 设置责任链
      *
-     * @param channelInitializer
-     * @return
+     * @param channelInitializer 责任链
+     * @return AioClientStarter
      */
     public AioClientStarter channelInitializer(ChannelPipeline channelInitializer) {
         this.channelInitializer = channelInitializer;
@@ -89,6 +88,8 @@ public class AioClientStarter {
 
     /**
      * 启动客户端。
+     *
+     * @throws Exception 异常
      */
     public final void start() throws Exception {
 
@@ -106,7 +107,7 @@ public class AioClientStarter {
     /**
      * 该方法为非阻塞连接。连接成功与否，会回调
      *
-     * @param asynchronousChannelGroup
+     * @param asynchronousChannelGroup 线程组
      */
     private void start0(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
 
@@ -165,20 +166,21 @@ public class AioClientStarter {
     /**
      * 设置Socket的TCP参数配置
      * AIO客户端的可选为：
-     * //套接字发送缓冲区的大小。int
-     * 1. StandardSocketOptions.SO_SNDBUF<br/>
-     * //套接字接收缓冲区的大小。int
-     * 2. StandardSocketOptions.SO_RCVBUF<br/>
-     * //使连接保持活动状态。boolean
-     * 3. StandardSocketOptions.SO_KEEPALIVE<br/>
-     * //重用地址。boolean
-     * 4. StandardSocketOptions.SO_REUSEADDR<br/>
-     * //禁用Nagle算法。boolean
+     * 套接字发送缓冲区的大小。int
+     * 1. StandardSocketOptions.SO_SNDBUF
+     * 套接字接收缓冲区的大小。int
+     * 2. StandardSocketOptions.SO_RCVBUF
+     * 使连接保持活动状态。boolean
+     * 3. StandardSocketOptions.SO_KEEPALIVE
+     * 重用地址。boolean
+     * 4. StandardSocketOptions.SO_REUSEADDR
+     * 禁用Nagle算法。boolean
      * 5. StandardSocketOptions.TCP_NODELAY
      *
      * @param socketOption 配置项
      * @param value        配置值
-     * @return
+     * @param <V>          泛型
+     * @return v
      */
     public final <V> AioClientStarter setOption(SocketOption<V> socketOption, V value) {
         aioClientConfig.setOption(socketOption, value);
@@ -189,7 +191,7 @@ public class AioClientStarter {
     /**
      * 获取AioChannel
      *
-     * @return
+     * @return AioChannel
      */
     public AioChannel getAioChannel() {
         if (aioChannel != null) {

@@ -83,8 +83,7 @@ public class AioServerStarter {
     /**
      * 指定配置启动
      *
-     * @param config
-     * @return
+     * @param config 配置
      */
     public AioServerStarter(AioServerConfig config) {
         if (config == null) {
@@ -100,8 +99,8 @@ public class AioServerStarter {
     /**
      * 责任链
      *
-     * @param channelInitializer
-     * @return
+     * @param channelInitializer 责任链
+     * @return AioServerStarter
      */
     public AioServerStarter channelInitializer(ChannelPipeline channelInitializer) {
         this.channelInitializer = channelInitializer;
@@ -112,8 +111,8 @@ public class AioServerStarter {
     /**
      * 设置Boss线程数
      *
-     * @param threadNum
-     * @return
+     * @param threadNum 线程数
+     * @return AioServerStarter
      */
     public AioServerStarter bossThreadNum(int threadNum) {
         this.bossThreadNum = threadNum;
@@ -123,7 +122,7 @@ public class AioServerStarter {
     /**
      * 启动AIO服务
      *
-     * @throws IOException
+     * @throws Exception 异常
      */
     public void start() throws Exception {
         //打印框架信息
@@ -138,7 +137,7 @@ public class AioServerStarter {
     /**
      * 内部启动
      *
-     * @throws IOException
+     * @throws IOException 异常
      */
     private final void start0() throws IOException {
         try {
@@ -207,7 +206,7 @@ public class AioServerStarter {
     /**
      * 为每个新连接创建AioChannel对象
      *
-     * @param channel
+     * @param channel 通道
      */
     private void createChannel(AsynchronousSocketChannel channel) {
         AioChannel aioChannel = null;
@@ -226,7 +225,7 @@ public class AioServerStarter {
     /**
      * 关闭客户端连接通道
      *
-     * @param channel
+     * @param channel 通道
      */
     private void closeChannel(AsynchronousSocketChannel channel) {
         try {
@@ -280,13 +279,14 @@ public class AioServerStarter {
 
     /**
      * 设置Socket的TCP参数配置。
-     * AIO客户端的有效可选范围为：<br/>
-     * 2. StandardSocketOptions.SO_RCVBUF<br/>
-     * 4. StandardSocketOptions.SO_REUSEADDR<br/>
+     * AIO客户端的有效可选范围为：
+     * 2. StandardSocketOptions.SO_RCVBUF
+     * 4. StandardSocketOptions.SO_REUSEADDR
      *
      * @param socketOption 配置项
      * @param value        配置值
-     * @return
+     * @param <V>          泛型
+     * @return v
      */
     public final <V> AioServerStarter setOption(SocketOption<V> socketOption, V value) {
         config.setOption(socketOption, value);

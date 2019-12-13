@@ -55,6 +55,8 @@ public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> exten
     }
 
     /**
+     * @param aioChannel 通道
+     * @param remoteAddress 远程地址
      * @return Return true if connections from this IP address and port should be accepted. False otherwise.
      */
     protected abstract boolean accept(AioChannel aioChannel, T remoteAddress);

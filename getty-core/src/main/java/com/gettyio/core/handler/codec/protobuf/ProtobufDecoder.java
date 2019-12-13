@@ -42,9 +42,7 @@ public class ProtobufDecoder extends ByteToMessageDecoder {
     private final MessageLite prototype;
     private final ExtensionRegistryLite extensionRegistry;
 
-    /**
-     * Creates a new instance.
-     */
+    
     public ProtobufDecoder(MessageLite prototype) {
         this(prototype, null);
     }

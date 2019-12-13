@@ -20,9 +20,9 @@ public interface ChannelboundHandler {
 
     /**
      * 异常
-     *
-     * @param aioChannel
-     * @param cause
+     * @param aioChannel 通道
+     * @param pipelineDirection 责任链
+     * @param cause 异常信息
      */
     void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection);
 }

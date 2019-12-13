@@ -20,7 +20,6 @@ import java.util.List;
  * @author gogym
  * @version 2019年7月13日
  * @see RuleBasedIpFilter
- * @since
  */
 public class RuleBasedIpFilter implements IpFilterRule {
     private static final Logger logger = LoggerFactory.getLogger(RuleBasedIpFilter.class);

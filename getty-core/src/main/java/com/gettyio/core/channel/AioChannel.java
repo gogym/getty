@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class AioChannel implements Function<BufferWriter, Void>{
+public class AioChannel implements Function<BufferWriter, Void> {
     private static final Logger logger = LoggerFactory.getLogger(AioChannel.class);
     /**
      * 已关闭
@@ -98,10 +98,12 @@ public class AioChannel implements Function<BufferWriter, Void>{
     private SslService sslService;
 
     /**
-     * @param channel
-     * @param config
-     * @param readCompletionHandler
-     * @param writeCompletionHandler
+     * @param channel                通道
+     * @param config                 配置
+     * @param readCompletionHandler  读回调
+     * @param writeCompletionHandler 写回调
+     * @param chunkPool 内存池
+     * @param channelPipeline 责任链
      */
     public AioChannel(AsynchronousSocketChannel channel, final AioConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
         this.channel = channel;
@@ -119,7 +121,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
         }
 
         //写通道
-        bufferWriter = new BufferWriter(chunkPool,this);
+        bufferWriter = new BufferWriter(chunkPool, this);
 
         //触发责任链回调
         invokePipeline(ChannelState.NEW_CHANNEL);
@@ -199,6 +201,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 获取当前aioChannel的唯一标识
+     *
+     * @return String
      */
     public final String getChannelId() {
         return "aioChannel-" + System.identityHashCode(this);
@@ -206,6 +210,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 当前会话是否已失效
+     *
+     * @return boolean
      */
     public final boolean isInvalid() {
         return status != CHANNEL_STATUS_ENABLED;
@@ -216,9 +222,6 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 读取socket通道内的数据
-     *
-     * @return void
-     * @params []
      */
     protected void continueRead() {
         if (status == CHANNEL_STATUS_CLOSED) {
@@ -230,7 +233,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 从通道socket中读取数据
      *
-     * @param buffer
+     * @param buffer 读取的缓冲区
      */
     protected final void readFromChannel0(ByteBuffer buffer) {
         channel.read(buffer, this, readCompletionHandler);
@@ -239,6 +242,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * socket通道的读回调操作
+     *
+     * @param eof 状态回调标记
      */
     public void readFromChannel(boolean eof) {
 
@@ -267,7 +272,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * socket读取完成
      *
-     * @param readBuffer
+     * @param readBuffer 读取的缓冲区
      */
     public void readCompleted(ByteBuffer readBuffer) {
 
@@ -293,7 +298,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 消息读取到责任链管道
      *
-     * @param bytes
+     * @param bytes 读取的数组
      */
     public void readToPipeline(byte[] bytes) {
         invokePipeline(ChannelState.CHANNEL_READ, bytes);
@@ -304,7 +309,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 写数据到责任链管道
      *
-     * @param bytes
+     * @param bytes 写入的数组
      */
     public void writeAndFlush(byte[] bytes) {
         reverseInvokePipeline(ChannelState.CHANNEL_WRITE, bytes);
@@ -313,7 +318,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 直接写到socket通道
      *
-     * @param bytes
+     * @param bytes 写入的数组
      */
     public void writeToChannel(byte[] bytes) {
         writeAndFlush0(bytes);
@@ -323,7 +328,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 写数据到wirter
      *
-     * @param bytes
+     * @param bytes 写入的数组
      */
     private void writeAndFlush0(byte[] bytes) {
         try {
@@ -336,6 +341,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 写到socket通道
+     *
+     * @param buffer 写入的数组
      */
     protected final void writeToChannel0(ByteBuffer buffer) {
         channel.write(buffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
@@ -344,7 +351,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 继续写
      *
-     * @param writeBuffer
+     * @param writeBuffer 写入的缓冲区
      */
     private void continueWrite(ByteBuffer writeBuffer) {
         writeToChannel0(writeBuffer);
@@ -379,6 +386,9 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 获取本地地址
+     *
+     * @return InetSocketAddress
+     * @throws IOException 异常
      */
     public final InetSocketAddress getLocalAddress() throws IOException {
         assertChannel();
@@ -387,6 +397,9 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 获取远程地址
+     *
+     * @return InetSocketAddress
+     * @throws IOException 异常
      */
     public final InetSocketAddress getRemoteAddress() throws IOException {
         assertChannel();
@@ -396,7 +409,7 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 断言
      *
-     * @throws IOException
+     * @throws IOException 异常
      */
     private void assertChannel() throws IOException {
         if (status == CHANNEL_STATUS_CLOSED || channel == null) {
@@ -409,6 +422,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 正向执行管道处理
+     *
+     * @param channelStateEnum 数据流向
      */
     private void invokePipeline(ChannelState channelStateEnum) {
         invokePipeline(channelStateEnum, null);
@@ -416,6 +431,9 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 正向执行管道处理
+     *
+     * @param channelStateEnum 数据流向
+     * @param bytes            数组
      */
     private void invokePipeline(ChannelState channelStateEnum, byte[] bytes) {
 
@@ -433,7 +451,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
     /**
      * 反向执行管道
      *
-     * @param channelStateEnum
+     * @param channelStateEnum 数据流向
+     * @param bytes            数组
      */
     private void reverseInvokePipeline(ChannelState channelStateEnum, byte[] bytes) {
 
@@ -458,9 +477,8 @@ public class AioChannel implements Function<BufferWriter, Void>{
 
     /**
      * 创建SSL
-     *
-     * @param sslService
-     * @return
+     * @param sslService ssl服务
+     * @return AioChannel
      */
     public AioChannel createSSL(SslService sslService) {
         this.sslService = sslService;

@@ -51,7 +51,7 @@ public class DefaultChannelPipeline {
     /**
      * 正向获取第一个处理器
      *
-     * @return
+     * @return ChannelHandlerAdapter
      */
     public ChannelHandlerAdapter first() {
         if (pipeList != null && pipeList.size() > 0) {
@@ -63,7 +63,7 @@ public class DefaultChannelPipeline {
     /**
      * 获取最后一个处理器
      *
-     * @return
+     * @return ChannelHandlerAdapter
      */
     public ChannelHandlerAdapter last() {
         if (pipeList != null && pipeList.size() > 0) {
@@ -76,8 +76,8 @@ public class DefaultChannelPipeline {
     /**
      * 正向获取下一个处理器
      *
-     * @param channelHandlerAdapter
-     * @return
+     * @param channelHandlerAdapter 当前处理器
+     * @return ChannelHandlerAdapter
      */
     public ChannelHandlerAdapter nextOne(ChannelHandlerAdapter channelHandlerAdapter) {
         int index = pipeList.indexOf(channelHandlerAdapter);
@@ -92,8 +92,8 @@ public class DefaultChannelPipeline {
     /**
      * 反向获取下一个处理器
      *
-     * @param channelHandlerAdapter
-     * @return
+     * @param channelHandlerAdapter 当前处理器
+     * @return ChannelHandlerAdapter
      */
     public ChannelHandlerAdapter lastOne(ChannelHandlerAdapter channelHandlerAdapter) {
         int index = pipeList.indexOf(channelHandlerAdapter);
@@ -107,8 +107,7 @@ public class DefaultChannelPipeline {
     /**
      * 添加到最后一位
      *
-     * @return void
-     * @params [channelHandlerAdapter]
+     * @param channelHandlerAdapter 当前处理器
      */
     public void addLast(ChannelHandlerAdapter channelHandlerAdapter) {
         pipeList.addLast(channelHandlerAdapter);
@@ -117,8 +116,7 @@ public class DefaultChannelPipeline {
     /**
      * 添加到第一位
      *
-     * @return void
-     * @params [channelHandlerAdapter]
+     * @param channelHandlerAdapter 当前处理器
      */
     public void addFirst(ChannelHandlerAdapter channelHandlerAdapter) {
         pipeList.addFirst(channelHandlerAdapter);
@@ -127,9 +125,6 @@ public class DefaultChannelPipeline {
 
     /**
      * 清理责任链
-     *
-     * @return void
-     * @params []
      */
     public void clean() {
         pipeList.clear();

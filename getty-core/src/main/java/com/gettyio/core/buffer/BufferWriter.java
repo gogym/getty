@@ -40,10 +40,6 @@ public final class BufferWriter extends OutputStream {
         this.function = flushFunction;
     }
 
-    /**
-     * @throws IOException
-     * @deprecated
-     */
     @Deprecated
     @Override
     public void write(int b) throws IOException {
@@ -91,8 +87,8 @@ public final class BufferWriter extends OutputStream {
 
     /**
      * 刷新缓冲区。
-     *
-     * @throws IOException
+     * @param b 数组
+     * @throws IOException 抛出异常
      */
     public void writeAndFlush(byte[] b) throws IOException {
         if (b == null) {
@@ -105,7 +101,7 @@ public final class BufferWriter extends OutputStream {
      * @param b   待输出数据
      * @param off 起始位点
      * @param len 输出的数据长度
-     * @throws IOException
+     * @throws IOException 抛出异常
      */
     private void writeAndFlush(byte[] b, int off, int len) throws IOException {
         write(b, off, len);

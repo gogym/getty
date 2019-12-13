@@ -18,6 +18,7 @@ import java.net.InetSocketAddress;
 public interface IpFilterRule {
 
     /**
+     * @param remoteAddress 远程地址
      * @return This method should return true if remoteAddress is valid according to your criteria. False otherwise.
      */
     boolean matches(InetSocketAddress remoteAddress);

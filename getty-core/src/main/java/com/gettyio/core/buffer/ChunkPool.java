@@ -66,6 +66,7 @@ public final class ChunkPool {
      * @param memory       内存池总大小
      * @param poolableSize 指定回收的内存大小
      * @param time         等待时间
+     * @param direct 是否堆内存
      */
     public ChunkPool(long memory, int poolableSize, Time time, boolean direct) {
         this.poolableSize = poolableSize;
@@ -83,10 +84,9 @@ public final class ChunkPool {
      *
      * @param size             以字节为单位分配的缓冲区大小
      * @param maxTimeToBlockMs 缓冲区内存分配的最大阻塞时间(以毫秒为单位)
-     * @return The buffer
-     * @throws InterruptedException
-     * @throws TimeoutException
-     * @throws IllegalArgumentException
+     * @return The buffer 返回缓冲区
+     * @throws InterruptedException 异常
+     * @throws TimeoutException 异常
      */
     public ByteBuffer allocate(int size, long maxTimeToBlockMs) throws InterruptedException, TimeoutException {
         if (size > this.totalMemory) {
@@ -184,6 +184,7 @@ public final class ChunkPool {
 
     /**
      * 尝试通过释放池确保至少有被请求的内存字节数
+     * @param size 释放大小
      */
     private void freeUp(int size) {
         while (!this.free.isEmpty() && this.availableMemory < size) {
@@ -194,7 +195,7 @@ public final class ChunkPool {
     /**
      * 将缓冲区返回到池。如果它们是可占用的大小，则将它们添加到空闲列表中，否则仅标记
      *
-     * @param buffer
+     * @param buffer 要释放的缓冲区
      * @param size   要标记为释放的缓冲区的大小，注意这可能小于buffer.capacity,因为缓冲区可能在就地压缩期间重新分配自己
      */
     public void deallocate(ByteBuffer buffer, int size) {
@@ -221,6 +222,7 @@ public final class ChunkPool {
 
     /**
      * 未分配的和空闲列表中的总空闲内存
+     * @return long
      */
     public long availableMemory() {
         lock.lock();
@@ -233,6 +235,7 @@ public final class ChunkPool {
 
     /**
      * 获取未分配的内存(不在空闲列表中或正在使用中)
+     * @return long
      */
     public long unallocatedMemory() {
         lock.lock();
@@ -245,6 +248,7 @@ public final class ChunkPool {
 
     /**
      * 等待内存时阻塞的线程数
+     * @return int
      */
     public int queued() {
         lock.lock();
@@ -270,6 +274,7 @@ public final class ChunkPool {
 
     /**
      * 使用后将保留在空闲列表中的缓冲区大小
+     * @return int
      */
     public int poolableSize() {
         return this.poolableSize;
@@ -277,6 +282,7 @@ public final class ChunkPool {
 
     /**
      * 此池管理的总内存
+     * @return long
      */
     public long totalMemory() {
         return this.totalMemory;

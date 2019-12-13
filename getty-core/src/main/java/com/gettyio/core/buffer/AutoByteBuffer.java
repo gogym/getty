@@ -38,7 +38,7 @@ public class AutoByteBuffer {
     /**
      * 重置指针位置,如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
      *
-     * @param position
+     * @param position 下标
      * @return AutoByteBuffer
      */
     public AutoByteBuffer readerIndex(int position) {
@@ -85,7 +85,7 @@ public class AutoByteBuffer {
     /**
      * 获取剩余可读数据
      *
-     * @return
+     * @return byte[]
      */
     public byte[] readableBytesArray() {
         byte[] bytes = new byte[readableBytes()];
@@ -96,7 +96,7 @@ public class AutoByteBuffer {
     /**
      * 获取所有写入的数据
      *
-     * @return
+     * @return byte[]
      */
     public byte[] readAllWriteBytesArray() {
         byte[] bytes = new byte[writerIndex];
@@ -120,7 +120,7 @@ public class AutoByteBuffer {
     /**
      * 读取指针位置
      *
-     * @return
+     * @return 读取指针位置
      */
     public int readerIndex() {
         return readerIndex;
@@ -129,7 +129,7 @@ public class AutoByteBuffer {
     /**
      * 写入指针位置
      *
-     * @return
+     * @return 写入指针位置
      */
     public int writerIndex() {
         return writerIndex;
@@ -138,7 +138,7 @@ public class AutoByteBuffer {
     /**
      * 当前可读数据量，writerIndex - readerIndex
      *
-     * @return
+     * @return 当前可读数据量
      */
     public int readableBytes() {
         return writerIndex - readerIndex;
@@ -148,8 +148,7 @@ public class AutoByteBuffer {
     /**
      * 当前是否有可读
      *
-     * @return boolean
-     * @params []
+     * @return 当前是否有可读
      */
     public boolean hasRemaining() {
         if ((writerIndex - readerIndex) > 0) {
@@ -161,7 +160,7 @@ public class AutoByteBuffer {
     /**
      * 当前可写入数据量，每次触发扩容后都不一样
      *
-     * @return
+     * @return int
      */
     public int writableBytes() {
         return data.length - writerIndex;
@@ -170,7 +169,7 @@ public class AutoByteBuffer {
     /**
      * 获取一个新的实例
      *
-     * @return
+     * @return AutoByteBuffer
      */
     public static AutoByteBuffer newByteBuffer() {
         return new AutoByteBuffer(256);
@@ -178,8 +177,8 @@ public class AutoByteBuffer {
 
     /**
      * 获取一个新的实例
-     *
-     * @return
+     * @param capacity 长度
+     * @return AutoByteBuffer
      */
     public static AutoByteBuffer newByteBuffer(int capacity) {
         return new AutoByteBuffer(capacity);
@@ -188,7 +187,7 @@ public class AutoByteBuffer {
     /**
      * 当前容量，当写入数据超过当前容量后自动扩容
      *
-     * @return
+     * @return int
      */
     public int capacity() {
         return data.length;
@@ -197,8 +196,8 @@ public class AutoByteBuffer {
     /**
      * 读取一个数据到byte，从readIndex位置开始，每读取一个，指针+1
      *
-     * @return
-     * @throws ByteBufferException
+     * @return int
+     * @throws ByteBufferException 抛出异常
      */
     public int read() throws ByteBufferException {
         if (readableBytes() > 0) {
@@ -213,8 +212,8 @@ public class AutoByteBuffer {
     /**
      * 读取数据到byte，1 byte，从readIndex位置开始
      *
-     * @return
-     * @throws ByteBufferException
+     * @return byte
+     * @throws ByteBufferException 抛出异常
      */
     public byte readByte() throws ByteBufferException {
         if (readableBytes() > 0) {
@@ -229,8 +228,8 @@ public class AutoByteBuffer {
     /**
      * 读取integer值，读4 byte转换为integer，从readIndex位置开始
      *
-     * @return
-     * @throws ByteBufferException
+     * @return int
+     * @throws ByteBufferException 抛出异常
      */
     public int readInt() throws ByteBufferException {
         if (readableBytes() >= 4) {
@@ -244,10 +243,9 @@ public class AutoByteBuffer {
 
     /**
      * 读取数据到bytes，从readIndex位置开始
-     *
-     * @param bytes
-     * @return
-     * @throws ByteBufferException
+     * @param bytes 数组
+     * @return int
+     * @throws ByteBufferException 抛出异常
      */
     public int readBytes(byte[] bytes) throws ByteBufferException {
         if (readableBytes() >= bytes.length) {
@@ -261,9 +259,8 @@ public class AutoByteBuffer {
 
     /**
      * 读取数据到另一个ByteBuffer
-     *
-     * @param b
-     * @return
+     * @param b 数组
+     * @return int
      */
     public int readBytes(AutoByteBuffer b) {
         byte[] bytes = new byte[b.writableBytes()];
@@ -276,9 +273,8 @@ public class AutoByteBuffer {
 
     /**
      * 写入Byte数据，1 byte
-     *
-     * @param b
-     * @return
+     * @param b 字节
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer writeByte(byte b) {
         autoExpandCapacity(1);
@@ -290,9 +286,8 @@ public class AutoByteBuffer {
 
     /**
      * 写入int值的byte转换结果，即丢弃高位
-     *
-     * @param b
-     * @return
+     * @param b 整数字节
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer write(int b) {
         autoExpandCapacity(1);
@@ -304,9 +299,8 @@ public class AutoByteBuffer {
 
     /**
      * 写入integer数据，4 byte
-     *
-     * @param b
-     * @return
+     * @param b 整数字节
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer writeInt(int b) {
         autoExpandCapacity(4);
@@ -319,8 +313,8 @@ public class AutoByteBuffer {
     /**
      * 写入数组
      *
-     * @param b
-     * @return
+     * @param b 写入数据
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer writeBytes(byte[] b) {
         autoExpandCapacity(b.length);
@@ -332,8 +326,9 @@ public class AutoByteBuffer {
     /**
      * 写入数组,并指定写入长度
      *
-     * @param b
-     * @return
+     * @param b          数据
+     * @param dataLength 写入长度
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer writeBytes(byte[] b, int dataLength) {
         autoExpandCapacity(b.length);
@@ -345,8 +340,8 @@ public class AutoByteBuffer {
     /**
      * 写入一个ByteBuffer可读数据
      *
-     * @param b
-     * @return
+     * @param b 写入数据
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer writeBytes(AutoByteBuffer b) {
         int readableBytes = b.readableBytes();
@@ -360,9 +355,9 @@ public class AutoByteBuffer {
     /**
      * 写入一个ByteBuffer可读数据的部分长度
      *
-     * @param b
-     * @param dataLength
-     * @return
+     * @param b          数据
+     * @param dataLength 写入长度
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer writeBytes(AutoByteBuffer b, int dataLength) {
         autoExpandCapacity(dataLength);
@@ -374,8 +369,7 @@ public class AutoByteBuffer {
 
     /**
      * 检查写入数据长度，如果不够则扩容,自动扩容,递增值为BUFFER_SIZE的倍数
-     *
-     * @param addLength
+     * @param addLength 扩容长度
      */
     private void autoExpandCapacity(int addLength) {
         if (writableBytes() < addLength) {
@@ -392,9 +386,8 @@ public class AutoByteBuffer {
 
     /**
      * 数组转换成整数型
-     *
-     * @param b
-     * @return return 0；
+     * @param b 数组
+     * @param position 下标
      */
     private int byteArrayToInt(byte[] b, int position) {
         return b[position + 3] & 0xFF | (b[position + 2] & 0xFF) << 8 | (b[position + 1] & 0xFF) << 16 | (b[position] & 0xFF) << 24;
@@ -402,11 +395,10 @@ public class AutoByteBuffer {
 
     /**
      * 数据读取，从一个数组中读取一部分数组
-     *
-     * @param src
-     * @param result
-     * @param position
-     * @return
+     * @param position 下标
+     * @param src 源数组
+     * @param result 目标数组
+     * @return int
      */
     private int readBytesFromBytes(byte[] src, byte[] result, int position) {
         System.arraycopy(src, position, result, 0, result.length);
@@ -419,7 +411,7 @@ public class AutoByteBuffer {
      * @param src            来源数组
      * @param target         被写入新数据数组
      * @param targetPosition 新数组被写入位置
-     * @return
+     * @return AutoByteBuffer
      */
     private AutoByteBuffer writeBytesToBytes(byte[] src, byte[] target, int targetPosition) {
         return writeBytesToBytes(src, target, targetPosition, src.length);
@@ -431,7 +423,7 @@ public class AutoByteBuffer {
      * @param src            来源数组
      * @param target         被写入新数据数组
      * @param targetPosition 新数组被写入位置
-     * @return
+     * @return AutoByteBuffer
      */
     private AutoByteBuffer writeBytesToBytes(byte[] src, byte[] target, int targetPosition, int dataLength) {
         System.arraycopy(src, 0, target, targetPosition, dataLength);
@@ -440,8 +432,7 @@ public class AutoByteBuffer {
 
     /**
      * 整数转换成数组
-     *
-     * @param i
+     * @param i 整数
      * @return byte length=4
      */
     private byte[] intToByteArray(int i) {

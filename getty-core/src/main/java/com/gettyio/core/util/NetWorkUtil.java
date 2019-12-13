@@ -22,12 +22,7 @@ import java.util.regex.Pattern;
  */
 public class NetWorkUtil {
 
-    /**
-     * 检查IP是否合法
-     *
-     * @param ip
-     * @return
-     */
+    //检查IP是否合法
     public static boolean ipValid(String ip) {
         String regex0 = "(2[0-4]\\d)" + "|(25[0-5])";
         String regex1 = "1\\d{2}";
@@ -42,11 +37,7 @@ public class NetWorkUtil {
         return m.matches();
     }
 
-    /**
-     * 获取本地ip 适合windows与linux
-     *
-     * @return
-     */
+    // 获取本地ip 适合windows与linux
     public static String getLocalIP() {
         String localIP = "127.0.0.1";
         try {
@@ -72,12 +63,8 @@ public class NetWorkUtil {
         return localIP;
     }
 
-    /**
-     * 把ip转化为整数
-     *
-     * @param ip
-     * @return
-     */
+
+    //把ip转化为整数
     public static long ipToLong(String strIp) {
         String[] ip = strIp.split("\\.");
         return (Long.parseLong(ip[0]) << 24) + (Long.parseLong(ip[1]) << 16)
@@ -86,13 +73,12 @@ public class NetWorkUtil {
 
     /**
      * 将十进制整数形式转换成127.0.0.1形式的ip地址 将整数形式的IP地址转化成字符串的方法如下：
-     * 1、将整数值进行右移位操作（>>>），右移24位，右移时高位补0，得到的数字即为第一段IP。
-     * 2、通过与操作符（&）将整数值的高8位设为0，再右移16位，得到的数字即为第二段IP。
+     * 1、将整数值进行右移位操作，右移24位，右移时高位补0，得到的数字即为第一段IP。
+     * 2、通过与操作符 将整数值的高8位设为0，再右移16位，得到的数字即为第二段IP。
      * 3、通过与操作符吧整数值的高16位设为0，再右移8位，得到的数字即为第三段IP。
      * 4、通过与操作符吧整数值的高24位设为0，得到的数字即为第四段IP。
-     *
-     * @param longIp
-     * @return
+     * @param longIp ip
+     * @return String
      */
     public static String longToIP(long longIp) {
         StringBuffer sb = new StringBuffer("");
@@ -155,6 +141,9 @@ public class NetWorkUtil {
 
     /**
      * 判断某个ip是否在一个网段内 isInRange("192.168.1.127", "192.168.1.64/26")
+     * @param ip ip
+     * @param cidr ip网段
+     * @return boolean
      */
     public static boolean isInRange(String ip, String cidr) {
         String[] ips = ip.split("\\.");

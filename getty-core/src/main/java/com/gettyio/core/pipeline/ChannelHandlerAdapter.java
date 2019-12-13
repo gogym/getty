@@ -23,18 +23,17 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
     /**
      * 实现这个方法，用于处理器传递
      *
-     * @param channelStateEnum
-     * @param bytes
-     * @param cause
-     * @param aioChannel
+     * @param channelStateEnum 数据方向
+     * @param bytes 数据
+     * @param aioChannel 通道
+     * @param pipelineDirection 责任链
      */
     public abstract void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection);
 
     /**
      * 该方法类似一个心态起搏器，执行读或写操作会被触发
-     *
-     * @return void
-     * @params [aioChannel, evt]
+     * @param aioChannel 通道
+     * @param evt IdleState
      */
     public abstract void userEventTriggered(AioChannel aioChannel, IdleState evt);
 

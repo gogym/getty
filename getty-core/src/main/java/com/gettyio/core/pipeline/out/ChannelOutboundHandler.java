@@ -20,9 +20,8 @@ public interface ChannelOutboundHandler extends ChannelboundHandler {
 
     /**
      * 消息编码
-     *
-     * @return void
-     * @params [aioChannel, bytes]
+     * @param aioChannel 通道
+     * @param bytes 数据
      */
     void encode(AioChannel aioChannel, byte[] bytes);
 
