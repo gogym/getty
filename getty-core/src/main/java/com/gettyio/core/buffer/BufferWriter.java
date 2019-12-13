@@ -7,6 +7,7 @@
 package com.gettyio.core.buffer;
 
 import com.gettyio.core.function.Function;
+import com.gettyio.core.util.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,11 +30,11 @@ public final class BufferWriter extends OutputStream {
     //当前是否已关闭
     private boolean closed = false;
 
+
     private final ByteBuffer[] items = new ByteBuffer[2 * 1024 * 1024];
     private int count;
     private int takeIndex;
     private int putIndex;
-
 
     public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction) {
         this.chunkPool = chunkPool;
@@ -87,6 +88,7 @@ public final class BufferWriter extends OutputStream {
 
     /**
      * 刷新缓冲区。
+     *
      * @param b 数组
      * @throws IOException 抛出异常
      */
@@ -114,7 +116,6 @@ public final class BufferWriter extends OutputStream {
             throw new RuntimeException("OutputStream has closed");
         }
         function.apply(this);
-
     }
 
     @Override

@@ -102,8 +102,8 @@ public class AioChannel implements Function<BufferWriter, Void> {
      * @param config                 配置
      * @param readCompletionHandler  读回调
      * @param writeCompletionHandler 写回调
-     * @param chunkPool 内存池
-     * @param channelPipeline 责任链
+     * @param chunkPool              内存池
+     * @param channelPipeline        责任链
      */
     public AioChannel(AsynchronousSocketChannel channel, final AioConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
         this.channel = channel;
@@ -346,6 +346,8 @@ public class AioChannel implements Function<BufferWriter, Void> {
      */
     protected final void writeToChannel0(ByteBuffer buffer) {
         channel.write(buffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+        //channel.write(buffer);
+        //chunkPool.deallocate(buffer);
     }
 
     /**
@@ -363,23 +365,9 @@ public class AioChannel implements Function<BufferWriter, Void> {
      * 需要同步控制
      */
     public void writeCompleted() {
-
-        if (writeByteBuffer == null) {
-            writeByteBuffer = bufferWriter.poll();
-        } else if (!writeByteBuffer.hasRemaining()) {
-            chunkPool.deallocate(writeByteBuffer);
-            //写完再次获取
-            writeByteBuffer = bufferWriter.poll();
-        }
-
         if (writeByteBuffer != null) {
-            //再次写
-            continueWrite(writeByteBuffer);
-            //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
-            return;
+            chunkPool.deallocate(writeByteBuffer);
         }
-        //完全写完释放信息量
-        semaphore.release();
     }
 
     //-----------------------------------------------------------------------------------
@@ -477,6 +465,7 @@ public class AioChannel implements Function<BufferWriter, Void> {
 
     /**
      * 创建SSL
+     *
      * @param sslService ssl服务
      * @return AioChannel
      */

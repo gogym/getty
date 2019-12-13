@@ -8,6 +8,7 @@
 package com.gettyio.core.channel.internal;
 
 import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.util.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
