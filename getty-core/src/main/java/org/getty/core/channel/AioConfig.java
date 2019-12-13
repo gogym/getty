@@ -44,8 +44,8 @@ public class AioConfig {
     //消息体缓存大小，默认512
     private int readBufferSize = 512;
 
-    //可回收的内存大小
-    private int poolableSize = 256;
+    //可回收的内存大小,默认与readBufferSize一致
+    private int poolableSize = readBufferSize;
 
     //服务器IP
     private String host;

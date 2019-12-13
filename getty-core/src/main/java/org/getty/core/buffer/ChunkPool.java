@@ -255,6 +255,19 @@ public final class ChunkPool {
         }
     }
 
+
+    /**
+     * 释放内存池
+     */
+    public void clear() {
+        if (waiters != null) {
+            waiters.clear();
+        }
+        if (free != null) {
+            free.clear();
+        }
+    }
+
     /**
      * 使用后将保留在空闲列表中的缓冲区大小
      */

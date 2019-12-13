@@ -69,12 +69,12 @@ public class ImClient {
         try {
             Thread.sleep(2000);
             AioChannel aioChannel = client.getAioChannel();
-            String s = "me\r\n";
+            String s = "me12345\r\n";
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 1000000; i++) {
+            for (; i < 100000; i++) {
 //                String s = i + "me\r\n";
 //                byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);

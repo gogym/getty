@@ -130,6 +130,7 @@ public final class BufferWriter extends OutputStream {
         closed = true;
         if (chunkPool != null) {
             //清空内存池
+            chunkPool.clear();
         }
     }
 

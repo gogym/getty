@@ -32,11 +32,8 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, AioChan
 
     @Override
     public void completed(final Integer result, final AioChannel aioChannel) {
-
         //通过多线程形式读取
-        executorService.execute(() -> {
-            aioChannel.readFromChannel(result == -1);
-        });
+        executorService.execute(() -> aioChannel.readFromChannel(result == -1));
     }
 
     @Override
