@@ -121,7 +121,7 @@ public class AioChannel implements Function<BufferWriter, Void> {
         }
 
         //写通道
-        bufferWriter = new BufferWriter(chunkPool, this);
+        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize());
 
         //触发责任链回调
         invokePipeline(ChannelState.NEW_CHANNEL);
@@ -365,9 +365,22 @@ public class AioChannel implements Function<BufferWriter, Void> {
      * 需要同步控制
      */
     public void writeCompleted() {
-        if (writeByteBuffer != null) {
+
+        if (writeByteBuffer == null) {
+            writeByteBuffer = bufferWriter.poll();
+        } else if (!writeByteBuffer.hasRemaining()) {
             chunkPool.deallocate(writeByteBuffer);
+            writeByteBuffer = bufferWriter.poll();
         }
+
+        if (writeByteBuffer != null) {
+            //再次写
+            continueWrite(writeByteBuffer);
+            //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
+            return;
+        }
+        //完全写完释放信息量
+        semaphore.release();
     }
 
     //-----------------------------------------------------------------------------------

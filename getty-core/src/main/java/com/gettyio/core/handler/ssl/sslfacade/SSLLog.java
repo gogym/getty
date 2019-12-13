@@ -21,7 +21,7 @@ public class SSLLog
   public static void debug(final String tag, final String message, final String... args)
   {
     if (debugEnabled) {
-      System.out.println(String.format("[%s]: ", tag) + String.format(message, args));
+      //System.out.println(String.format("[%s]: ", tag) + String.format(message, args));
     }
   }
 }

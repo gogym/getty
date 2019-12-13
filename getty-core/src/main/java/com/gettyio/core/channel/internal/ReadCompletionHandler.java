@@ -40,7 +40,7 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, AioChan
         try {
             aioChannel.close();
         } catch (Exception e) {
-            LOGGER.debug(e.getMessage(), e);
+            LOGGER.error(e.getMessage(), e);
         }
 
     }

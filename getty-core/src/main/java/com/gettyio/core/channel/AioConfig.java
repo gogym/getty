@@ -41,11 +41,12 @@ public class AioConfig {
     //释放流控阈值
     private final int releaseFlowControlSize = 10;
 
-    //消息体缓存大小，默认512
+    //消息读取缓存大小，默认512
     private int readBufferSize = 512;
-
     //可回收的内存大小,默认与readBufferSize一致
     private int poolableSize = readBufferSize;
+    //输出类队列大小，默认1024*1024
+    private int bufferWriterQueueSize = 1024 * 1024;
 
     //服务器IP
     private String host;
@@ -80,6 +81,14 @@ public class AioConfig {
 
     public void setReadBufferSize(int readBufferSize) {
         this.readBufferSize = readBufferSize;
+    }
+
+    public int getBufferWriterQueueSize() {
+        return bufferWriterQueueSize;
+    }
+
+    public void setBufferWriterQueueSize(int bufferWriterQueueSize) {
+        this.bufferWriterQueueSize = bufferWriterQueueSize;
     }
 
     public Map<SocketOption<Object>, Object> getSocketOptions() {

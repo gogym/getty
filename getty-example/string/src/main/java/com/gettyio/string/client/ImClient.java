@@ -75,41 +75,41 @@ public class ImClient {
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
 
-//            int i = 0;
-//            for (; i < 1000000; i++) {
-////                String s = i + "me\r\n";
-////                byte[] msgBody = s.getBytes("utf-8");
-//                aioChannel.writeAndFlush(msgBody);
-//                //aioChannel.writeAndFlush(msgBody);
-//                //aioChannel.writeAndFlush(msgBody);
-//                //aioChannel.writeAndFlush(msgBody);
-//            }
-
-//            long lt = System.currentTimeMillis();
-//            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-//            System.out.printf("发送消息数量：" + i + "条\r\n");
-
-
-            for (int j = 0; j < 1; j++) {
-               threadPool.execute(new Runnable() {
-                   @Override
-                   public void run() {
-                       int i = 0;
-                       for (; i < 1000000; i++) {
+            int i = 0;
+            for (; i < 1000000; i++) {
 //                String s = i + "me\r\n";
 //                byte[] msgBody = s.getBytes("utf-8");
-                           aioChannel.writeAndFlush(msgBody);
-                           //aioChannel.writeAndFlush(msgBody);
-                           //aioChannel.writeAndFlush(msgBody);
-                           //aioChannel.writeAndFlush(msgBody);
-                       }
-
-                       long lt = System.currentTimeMillis();
-                       System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                       System.out.printf("发送消息数量：" + i + "条\r\n");
-                   }
-               });
+                aioChannel.writeAndFlush(msgBody);
+                //aioChannel.writeAndFlush(msgBody);
+                //aioChannel.writeAndFlush(msgBody);
+                //aioChannel.writeAndFlush(msgBody);
             }
+
+            long lt = System.currentTimeMillis();
+            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+            System.out.printf("发送消息数量：" + i + "条\r\n");
+
+
+//            for (int j = 0; j < 1; j++) {
+//               threadPool.execute(new Runnable() {
+//                   @Override
+//                   public void run() {
+//                       int i = 0;
+//                       for (; i < 10; i++) {
+////                String s = i + "me\r\n";
+////                byte[] msgBody = s.getBytes("utf-8");
+//                           aioChannel.writeAndFlush(msgBody);
+//                           //aioChannel.writeAndFlush(msgBody);
+//                           //aioChannel.writeAndFlush(msgBody);
+//                           //aioChannel.writeAndFlush(msgBody);
+//                       }
+//
+//                       long lt = System.currentTimeMillis();
+//                       System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+//                       System.out.printf("发送消息数量：" + i + "条\r\n");
+//                   }
+//               });
+//            }
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -7,7 +7,6 @@
 package com.gettyio.core.buffer;
 
 import com.gettyio.core.function.Function;
-import com.gettyio.core.util.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,21 +23,21 @@ import java.util.concurrent.TimeoutException;
  */
 public final class BufferWriter extends OutputStream {
     private static final Logger logger = LoggerFactory.getLogger(BufferWriter.class);
-    //缓冲页
+    //缓冲池
     private final ChunkPool chunkPool;
     private final Function<BufferWriter, Void> function;
     //当前是否已关闭
     private boolean closed = false;
 
-
-    private final ByteBuffer[] items = new ByteBuffer[2 * 1024 * 1024];
+    private final LinkedBlockQueue<ByteBuffer> queue;
     private int count;
     private int takeIndex;
     private int putIndex;
 
-    public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction) {
+    public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
         this.chunkPool = chunkPool;
         this.function = flushFunction;
+        queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
     }
 
     @Deprecated
@@ -75,7 +74,7 @@ public final class BufferWriter extends OutputStream {
             if (!chunkPage.hasRemaining()) {
                 //已经读取完，写到缓冲队列
                 chunkPage.flip();
-                this.put(chunkPage);
+                queue.put(chunkPage);
             }
 
         } catch (InterruptedException e) {
@@ -136,25 +135,13 @@ public final class BufferWriter extends OutputStream {
     }
 
 
-    private void put(ByteBuffer e) {
-        items[putIndex] = e;
-        if (++putIndex == items.length) {
-            putIndex = 0;
-        }
-        count++;
-    }
-
     public ByteBuffer poll() {
-        if (count == 0) {
-            return null;
+        try {
+            return queue.poll();
+        } catch (InterruptedException e) {
+            logger.error(e.getMessage(), e);
         }
-        ByteBuffer x = items[takeIndex];
-        items[takeIndex] = null;
-        if (++takeIndex == items.length) {
-            takeIndex = 0;
-        }
-        count--;
-        return x;
+        return null;
     }
 
 

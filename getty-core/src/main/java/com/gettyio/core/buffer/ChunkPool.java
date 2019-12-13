@@ -217,6 +217,9 @@ public final class ChunkPool {
     }
 
     public void deallocate(ByteBuffer buffer) {
+        if(null==buffer){
+            return;
+        }
         deallocate(buffer, buffer.capacity());
     }
 
