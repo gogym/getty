@@ -39,8 +39,7 @@ public class AutoByteBuffer {
      * 重置指针位置,如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
      *
      * @param position
-     * @return
-     * @throws ByteBufferException
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer readerIndex(int position) {
         if (position <= writerIndex) {
@@ -54,7 +53,7 @@ public class AutoByteBuffer {
     /**
      * 获取未处理数组，包含未使用部分
      *
-     * @return
+     * @return byte[]
      */
     public byte[] array() {
         return data;
@@ -63,7 +62,7 @@ public class AutoByteBuffer {
     /**
      * 清理数据，重置指针，数据不保留
      *
-     * @return
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer clear() {
         readerIndex = 0;
@@ -75,7 +74,7 @@ public class AutoByteBuffer {
     /**
      * 清理指针标记，数组内容保留，但是会被覆盖，除了array()获取原始数组外无法得到旧数据
      *
-     * @return
+     * @return AutoByteBuffer
      */
     public AutoByteBuffer reset() {
         readerIndex = 0;

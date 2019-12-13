@@ -8,7 +8,6 @@
 package com.gettyio.core.handler.ssl;
 
 import com.gettyio.core.handler.ssl.sslfacade.*;
-import org.getty.core.handler.ssl.sslfacade.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
