@@ -76,7 +76,7 @@ public class ImClient {
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 1000000; i++) {
+            for (; i < 100000; i++) {
 //                String s = i + "me\r\n";
 //                byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);

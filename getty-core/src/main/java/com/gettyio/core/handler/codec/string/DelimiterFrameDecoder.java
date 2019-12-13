@@ -23,6 +23,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
 
     //默认分隔符
     public static byte[] lineDelimiter = new byte[]{'\r', '\n'};
+    AutoByteBuffer preBuffer = AutoByteBuffer.newByteBuffer();
 
     /**
      * 消息结束标志
@@ -39,7 +40,6 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
 
     public void decode(AioChannel aioChannel, byte[] bytes) {
         int index = 0;
-        AutoByteBuffer preBuffer = AutoByteBuffer.newByteBuffer();
         while (index < bytes.length) {
             byte data = bytes[index];
             if (data != endFLag[exceptIndex]) {
