@@ -113,7 +113,7 @@ public class AioChannel implements Function<BufferWriter, Void> {
         this.chunkPool = chunkPool;
         try {
             //初始化读缓冲区
-            this.readByteBuffer = chunkPool.allocate(config.getReadBufferSize(), 1000);
+            this.readByteBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
@@ -121,7 +121,7 @@ public class AioChannel implements Function<BufferWriter, Void> {
         }
 
         //写通道
-        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize());
+        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
 
         //触发责任链回调
         invokePipeline(ChannelState.NEW_CHANNEL);
@@ -369,6 +369,7 @@ public class AioChannel implements Function<BufferWriter, Void> {
         if (writeByteBuffer == null) {
             writeByteBuffer = bufferWriter.poll();
         } else if (!writeByteBuffer.hasRemaining()) {
+            //写完及时释放
             chunkPool.deallocate(writeByteBuffer);
             writeByteBuffer = bufferWriter.poll();
         }

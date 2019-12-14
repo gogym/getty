@@ -19,7 +19,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void channelRead0(AioChannel aioChannel, String str) {
-        System.out.println("读取消息:" + str);
+        //System.out.println("读取消息:" + str);
 
 //        try {
 //            byte[]  msgBody = (str + "\r\n").getBytes("utf-8");

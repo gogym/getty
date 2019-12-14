@@ -44,11 +44,22 @@ public final class ChunkPool {
 
     //内存池总内存空间大小
     private final long totalMemory;
-    //每个空闲ByteBuffer的大小，申请直接取出
-    private final int poolableSize;
     private final ReentrantLock lock;
     //空闲内存池，不会实际分配内存，只是做个标记
-    private final Deque<ByteBuffer> free;
+    //极小的
+    private final int tinySize = 128;
+    private final Deque<ByteBuffer> tinyFree;
+    //小的
+    private final int smallSize = 512;
+    private final Deque<ByteBuffer> smallFree;
+    //中等的
+    private final int mediumSize = 1024;
+    private final Deque<ByteBuffer> mediumFree;
+    //大的
+    private final int largeSize = 2048;
+    private final Deque<ByteBuffer> largeFree;
+
+
     //等待队列标记
     private final Deque<Condition> waiters;
     //可用内存大小
@@ -63,15 +74,17 @@ public final class ChunkPool {
     /**
      * 创建内存池
      *
-     * @param memory       内存池总大小
-     * @param poolableSize 指定回收的内存大小
-     * @param time         等待时间
+     * @param memory 内存池总大小
+     * @param time   等待时间
      * @param direct 是否堆内存
      */
-    public ChunkPool(long memory, int poolableSize, Time time, boolean direct) {
-        this.poolableSize = poolableSize;
+    public ChunkPool(long memory, Time time, boolean direct) {
         this.lock = new ReentrantLock();
-        this.free = new ArrayDeque<>();
+        this.tinyFree = new ArrayDeque<>();
+        this.smallFree = new ArrayDeque<>();
+        this.mediumFree = new ArrayDeque<>();
+        this.largeFree = new ArrayDeque<>();
+
         this.waiters = new ArrayDeque<>();
         this.totalMemory = memory;
         this.availableMemory = memory;
@@ -86,7 +99,7 @@ public final class ChunkPool {
      * @param maxTimeToBlockMs 缓冲区内存分配的最大阻塞时间(以毫秒为单位)
      * @return The buffer 返回缓冲区
      * @throws InterruptedException 异常
-     * @throws TimeoutException 异常
+     * @throws TimeoutException     异常
      */
     public ByteBuffer allocate(int size, long maxTimeToBlockMs) throws InterruptedException, TimeoutException {
         if (size > this.totalMemory) {
@@ -100,12 +113,38 @@ public final class ChunkPool {
         this.lock.lock();
         try {
             //检查是否有大小合适的缓冲池
-            if (size == poolableSize && !this.free.isEmpty()) {
-                return this.free.pollFirst();
+            if (size <= tinySize) {
+                size = tinySize;
+                if (!this.tinyFree.isEmpty()) {
+                    return this.tinyFree.pollFirst();
+                }
+            }
+            if (size > tinySize && size <= smallSize) {
+                size = smallSize;
+                if (!this.smallFree.isEmpty()) {
+                    return this.smallFree.pollFirst();
+                }
+            }
+            if (size > smallSize && size <= mediumSize) {
+                size = mediumSize;
+                if (!this.mediumFree.isEmpty()) {
+                    return this.mediumFree.pollFirst();
+                }
             }
 
+            if (size > mediumSize && size <= largeSize) {
+                size = largeSize;
+                if (!this.largeFree.isEmpty()) {
+                    return this.largeFree.pollFirst();
+                }
+            }
+
+//            if (size == poolableSize && !this.mediumFree.isEmpty()) {
+//                return this.mediumFree.pollFirst();
+//            }
+
             //检查总空闲内存是否满足分配需要
-            int freeListSize = this.free.size() * this.poolableSize;
+            int freeListSize = (this.tinySize * this.tinyFree.size()) + (this.smallSize * this.smallFree.size()) + (this.mediumSize * this.mediumFree.size()) + (this.largeSize * this.largeFree.size());
             if (this.availableMemory + freeListSize >= size) {
                 //尝试释放空闲池
                 freeUp(size);
@@ -118,8 +157,8 @@ public final class ChunkPool {
                 ByteBuffer buffer = null;
                 Condition moreMemory = this.lock.newCondition();
                 long remainingTimeToBlockNs = TimeUnit.MILLISECONDS.toNanos(maxTimeToBlockMs);
-                this.waiters.addLast(moreMemory);
                 // 循环，直到我们有一个缓冲区有足够的内存来分配
+                this.waiters.addLast(moreMemory);
                 while (accumulated < size) {
                     long startWaitNs = time.nanoseconds();
                     long timeNs;
@@ -141,9 +180,21 @@ public final class ChunkPool {
 
                     remainingTimeToBlockNs -= timeNs;
                     // 检查是否有空闲池可分配
-                    if (accumulated == 0 && size == this.poolableSize && !this.free.isEmpty()) {
+                    if (accumulated == 0 && size <= this.tinySize && !this.tinyFree.isEmpty()) {
                         // 只需从空闲列表中获取一个缓冲区
-                        buffer = this.free.pollFirst();
+                        buffer = this.tinyFree.pollFirst();
+                        accumulated = size;
+                    } else if (accumulated == 0 && size <= this.smallSize && !this.smallFree.isEmpty()) {
+                        // 只需从空闲列表中获取一个缓冲区
+                        buffer = this.smallFree.pollFirst();
+                        accumulated = size;
+                    } else if (accumulated == 0 && size <= this.mediumSize && !this.mediumFree.isEmpty()) {
+                        // 只需从空闲列表中获取一个缓冲区
+                        buffer = this.mediumFree.pollFirst();
+                        accumulated = size;
+                    } else if (accumulated == 0 && size <= this.largeSize && !this.largeFree.isEmpty()) {
+                        // 只需从空闲列表中获取一个缓冲区
+                        buffer = this.largeFree.pollFirst();
                         accumulated = size;
                     } else {
                         // 没有刚好合适的缓冲池，尝试释放
@@ -161,7 +212,7 @@ public final class ChunkPool {
                 }
 
                 // 如果内存不够，就通知其他等待者,避免一直阻塞
-                if (this.availableMemory > 0 || !this.free.isEmpty()) {
+                if (this.availableMemory > 0 || !this.mediumFree.isEmpty()) {
                     if (!this.waiters.isEmpty()) {
                         this.waiters.peekFirst().signal();
                     }
@@ -184,11 +235,27 @@ public final class ChunkPool {
 
     /**
      * 尝试通过释放池确保至少有被请求的内存字节数
+     *
      * @param size 释放大小
      */
     private void freeUp(int size) {
-        while (!this.free.isEmpty() && this.availableMemory < size) {
-            this.availableMemory += this.free.pollLast().capacity();
+        while (!(this.largeFree.isEmpty() && this.mediumFree.isEmpty() && this.smallFree.isEmpty() && this.tinyFree.isEmpty()) && this.availableMemory < size) {
+            if (!this.largeFree.isEmpty()) {
+                this.availableMemory += this.largeFree.pollLast().capacity();
+                continue;
+            }
+            if (!this.mediumFree.isEmpty()) {
+                this.availableMemory += this.mediumFree.pollLast().capacity();
+                continue;
+            }
+            if (!this.smallFree.isEmpty()) {
+                this.availableMemory += this.smallFree.pollLast().capacity();
+                continue;
+            }
+            if (!this.tinyFree.isEmpty()) {
+                this.availableMemory += this.tinyFree.pollLast().capacity();
+                continue;
+            }
         }
     }
 
@@ -201,12 +268,19 @@ public final class ChunkPool {
     public void deallocate(ByteBuffer buffer, int size) {
         lock.lock();
         try {
-            if (size == this.poolableSize && size == buffer.capacity()) {
-                buffer.clear();
-                this.free.add(buffer);
+            buffer.clear();
+            if (size == tinySize && size == buffer.capacity()) {
+                this.tinyFree.add(buffer);
+            } else if (size == smallSize && size == buffer.capacity()) {
+                this.smallFree.add(buffer);
+            } else if (size == mediumSize && size == buffer.capacity()) {
+                this.mediumFree.add(buffer);
+            } else if (size == largeSize && size == buffer.capacity()) {
+                this.largeFree.add(buffer);
             } else {
                 this.availableMemory += size;
             }
+            //通知等待内存的线程继续执行
             Condition moreMem = this.waiters.peekFirst();
             if (moreMem != null) {
                 moreMem.signal();
@@ -217,7 +291,7 @@ public final class ChunkPool {
     }
 
     public void deallocate(ByteBuffer buffer) {
-        if(null==buffer){
+        if (null == buffer) {
             return;
         }
         deallocate(buffer, buffer.capacity());
@@ -225,12 +299,13 @@ public final class ChunkPool {
 
     /**
      * 未分配的和空闲列表中的总空闲内存
+     *
      * @return long
      */
     public long availableMemory() {
         lock.lock();
         try {
-            return this.availableMemory + this.free.size() * this.poolableSize;
+            return this.availableMemory + (this.tinySize * this.tinyFree.size()) + (this.smallSize * this.smallFree.size()) + (this.mediumSize * this.mediumFree.size()) + (this.largeSize * this.largeFree.size());
         } finally {
             lock.unlock();
         }
@@ -238,6 +313,7 @@ public final class ChunkPool {
 
     /**
      * 获取未分配的内存(不在空闲列表中或正在使用中)
+     *
      * @return long
      */
     public long unallocatedMemory() {
@@ -251,6 +327,7 @@ public final class ChunkPool {
 
     /**
      * 等待内存时阻塞的线程数
+     *
      * @return int
      */
     public int queued() {
@@ -270,21 +347,15 @@ public final class ChunkPool {
         if (waiters != null) {
             waiters.clear();
         }
-        if (free != null) {
-            free.clear();
+        if (mediumFree != null) {
+            mediumFree.clear();
         }
     }
 
-    /**
-     * 使用后将保留在空闲列表中的缓冲区大小
-     * @return int
-     */
-    public int poolableSize() {
-        return this.poolableSize;
-    }
 
     /**
      * 此池管理的总内存
+     *
      * @return long
      */
     public long totalMemory() {
@@ -299,11 +370,11 @@ public final class ChunkPool {
     public static void main(String[] args) {
 
         Time t = new Time();
-        ChunkPool bufferPool = new ChunkPool(1024 * 1024, 32, t, true);
+        ChunkPool bufferPool = new ChunkPool(20 * 1024 * 1024, t, true);
         try {
             long ct = System.currentTimeMillis();
-            for (int i = 1; i <= 100000; i++) {
-                ByteBuffer b = bufferPool.allocate(32, 1000);
+            for (int i = 1; i <= 1000000; i++) {
+                ByteBuffer b = bufferPool.allocate(9, 3000);
                 bufferPool.deallocate(b);
             }
             long lt = System.currentTimeMillis();

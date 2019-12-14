@@ -43,8 +43,8 @@ public class AioConfig {
 
     //消息读取缓存大小，默认512
     private int readBufferSize = 512;
-    //可回收的内存大小,默认与readBufferSize一致
-    private int poolableSize = readBufferSize;
+    //内存池最大阻塞时间。默认1s
+    private int chunkPoolBlockTime = 1000;
     //输出类队列大小，默认1024*1024
     private int bufferWriterQueueSize = 1024 * 1024;
 
@@ -106,12 +106,12 @@ public class AioConfig {
         return isDirect;
     }
 
-    public int getPoolableSize() {
-        return poolableSize;
+    public int getChunkPoolBlockTime() {
+        return chunkPoolBlockTime;
     }
 
-    public void setPoolableSize(int poolableSize) {
-        this.poolableSize = poolableSize;
+    public void setChunkPoolBlockTime(int chunkPoolBlockTime) {
+        this.chunkPoolBlockTime = chunkPoolBlockTime;
     }
 
     @Override

@@ -150,7 +150,7 @@ public class AioServerStarter {
             aioWriteCompletionHandler = new WriteCompletionHandler();
 
             //实例化内存池
-            this.chunkPool = new ChunkPool(config.getServerChunkSize(), config.getPoolableSize(), new Time(), config.isDirect());
+            this.chunkPool = new ChunkPool(config.getServerChunkSize(), new Time(), config.isDirect());
 
             //IO线程分组
             asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, Thread::new);

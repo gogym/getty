@@ -25,6 +25,7 @@ public final class BufferWriter extends OutputStream {
     private static final Logger logger = LoggerFactory.getLogger(BufferWriter.class);
     //缓冲池
     private final ChunkPool chunkPool;
+    private int chunkPoolBlockTime;
     private final Function<BufferWriter, Void> function;
     //当前是否已关闭
     private boolean closed = false;
@@ -34,8 +35,9 @@ public final class BufferWriter extends OutputStream {
     private int takeIndex;
     private int putIndex;
 
-    public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
+    public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
+        this.chunkPoolBlockTime = chunkPoolBlockTime;
         this.function = flushFunction;
         queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
     }
@@ -63,19 +65,19 @@ public final class BufferWriter extends OutputStream {
         }
         try {
             //申请写缓冲
-            ByteBuffer chunkPage = chunkPool.allocate(len - off, 1000);
+            ByteBuffer chunkPage = chunkPool.allocate(len - off, chunkPoolBlockTime);
             int minSize = chunkPage.remaining();
             if (minSize == 0) {
                 chunkPool.deallocate(chunkPage);
                 throw new RuntimeException("ByteBuffer remaining is 0");
             }
             //写入数据
-            chunkPage.put(b, off, minSize);
-            if (!chunkPage.hasRemaining()) {
-                //已经读取完，写到缓冲队列
-                chunkPage.flip();
-                queue.put(chunkPage);
-            }
+            chunkPage.put(b, off, b.length);
+            //if (!chunkPage.hasRemaining()) {
+            chunkPage.flip();
+            //已经读取完，写到缓冲队列
+            queue.put(chunkPage);
+            // }
 
         } catch (InterruptedException e) {
             e.printStackTrace();

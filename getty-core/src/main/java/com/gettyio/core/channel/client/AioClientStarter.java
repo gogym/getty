@@ -114,7 +114,7 @@ public class AioClientStarter {
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
 
         if (chunkPool == null) {
-            chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), aioClientConfig.getPoolableSize(), new Time(), aioClientConfig.isDirect());
+            chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), new Time(), aioClientConfig.isDirect());
         }
 
         if (aioClientConfig.getSocketOptions() != null) {

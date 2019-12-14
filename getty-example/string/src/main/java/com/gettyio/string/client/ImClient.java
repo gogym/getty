@@ -34,7 +34,9 @@ public class ImClient {
         AioClientConfig aioConfig = new AioClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-        aioConfig.setClientChunkSize(50 * 1024 * 1024);
+        aioConfig.setClientChunkSize(512 * 1024 * 1024);
+        aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);
+
 
         AioClientStarter client = new AioClientStarter(aioConfig);
         client.channelInitializer(new ChannelInitializer() {
@@ -71,12 +73,12 @@ public class ImClient {
         try {
             Thread.sleep(2000);
             AioChannel aioChannel = client.getAioChannel();
-            String s = "me12345\r\n";
+            String s = "12";
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 100000; i++) {
+            for (; i < 1000000; i++) {
 //                String s = i + "me\r\n";
 //                byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);
