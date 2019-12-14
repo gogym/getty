@@ -17,8 +17,8 @@ import com.gettyio.core.channel.AioConfig;
  */
 public final class AioServerConfig extends AioConfig {
 
-    //服务器端内存大小,默认20mb
-    private Integer serverChunkSize = 20 * 1024 * 1024;
+    //服务器端内存大小,默认256mb
+    private Integer serverChunkSize = 256 * 1024 * 1024;
 
     public Integer getServerChunkSize() {
         return serverChunkSize;

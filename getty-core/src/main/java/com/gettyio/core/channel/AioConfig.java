@@ -45,8 +45,8 @@ public class AioConfig {
     private int readBufferSize = 512;
     //内存池最大阻塞时间。默认1s
     private int chunkPoolBlockTime = 1000;
-    //输出类队列大小，默认1024*1024
-    private int bufferWriterQueueSize = 1024 * 1024;
+    //输出类队列大小，默认10*1024*1024
+    private int bufferWriterQueueSize = 10 * 1024 * 1024;
 
     //服务器IP
     private String host;

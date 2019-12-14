@@ -17,8 +17,8 @@ import com.gettyio.core.channel.AioConfig;
  */
 public final class AioClientConfig extends AioConfig {
 
-    //内存大小,10m
-    public Integer clientChunkSize = 10 * 1024 * 1024;
+    //内存池大小,默认256
+    public Integer clientChunkSize = 256 * 1024 * 1024;
 
     public Integer getClientChunkSize() {
         return clientChunkSize;
