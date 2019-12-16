@@ -29,11 +29,8 @@ public final class BufferWriter extends OutputStream {
     private final Function<BufferWriter, Void> function;
     //当前是否已关闭
     private boolean closed = false;
-
+    //阻塞队列
     private final LinkedBlockQueue<ByteBuffer> queue;
-    private int count;
-    private int takeIndex;
-    private int putIndex;
 
     public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;

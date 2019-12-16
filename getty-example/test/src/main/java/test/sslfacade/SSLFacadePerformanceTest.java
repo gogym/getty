@@ -1,6 +1,5 @@
-package com.gettyio.test.sslfacade;
+package test.sslfacade;
 
-import com.gettyio.core.handler.ssl.sslfacade.*;
 import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;

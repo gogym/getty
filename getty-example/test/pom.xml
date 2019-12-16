@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>protobuf</artifactId>
+    <artifactId>test</artifactId>
 
     <dependencies>
 
@@ -28,35 +28,12 @@
             <artifactId>spring-boot-starter-tomcat</artifactId>
         </dependency>
 
-
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
         </dependency>
 
 
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>3.8.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
-            <version>3.8.0</version>
-        </dependency>
-
     </dependencies>
-
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.1.6.RELEASE</version>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>

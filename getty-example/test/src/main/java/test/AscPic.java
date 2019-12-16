@@ -1,4 +1,4 @@
-package com.gettyio.test;
+package test;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

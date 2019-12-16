@@ -39,7 +39,7 @@ public class AioClientStarter {
     //aio通道
     private AioChannel aioChannel;
     //内存池
-    private ChunkPool chunkPool = null;
+    private ChunkPool chunkPool;
     //线程池
     private ThreadPool workerThreadPool;
     //IO线程组。
@@ -98,6 +98,8 @@ public class AioClientStarter {
         }
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+        //初始化内存池
+        chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), new Time(), aioClientConfig.isDirect());
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, Thread::new);
         //调用内部启动
         start0(asynchronousChannelGroup);
@@ -112,17 +114,11 @@ public class AioClientStarter {
     private void start0(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
 
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
-
-        if (chunkPool == null) {
-            chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), new Time(), aioClientConfig.isDirect());
-        }
-
         if (aioClientConfig.getSocketOptions() != null) {
             for (Map.Entry<SocketOption<Object>, Object> entry : aioClientConfig.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
-
         /**
          * 非阻塞连接
          */
@@ -134,7 +130,6 @@ public class AioClientStarter {
                 aioChannel = new AioChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelInitializer);
                 aioChannel.starRead();
             }
-
             @Override
             public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
                 logger.error("server connect error", exc);

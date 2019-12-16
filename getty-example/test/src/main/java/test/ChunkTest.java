@@ -1,4 +1,4 @@
-package com.gettyio.test;
+package test;
 
 import com.gettyio.core.util.ThreadPool;
 
