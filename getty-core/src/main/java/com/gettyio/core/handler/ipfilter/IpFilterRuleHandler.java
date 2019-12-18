@@ -25,11 +25,11 @@ public class IpFilterRuleHandler extends AbstractRemoteAddressFilter<InetSocketA
 
     IpFilterRule rules;
 
-    public IpFilterRuleHandler(List<IpRange> ips,IpFilterRuleType ipFilterRuleType) {
+    public IpFilterRuleHandler(List<IpRange> ips, IpFilterRuleType ipFilterRuleType) {
         if (ips == null) {
             throw new NullPointerException("rules");
         }
-        rules = new RuleBasedIpFilter(ips,ipFilterRuleType);
+        rules = new RuleBasedIpFilter(ips, ipFilterRuleType);
     }
 
 

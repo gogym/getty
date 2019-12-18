@@ -1,7 +1,7 @@
 package com.gettyio.protobuf.client;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.client.AioClientStarter;
+import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.handler.codec.protobuf.ProtobufEncoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import com.gettyio.core.pipeline.ChannelInitializer;

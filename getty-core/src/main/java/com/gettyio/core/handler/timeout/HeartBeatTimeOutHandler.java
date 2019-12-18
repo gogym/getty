@@ -9,6 +9,7 @@ package com.gettyio.core.handler.timeout;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import org.slf4j.Logger;
@@ -45,12 +46,14 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-        switch (channelStateEnum) {
-            case CHANNEL_READ:
-                loss_connect_time = 0;
-                break;
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        if (aioChannel instanceof TcpChannel) {
+            switch (channelStateEnum) {
+                case CHANNEL_READ:
+                    loss_connect_time = 0;
+                    break;
+            }
         }
-        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 }

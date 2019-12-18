@@ -21,8 +21,8 @@ public interface ChannelOutboundHandler extends ChannelboundHandler {
     /**
      * 消息编码
      * @param aioChannel 通道
-     * @param bytes 数据
+     * @param obj 数据
      */
-    void encode(AioChannel aioChannel, byte[] bytes);
+    void encode(AioChannel aioChannel, Object obj);
 
 }

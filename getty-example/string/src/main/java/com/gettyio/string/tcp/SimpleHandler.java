@@ -1,4 +1,4 @@
-package com.gettyio.string.client;
+package com.gettyio.string.tcp;
 
 
 import com.gettyio.core.channel.AioChannel;

@@ -1,7 +1,7 @@
 package com.gettyio.core.buffer;/*
  * 类名：LinkedBlockArray
  * 版权：Copyright by www.getty.com
- * 描述：
+ * 描述：数组实现的阻塞队列
  * 修改人：gogym
  * 时间：2019/12/13
  */

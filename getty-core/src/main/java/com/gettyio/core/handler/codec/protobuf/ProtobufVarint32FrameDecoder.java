@@ -9,7 +9,7 @@ package com.gettyio.core.handler.codec.protobuf;/*
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.pipeline.PipelineDirection;
 
 import java.io.IOException;
@@ -21,12 +21,12 @@ import java.io.IOException;
  * 修改人：gogym
  * 时间：2019/10/9
  */
-public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
+public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        byte[] bytes = (byte[]) obj;
         if (channelStateEnum == ChannelState.CHANNEL_READ) {
             AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer(bytes.length);
             autoByteBuffer.writeBytes(bytes);

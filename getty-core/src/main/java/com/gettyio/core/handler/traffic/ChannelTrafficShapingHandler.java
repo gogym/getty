@@ -9,6 +9,7 @@ package com.gettyio.core.handler.traffic;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
@@ -53,25 +54,28 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-        switch (channelStateEnum) {
-            case CHANNEL_READ:
-                totalRead += bytes.length;
-                intervalTotalReadTmp += bytes.length;
-                totalReadCount++;
-                break;
-            case CHANNEL_WRITE:
-                totalWrite += bytes.length;
-                intervalTotalWriteTmp += bytes.length;
-                totolWriteCount++;
-                break;
-            case CHANNEL_CLOSED:
-                pool.shutdown();
-                break;
-            default:
-                break;
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        if (aioChannel instanceof TcpChannel) {
+            byte[] bytes = (byte[]) obj;
+            switch (channelStateEnum) {
+                case CHANNEL_READ:
+                    totalRead += bytes.length;
+                    intervalTotalReadTmp += bytes.length;
+                    totalReadCount++;
+                    break;
+                case CHANNEL_WRITE:
+                    totalWrite += bytes.length;
+                    intervalTotalWriteTmp += bytes.length;
+                    totolWriteCount++;
+                    break;
+                case CHANNEL_CLOSED:
+                    pool.shutdown();
+                    break;
+                default:
+                    break;
+            }
         }
-        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 
 

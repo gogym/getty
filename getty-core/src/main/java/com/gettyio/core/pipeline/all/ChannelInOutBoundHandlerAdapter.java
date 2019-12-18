@@ -24,7 +24,7 @@ import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdapter {
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //需要先判断数据流向
         ChannelHandlerAdapter channelHandlerAdapter = this;
         if (pipelineDirection == PipelineDirection.IN) {
@@ -44,11 +44,11 @@ public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdap
         }
 
         if (channelHandlerAdapter != null) {
-            channelHandlerAdapter.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+            channelHandlerAdapter.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
         } else {
             //当输出责任链已经走完，如果方向是out.则需要写到通道里
             if (pipelineDirection == PipelineDirection.OUT) {
-                aioChannel.writeToChannel(bytes);
+                aioChannel.writeToChannel(obj);
             }
         }
     }

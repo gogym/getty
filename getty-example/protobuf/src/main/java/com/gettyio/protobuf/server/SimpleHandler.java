@@ -2,14 +2,24 @@ package com.gettyio.protobuf.server;
 
 
 import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.group.DefaultChannelGroup;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import com.gettyio.protobuf.packet.MessageClass;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Message> {
+
+    //实例化一个group保存客户端连接
+    DefaultChannelGroup defaultChannelGroup = new DefaultChannelGroup();
+
     @Override
     public void channelAdded(AioChannel aioChannel) {
         System.out.println("连接过来了");
+        //把连接保存起来以备使用
+        defaultChannelGroup.add(aioChannel);
+        //可以通过AioChannel的channelId获取通道。比如与用户映射起来
+        AioChannel tempChannel = defaultChannelGroup.find(aioChannel.getChannelId());
+        tempChannel.writeAndFlush("123".getBytes());
     }
 
     @Override
@@ -21,14 +31,6 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
     @Override
     public void channelRead0(AioChannel aioChannel, MessageClass.Message str) {
         System.out.println("读取消息:" + str.getId());
-
-//        try {
-//            byte[]  msgBody = (str + "\r\n").getBytes("utf-8");
-//            //返回消息给客户端
-//            aioChannel.writeAndFlush(msgBody);
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
     }
 
     @Override

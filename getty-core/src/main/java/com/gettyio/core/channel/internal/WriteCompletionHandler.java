@@ -7,8 +7,7 @@
  */
 package com.gettyio.core.channel.internal;
 
-import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.channel.TcpChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,23 +19,23 @@ import java.nio.channels.CompletionHandler;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class WriteCompletionHandler implements CompletionHandler<Integer, AioChannel> {
+public class WriteCompletionHandler implements CompletionHandler<Integer, TcpChannel> {
     private static final Logger LOGGER = LoggerFactory.getLogger(WriteCompletionHandler.class);
 
     @Override
-    public void completed(final Integer result, final AioChannel aioChannel) {
+    public void completed(final Integer result, final TcpChannel tcpChannel) {
         try {
-            aioChannel.writeCompleted();
+            tcpChannel.writeCompleted();
         } catch (Exception e) {
-            failed(e, aioChannel);
+            failed(e, tcpChannel);
         }
 
     }
 
     @Override
-    public void failed(Throwable exc, AioChannel aioChannel) {
+    public void failed(Throwable exc, TcpChannel tcpChannel) {
         try {
-            aioChannel.close();
+            tcpChannel.close();
         } catch (Exception e) {
             LOGGER.debug(e.getMessage(), e);
         }

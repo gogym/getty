@@ -1,5 +1,6 @@
 package test.sslfacade;
 
+import com.gettyio.core.handler.ssl.sslfacade.*;
 import org.junit.Before;
 import org.junit.Test;
 

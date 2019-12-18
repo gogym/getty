@@ -80,7 +80,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
     }
 
     @Override
-    public void decode(AioChannel aioChannel, byte[] bytes) {
+    public void decode(AioChannel aioChannel, Object obj) {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
@@ -89,13 +89,13 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
             }
         }
         if (channelHandlerAdapter != null) {
-            ((ChannelInboundHandlerAdapter) channelHandlerAdapter).decode(aioChannel, bytes);
+            ((ChannelInboundHandlerAdapter) channelHandlerAdapter).decode(aioChannel, obj);
         }
     }
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //把任务传递给下一个处理器
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
@@ -105,7 +105,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
             }
         }
         if (channelHandlerAdapter != null) {
-            channelHandlerAdapter.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+            channelHandlerAdapter.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
         }
 
     }

@@ -21,15 +21,15 @@ import com.gettyio.core.pipeline.PipelineDirection;
 public class StringEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(AioChannel aioChannel, byte[] bytes) {
+    public void encode(AioChannel aioChannel, Object obj) {
         //System.out.println("输出编码");
     }
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //encode(aioChannel, bytes);
-        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 
 

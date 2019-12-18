@@ -5,10 +5,14 @@
  * 邮箱：189155278@qq.com
  * 时间：2019/9/27
  */
-package com.gettyio.core.channel.server;
+package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
+import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.TcpChannel;
+import com.gettyio.core.channel.UdpChannel;
+import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
@@ -20,9 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.AsynchronousChannelGroup;
-import java.nio.channels.AsynchronousServerSocketChannel;
-import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.*;
 import java.util.Map;
 import java.util.concurrent.*;
 
@@ -35,6 +37,8 @@ import java.util.concurrent.*;
 public class AioServerStarter {
     private static final Logger LOGGER = LoggerFactory.getLogger(AioServerStarter.class);
 
+    //开启的socket模式 TCP/UDP ,默认tcp
+    protected SocketChannel socketChannel = SocketChannel.TCP;
     //Server端服务配置
     protected AioServerConfig config = new AioServerConfig();
     //内存池
@@ -44,7 +48,7 @@ public class AioServerStarter {
     //写回调事件处理
     protected WriteCompletionHandler aioWriteCompletionHandler;
     // 责任链对象
-    protected ChannelPipeline channelInitializer;
+    protected ChannelPipeline channelPipeline;
     //线程池
     private ThreadPool workerThreadPool;
     //io服务端
@@ -99,11 +103,11 @@ public class AioServerStarter {
     /**
      * 责任链
      *
-     * @param channelInitializer 责任链
+     * @param channelPipeline 责任链
      * @return AioServerStarter
      */
-    public AioServerStarter channelInitializer(ChannelPipeline channelInitializer) {
-        this.channelInitializer = channelInitializer;
+    public AioServerStarter channelInitializer(ChannelPipeline channelPipeline) {
+        this.channelPipeline = channelPipeline;
         return this;
     }
 
@@ -119,6 +123,12 @@ public class AioServerStarter {
         return this;
     }
 
+    public AioServerStarter socketChannel(SocketChannel socketChannel) {
+        this.socketChannel = socketChannel;
+        return this;
+    }
+
+
     /**
      * 启动AIO服务
      *
@@ -128,29 +138,36 @@ public class AioServerStarter {
         //打印框架信息
         LOGGER.info("\r\n" + AioServerConfig.BANNER + "\r\n  getty version:(" + AioServerConfig.VERSION + ")");
 
-        if (channelInitializer == null) {
+        if (channelPipeline == null) {
             throw new RuntimeException("ChannelPipeline can't be null");
         }
-        start0();
+
+        if (chunkPool == null) {
+            //实例化内存池
+            this.chunkPool = new ChunkPool(config.getServerChunkSize(), new Time(), config.isDirect());
+        }
+
+        //初始化worker线程池
+        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
+
+        if (socketChannel == SocketChannel.TCP) {
+            startTCP();
+        } else {
+            startUDP();
+        }
     }
 
     /**
-     * 内部启动
+     * 启动TCP
      *
      * @throws IOException 异常
      */
-    private final void start0() throws IOException {
+    private final void startTCP() throws IOException {
         try {
-
-            //初始化worker线程池
-            workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
 
             //实例化读写回调
             aioReadCompletionHandler = new ReadCompletionHandler(workerThreadPool);
             aioWriteCompletionHandler = new WriteCompletionHandler();
-
-            //实例化内存池
-            this.chunkPool = new ChunkPool(config.getServerChunkSize(), new Time(), config.isDirect());
 
             //IO线程分组
             asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, Thread::new);
@@ -187,7 +204,7 @@ public class AioServerStarter {
                         //通过线程池创建客户端连接通道
                         workerThreadPool.execute(() -> {
                             //开始创建客户端会话
-                            createChannel(channel);
+                            createTcpChannel(channel);
                         });
                     } catch (Exception e) {
                         LOGGER.error("AsynchronousSocketChannel accept Exception", e);
@@ -199,19 +216,45 @@ public class AioServerStarter {
             shutdown();
             throw e;
         }
-        LOGGER.info("getty server started on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
+        LOGGER.info("getty server started TCP on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
         LOGGER.info("getty server config is {}", config.toString());
     }
+
+
+    /**
+     * 启动UDP
+     *
+     * @throws IOException 异常
+     */
+    private final void startUDP() throws IOException {
+
+        DatagramChannel datagramChannel = DatagramChannel.open();
+        datagramChannel.configureBlocking(false);
+        datagramChannel.bind(new InetSocketAddress(config.getPort()));
+        //设置socket参数
+        if (config.getSocketOptions() != null) {
+            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
+                datagramChannel.setOption(entry.getKey(), entry.getValue());
+            }
+        }
+        Selector selector = Selector.open();
+        datagramChannel.register(selector, SelectionKey.OP_READ);
+        createUdpChannel(datagramChannel, selector);
+
+        LOGGER.info("getty server started UDP on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
+        LOGGER.info("getty server config is {}", config.toString());
+    }
+
 
     /**
      * 为每个新连接创建AioChannel对象
      *
      * @param channel 通道
      */
-    private void createChannel(AsynchronousSocketChannel channel) {
+    private void createTcpChannel(AsynchronousSocketChannel channel) {
         AioChannel aioChannel = null;
         try {
-            aioChannel = new AioChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool, channelInitializer);
+            aioChannel = new TcpChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool, channelPipeline);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {
@@ -220,6 +263,18 @@ public class AioServerStarter {
                 closeChannel(channel);
             }
         }
+    }
+
+
+    /**
+     * 创建Udp通道
+     *
+     * @return void
+     * @params [datagramChannel, selector]
+     */
+    private void createUdpChannel(DatagramChannel datagramChannel, Selector selector) {
+        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, config, chunkPool, channelPipeline, workerThreadNum);
+        udpChannel.starRead();
     }
 
     /**
@@ -274,23 +329,6 @@ public class AioServerStarter {
         } catch (InterruptedException e) {
             LOGGER.error("server shutdown exception", e);
         }
-    }
-
-
-    /**
-     * 设置Socket的TCP参数配置。
-     * AIO客户端的有效可选范围为：
-     * 2. StandardSocketOptions.SO_RCVBUF
-     * 4. StandardSocketOptions.SO_REUSEADDR
-     *
-     * @param socketOption 配置项
-     * @param value        配置值
-     * @param <V>          泛型
-     * @return v
-     */
-    public final <V> AioServerStarter setOption(SocketOption<V> socketOption, V value) {
-        config.setOption(socketOption, value);
-        return this;
     }
 
 

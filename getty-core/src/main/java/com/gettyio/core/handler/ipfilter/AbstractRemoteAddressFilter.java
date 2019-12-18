@@ -9,6 +9,7 @@ package com.gettyio.core.handler.ipfilter;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
@@ -24,12 +25,14 @@ import java.net.SocketAddress;
 public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends ChannelInboundHandlerAdapter {
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
-        switch (channelStateEnum) {
-            case NEW_CHANNEL:
-                handleNewChannel(aioChannel);
-                break;
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+        if (aioChannel instanceof TcpChannel) {
+            switch (channelStateEnum) {
+                case NEW_CHANNEL:
+                    handleNewChannel(aioChannel);
+                    break;
+            }
         }
     }
 
@@ -55,7 +58,7 @@ public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> exten
     }
 
     /**
-     * @param aioChannel 通道
+     * @param aioChannel    通道
      * @param remoteAddress 远程地址
      * @return Return true if connections from this IP address and port should be accepted. False otherwise.
      */

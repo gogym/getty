@@ -21,13 +21,15 @@ import com.gettyio.core.pipeline.PipelineDirection;
 public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
 
     @Override
-    public void encode(AioChannel aioChannel, byte[] bytes) {
+    public void encode(AioChannel aioChannel, Object obj) {
 
     }
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        byte[] bytes = (byte[]) obj;
+
         int bodyLen = bytes.length;
         int headerLen = computeRawVarint32Size(bodyLen);
         byte[] b = new byte[headerLen + bodyLen];

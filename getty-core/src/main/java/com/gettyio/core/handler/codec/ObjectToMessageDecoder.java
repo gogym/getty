@@ -15,6 +15,6 @@ import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter {
+public abstract class ObjectToMessageDecoder extends ChannelInboundHandlerAdapter {
 
 }

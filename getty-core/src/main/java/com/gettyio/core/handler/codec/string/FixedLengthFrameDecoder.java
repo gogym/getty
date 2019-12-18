@@ -9,6 +9,7 @@ package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
@@ -31,8 +32,9 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
         }
     }
 
-    public void decode(AioChannel aioChannel, byte[] bytes) {
-
+    @Override
+    public void decode(AioChannel aioChannel, Object obj) {
+        byte[] bytes = (byte[]) obj;
         int index = 0;
         while (index < bytes.length) {
             byte[] byte2;
@@ -52,10 +54,10 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-        if (null != bytes) {
-            decode(aioChannel, bytes);
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        if (null != obj && aioChannel instanceof TcpChannel) {
+            decode(aioChannel, obj);
         }
-        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 }

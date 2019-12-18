@@ -5,9 +5,7 @@
  * 邮箱：189155278@qq.com
  * 时间：2019/9/27
  */
-package com.gettyio.core.channel.client;
-
-import com.gettyio.core.channel.AioConfig;
+package com.gettyio.core.channel.config;
 
 /**
  * 类名：AioClientConfig.java
@@ -17,7 +15,7 @@ import com.gettyio.core.channel.AioConfig;
  */
 public final class AioClientConfig extends AioConfig {
 
-    //内存池大小,默认256
+    //客户端内存池大小,默认256m
     public Integer clientChunkSize = 256 * 1024 * 1024;
 
     public Integer getClientChunkSize() {

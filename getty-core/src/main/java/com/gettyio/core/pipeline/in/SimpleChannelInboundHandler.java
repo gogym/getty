@@ -21,7 +21,7 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum,Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
 
         switch (channelStateEnum) {
             case NEW_CHANNEL:
@@ -36,7 +36,7 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
             default:
                 break;
         }
-        super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 
 

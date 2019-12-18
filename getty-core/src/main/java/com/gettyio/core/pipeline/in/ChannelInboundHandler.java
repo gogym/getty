@@ -47,6 +47,6 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      * @param aioChannel 通道
      * @param bytes      消息数组
      */
-    void decode(AioChannel aioChannel, byte[] bytes);
+    void decode(AioChannel aioChannel, Object obj);
 
 }

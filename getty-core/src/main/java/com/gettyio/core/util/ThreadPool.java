@@ -29,6 +29,8 @@ public class ThreadPool {
 
     private ScheduledExecutorService scheduleExec;
 
+    private int corePoolSize;
+
     /**
      * ThreadPool构造函数
      *
@@ -36,6 +38,8 @@ public class ThreadPool {
      * @param corePoolSize 只对Fixed和Scheduled线程池起效
      */
     public ThreadPool(final int type, final int corePoolSize) {
+        this.corePoolSize = corePoolSize;
+
         // 构造有定时功能的线程池
         // ThreadPoolExecutor(corePoolSize, Integer.MAX_VALUE, 10L, TimeUnit.MILLISECONDS, new
         // BlockingQueue<Runnable>)
@@ -54,6 +58,10 @@ public class ThreadPool {
                 exec = Executors.newCachedThreadPool();
                 break;
         }
+    }
+
+    public int getCorePoolSize() {
+        return corePoolSize;
     }
 
     /**
@@ -282,5 +290,6 @@ public class ThreadPool {
                                                      final TimeUnit unit) {
         return scheduleExec.scheduleWithFixedDelay(command, initialDelay, delay, unit);
     }
+
 
 }

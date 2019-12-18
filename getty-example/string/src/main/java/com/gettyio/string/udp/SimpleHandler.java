@@ -1,14 +1,18 @@
-package com.gettyio.string.socket;
+package com.gettyio.string.udp;
 
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
-public class SimpleHandler extends SimpleChannelInboundHandler<String> {
+import java.net.DatagramPacket;
+
+public class SimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     @Override
     public void channelAdded(AioChannel aioChannel) {
-        System.out.println("连接过来了");
+
+        System.out.println("连接成功");
+
     }
 
     @Override
@@ -18,21 +22,13 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
 
     @Override
-    public void channelRead0(AioChannel aioChannel, String str) {
-        //System.out.println("读取消息:" + str);
+    public void channelRead0(AioChannel aioChannel, DatagramPacket datagramPacket) {
 
-//        try {
-//            byte[]  msgBody = (str + "\r\n").getBytes("utf-8");
-//            //返回消息给客户端
-//            aioChannel.writeAndFlush(msgBody);
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
+        System.out.println("读取消息了:" + new String(datagramPacket.getData()));
     }
 
     @Override
     public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
         System.out.println("出错了");
     }
-
 }

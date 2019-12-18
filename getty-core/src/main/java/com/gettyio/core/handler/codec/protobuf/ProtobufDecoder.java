@@ -12,7 +12,7 @@ import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
-import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 
 
 /**
@@ -21,7 +21,7 @@ import com.gettyio.core.handler.codec.ByteToMessageDecoder;
  * 修改人：gogym
  * 时间：2019/10/9
  */
-public class ProtobufDecoder extends ByteToMessageDecoder {
+public class ProtobufDecoder extends ObjectToMessageDecoder {
 
 
     private static final boolean HAS_PARSER;
@@ -42,7 +42,7 @@ public class ProtobufDecoder extends ByteToMessageDecoder {
     private final MessageLite prototype;
     private final ExtensionRegistryLite extensionRegistry;
 
-    
+
     public ProtobufDecoder(MessageLite prototype) {
         this(prototype, null);
     }
@@ -61,7 +61,9 @@ public class ProtobufDecoder extends ByteToMessageDecoder {
 
 
     @Override
-    public void decode(AioChannel aioChannel, byte[] bytes) {
+    public void decode(AioChannel aioChannel, Object obj) {
+
+        byte[] bytes = (byte[]) obj;
 
         final byte[] array;
         final int offset;

@@ -33,14 +33,14 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
         //把任务传递给下一个处理器
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
         if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
-            channelHandlerAdapter.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+            channelHandlerAdapter.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
         } else {
             //没有下一个处理器，表示责任链已经走完，写出
-            aioChannel.writeToChannel(bytes);
+            aioChannel.writeToChannel(obj);
         }
     }
 

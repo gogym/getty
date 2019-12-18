@@ -5,11 +5,15 @@
  * 邮箱：189155278@qq.com
  * 时间：2019/9/27
  */
-package com.gettyio.core.channel.client;
+package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
 import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.TcpChannel;
+import com.gettyio.core.channel.UdpChannel;
+import com.gettyio.core.channel.config.AioClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -17,11 +21,10 @@ import com.gettyio.core.util.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.AsynchronousChannelGroup;
-import java.nio.channels.AsynchronousSocketChannel;
-import java.nio.channels.CompletionHandler;
+import java.nio.channels.*;
 import java.util.Map;
 
 /**
@@ -34,6 +37,8 @@ public class AioClientStarter {
 
     private static final Logger logger = LoggerFactory.getLogger(AioClientStarter.class);
 
+    //开启的socket模式 TCP/UDP ,默认tcp
+    protected SocketChannel socketChannel = SocketChannel.TCP;
     //客户端服务配置。
     private AioClientConfig aioClientConfig = new AioClientConfig();
     //aio通道
@@ -45,7 +50,7 @@ public class AioClientStarter {
     //IO线程组。
     private AsynchronousChannelGroup asynchronousChannelGroup;
     //责任链对象
-    protected ChannelPipeline channelInitializer;
+    protected ChannelPipeline channelPipeline;
 
     /**
      * 简单启动
@@ -78,13 +83,20 @@ public class AioClientStarter {
     /**
      * 设置责任链
      *
-     * @param channelInitializer 责任链
+     * @param channelPipeline 责任链
      * @return AioClientStarter
      */
-    public AioClientStarter channelInitializer(ChannelPipeline channelInitializer) {
-        this.channelInitializer = channelInitializer;
+    public AioClientStarter channelInitializer(ChannelPipeline channelPipeline) {
+        this.channelPipeline = channelPipeline;
         return this;
     }
+
+
+    public AioClientStarter socketChannel(SocketChannel socketChannel) {
+        this.socketChannel = socketChannel;
+        return this;
+    }
+
 
     /**
      * 启动客户端。
@@ -93,7 +105,7 @@ public class AioClientStarter {
      */
     public final void start() throws Exception {
 
-        if (this.channelInitializer == null) {
+        if (this.channelPipeline == null) {
             throw new NullPointerException("The ChannelPipeline is null.");
         }
         //初始化worker线程池
@@ -102,7 +114,13 @@ public class AioClientStarter {
         chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), new Time(), aioClientConfig.isDirect());
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, Thread::new);
         //调用内部启动
-        start0(asynchronousChannelGroup);
+
+        if (socketChannel == SocketChannel.TCP) {
+            startTcp(asynchronousChannelGroup);
+        } else {
+            startUDP();
+        }
+
     }
 
 
@@ -111,7 +129,7 @@ public class AioClientStarter {
      *
      * @param asynchronousChannelGroup 线程组
      */
-    private void start0(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
+    private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
 
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
         if (aioClientConfig.getSocketOptions() != null) {
@@ -125,16 +143,28 @@ public class AioClientStarter {
         socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
             @Override
             public void completed(Void result, AsynchronousSocketChannel attachment) {
-                logger.info("server connect success");
+                logger.info("connect tcp server success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelInitializer);
+                aioChannel = new TcpChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelPipeline);
                 aioChannel.starRead();
             }
+
             @Override
             public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                logger.error("server connect error", exc);
+                logger.error("connect tcp server  error", exc);
             }
         });
+    }
+
+
+    private final void startUDP() throws IOException {
+
+        DatagramChannel datagramChannel = DatagramChannel.open();
+        datagramChannel.configureBlocking(false);
+        Selector selector = Selector.open();
+        datagramChannel.register(selector, SelectionKey.OP_READ);
+        aioChannel = new UdpChannel(datagramChannel, selector, aioClientConfig, chunkPool, channelPipeline, 2);
+        aioChannel.starRead();
     }
 
 
@@ -158,30 +188,6 @@ public class AioClientStarter {
         }
     }
 
-    /**
-     * 设置Socket的TCP参数配置
-     * AIO客户端的可选为：
-     * 套接字发送缓冲区的大小。int
-     * 1. StandardSocketOptions.SO_SNDBUF
-     * 套接字接收缓冲区的大小。int
-     * 2. StandardSocketOptions.SO_RCVBUF
-     * 使连接保持活动状态。boolean
-     * 3. StandardSocketOptions.SO_KEEPALIVE
-     * 重用地址。boolean
-     * 4. StandardSocketOptions.SO_REUSEADDR
-     * 禁用Nagle算法。boolean
-     * 5. StandardSocketOptions.TCP_NODELAY
-     *
-     * @param socketOption 配置项
-     * @param value        配置值
-     * @param <V>          泛型
-     * @return v
-     */
-    public final <V> AioClientStarter setOption(SocketOption<V> socketOption, V value) {
-        aioClientConfig.setOption(socketOption, value);
-        return this;
-    }
-
 
     /**
      * 获取AioChannel
@@ -190,11 +196,12 @@ public class AioClientStarter {
      */
     public AioChannel getAioChannel() {
         if (aioChannel != null) {
-            if (aioChannel.getSSLService() != null) {
+            if ((aioChannel.getSSLService()) != null && socketChannel != SocketChannel.UDP) {
                 //如果开启了ssl,要先判断是否已经完成握手
                 if (aioChannel.getSSLService().getSsl().isHandshakeCompleted()) {
                     return aioChannel;
                 }
+                aioChannel.close();
                 throw new RuntimeException("The SSL handshcke is not yet complete");
             }
             return aioChannel;

@@ -21,6 +21,7 @@ public class Time {
             Thread.sleep(ms);
         } catch (InterruptedException e) {
             // just wake up early
+            e.printStackTrace();
         }
     }
 }

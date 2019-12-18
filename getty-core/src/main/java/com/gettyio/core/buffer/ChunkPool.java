@@ -38,7 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * 内存池
  * 对于申请内存的线程来说是公平的，最先给等待时间最长的线程分配内存
- * from kafka 1.0.1
+ * 参考kafka结合netty内存池模式改造
  */
 public final class ChunkPool {
 
@@ -367,23 +367,4 @@ public final class ChunkPool {
     }
 
 
-    public static void main(String[] args) {
-
-        Time t = new Time();
-        ChunkPool bufferPool = new ChunkPool(20 * 1024 * 1024, t, true);
-        try {
-            long ct = System.currentTimeMillis();
-            for (int i = 1; i <= 1000000; i++) {
-                ByteBuffer b = bufferPool.allocate(9, 3000);
-                bufferPool.deallocate(b);
-            }
-            long lt = System.currentTimeMillis();
-            System.out.println("耗时：" + (lt - ct));
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
-    }
 }

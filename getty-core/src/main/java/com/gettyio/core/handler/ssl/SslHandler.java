@@ -9,6 +9,7 @@ package com.gettyio.core.handler.ssl;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISSLListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISessionClosedListener;
@@ -44,44 +45,45 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, byte[] bytes, AioChannel aioChannel, PipelineDirection pipelineDirection) {
-
-        this.channelStateEnum = channelStateEnum;
-
-        if (!sslService.getSsl().isHandshakeCompleted() && bytes != null) {
-            //握手
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            try {
-                //byteBuffer.compact();
-                //byteBuffer.flip();
-                sslService.getSsl().decrypt(byteBuffer);
-
-                byte[] b = new byte[byteBuffer.remaining()];
-                byteBuffer.get(bytes, 0, b.length);
-                aioChannel.writeToChannel(b);
-                byteBuffer = null;
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-                sslService.getSsl().close();
-            }
-        } else if (bytes != null) {
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            try {
-                if (pipelineDirection == PipelineDirection.IN) {
-                    //SSL doUnWard
-                    //byteBuffer.compact();
-                    // byteBuffer.flip();
-                    sslService.getSsl().decrypt(byteBuffer);
-                } else {
-                    //ssl doWard
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+        if (aioChannel instanceof TcpChannel) {
+            this.channelStateEnum = channelStateEnum;
+            byte[] bytes = (byte[]) obj;
+            if (!sslService.getSsl().isHandshakeCompleted() && bytes != null) {
+                //握手
+                ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+                try {
                     //byteBuffer.compact();
                     //byteBuffer.flip();
-                    sslService.getSsl().encrypt(byteBuffer);
+                    sslService.getSsl().decrypt(byteBuffer);
+
+                    byte[] b = new byte[byteBuffer.remaining()];
+                    byteBuffer.get(bytes, 0, b.length);
+                    aioChannel.writeToChannel(b);
+                } catch (Exception e) {
+                    logger.error(e.getMessage(), e);
+                    sslService.getSsl().close();
                 }
-            } catch (SSLException e) {
-                logger.error(e.getMessage(), e);
+            } else if (bytes != null) {
+                ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+                try {
+                    if (pipelineDirection == PipelineDirection.IN) {
+                        //SSL doUnWard
+                        //byteBuffer.compact();
+                        // byteBuffer.flip();
+                        sslService.getSsl().decrypt(byteBuffer);
+                    } else {
+                        //ssl doWard
+                        //byteBuffer.compact();
+                        //byteBuffer.flip();
+                        sslService.getSsl().encrypt(byteBuffer);
+                    }
+                } catch (SSLException e) {
+                    logger.error(e.getMessage(), e);
+                }
             }
-            //super.handler(channelStateEnum, bytes, cause, aioChannel, pipelineDirection);
+        } else {
+            super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
         }
     }
 
@@ -124,9 +126,8 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
                 byte[] b = new byte[wrappedBytes.remaining()];
                 wrappedBytes.get(b, 0, b.length);
                 aioChannel.writeToChannel(b);
-                wrappedBytes = null;
             } catch (Exception e) {
-                logger.error(e.getMessage(),e);
+                logger.error(e.getMessage(), e);
             }
         }
 

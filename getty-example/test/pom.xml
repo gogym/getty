@@ -5,7 +5,7 @@
     <parent>
         <artifactId>getty-example</artifactId>
         <groupId>com.gettyio</groupId>
-        <version>1.1-SNAPSHOT</version>
+        <version>1.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -31,6 +31,19 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
+            <version>1.1</version>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>compile</scope>
         </dependency>
 
 
