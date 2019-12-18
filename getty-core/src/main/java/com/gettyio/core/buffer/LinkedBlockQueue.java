@@ -18,7 +18,7 @@ public class LinkedBlockQueue<T> {
     T[] items;
 
     //初始大小
-    int capacity=1024;
+    int capacity = 1024;
 
     /**
      * 元素个数
@@ -46,15 +46,15 @@ public class LinkedBlockQueue<T> {
 
 
     public LinkedBlockQueue() {
-       this(1024);
+        this(1024);
     }
 
     public LinkedBlockQueue(int capacity) {
-        items = (T[])new Object[capacity];
-        this.capacity=capacity;
+        items = (T[]) new Object[capacity];
+        this.capacity = capacity;
     }
 
-    private  <T> T[] getArray(Class<T> componentType, int length) {
+    private <T> T[] getArray(Class<T> componentType, int length) {
         return (T[]) Array.newInstance(componentType, length);
     }
 
@@ -90,13 +90,14 @@ public class LinkedBlockQueue<T> {
      * 出队 最后一个元素
      *
      * @return T
+     * @throws InterruptedException 可能抛出异常
      */
     public T poll() throws InterruptedException {
         lock.lock();
         T t;
         try {
             while (count == 0) {
-               //出队阻塞
+                //出队阻塞
                 notEmpty.await();
             }
             t = this.items[removeIndex];

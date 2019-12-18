@@ -24,7 +24,7 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
      * 实现这个方法，用于处理器传递
      *
      * @param channelStateEnum  数据方向
-     * @param bytes             数据
+     * @param obj             数据
      * @param aioChannel        通道
      * @param pipelineDirection 责任链
      */

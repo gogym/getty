@@ -59,45 +59,41 @@ public class UdpChannel extends AioChannel {
     public void starRead() {
         ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         for (int i = 0; i < workerThreadNum; i++) {
-            workerThreadPool.execute(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                while (selector.select() > 0) {
-                                    Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                                    while (it.hasNext()) {
-                                        SelectionKey sk = it.next();
-                                        if (sk.isReadable()) {
-                                            ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
-                                            //接收数据
-                                            InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer);
-                                            if (null != readBuffer) {
-                                                readBuffer.flip();
-                                                //读取缓冲区数据，输送到责任链
-                                                while (readBuffer.hasRemaining()) {
-                                                    byte[] bytes = new byte[readBuffer.remaining()];
-                                                    readBuffer.get(bytes, 0, bytes.length);
-                                                    //读取的数据封装成DatagramPacket
-                                                    DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
-                                                    //输出到链条
-                                                    UdpChannel.this.readToPipeline(datagramPacket);
-                                                }
-                                                chunkPool.deallocate(readBuffer);
-                                            }
-                                        }
+            workerThreadPool.execute(() -> {
+                try {
+                    while (selector.select() > 0) {
+                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                        while (it.hasNext()) {
+                            SelectionKey sk = it.next();
+                            if (sk.isReadable()) {
+                                ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
+                                //接收数据
+                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer);
+                                if (null != readBuffer) {
+                                    readBuffer.flip();
+                                    //读取缓冲区数据，输送到责任链
+                                    while (readBuffer.hasRemaining()) {
+                                        byte[] bytes = new byte[readBuffer.remaining()];
+                                        readBuffer.get(bytes, 0, bytes.length);
+                                        //读取的数据封装成DatagramPacket
+                                        DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
+                                        //输出到链条
+                                        UdpChannel.this.readToPipeline(datagramPacket);
                                     }
-                                    it.remove();
+                                    chunkPool.deallocate(readBuffer);
                                 }
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            } catch (TimeoutException e) {
-                                e.printStackTrace();
                             }
                         }
-                    });
+                        it.remove();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (TimeoutException e) {
+                    e.printStackTrace();
+                }
+            });
         }
     }
 
