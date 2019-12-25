@@ -8,9 +8,9 @@
 package com.gettyio.core.channel.internal;
 
 import com.gettyio.core.channel.TcpChannel;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.ThreadPool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.channels.CompletionHandler;
 
@@ -21,7 +21,7 @@ import java.nio.channels.CompletionHandler;
  * 时间：2019/9/27
  */
 public class ReadCompletionHandler implements CompletionHandler<Integer, TcpChannel> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ReadCompletionHandler.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReadCompletionHandler.class);
     //线程池
     private ThreadPool executorService;
 

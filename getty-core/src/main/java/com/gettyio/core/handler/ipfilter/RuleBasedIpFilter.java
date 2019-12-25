@@ -7,9 +7,9 @@
  */
 package com.gettyio.core.handler.ipfilter;
 
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.NetWorkUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -22,7 +22,7 @@ import java.util.List;
  * @see RuleBasedIpFilter
  */
 public class RuleBasedIpFilter implements IpFilterRule {
-    private static final Logger logger = LoggerFactory.getLogger(RuleBasedIpFilter.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(RuleBasedIpFilter.class);
 
     List<IpRange> ips;
     IpFilterRuleType ipFilterRuleType;

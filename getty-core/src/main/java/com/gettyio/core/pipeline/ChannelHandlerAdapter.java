@@ -27,6 +27,7 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
      * @param obj               数据
      * @param aioChannel        通道
      * @param pipelineDirection 责任链
+     * @throws Exception 异常
      */
     public abstract void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception;
 
@@ -35,6 +36,7 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
      *
      * @param aioChannel 通道
      * @param evt        IdleState
+     * @throws Exception 异常
      */
     public abstract void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception;
 

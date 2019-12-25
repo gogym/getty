@@ -10,6 +10,8 @@ package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.pipeline.PipelineDirection;
@@ -19,8 +21,6 @@ import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import com.gettyio.core.util.ConcurrentSafeMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -33,7 +33,7 @@ import java.util.Iterator;
  * 时间：2019/9/27
  */
 public abstract class AioChannel {
-    protected static final Logger logger = LoggerFactory.getLogger(AioChannel.class);
+    protected static final InternalLogger logger = InternalLoggerFactory.getInstance(AioChannel.class);
     /**
      * 已关闭
      */
@@ -149,6 +149,7 @@ public abstract class AioChannel {
      * 消息读取到责任链管道
      *
      * @param obj 消息对象
+     * @throws Exception 异常
      */
     public void readToPipeline(Object obj) throws Exception {
         invokePipeline(ChannelState.CHANNEL_READ, obj);
@@ -159,6 +160,7 @@ public abstract class AioChannel {
      * 正向执行管道处理
      *
      * @param channelStateEnum 数据流向
+     * @throws Exception 异常
      */
     protected void invokePipeline(ChannelState channelStateEnum) throws Exception {
         invokePipeline(channelStateEnum, null);
@@ -169,6 +171,7 @@ public abstract class AioChannel {
      *
      * @param channelStateEnum 数据流向
      * @param obj              消息对象
+     * @throws Exception 异常
      */
     protected void invokePipeline(ChannelState channelStateEnum, Object obj) throws Exception {
 
@@ -188,6 +191,7 @@ public abstract class AioChannel {
      *
      * @param channelStateEnum 数据流向
      * @param obj              消息对象
+     * @throws Exception 异常
      */
     protected void reverseInvokePipeline(ChannelState channelStateEnum, Object obj) throws Exception {
 

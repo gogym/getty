@@ -13,8 +13,6 @@ import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -26,7 +24,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(IdleStateHandler.class);
 
     boolean readerIdle = false;
     boolean writerIdle = false;

@@ -10,10 +10,10 @@ package com.gettyio.core.handler.timeout;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.channel.TcpChannel;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -24,7 +24,7 @@ import java.io.IOException;
  * 时间：2019/9/27
  */
 public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
-    private static final Logger logger = LoggerFactory.getLogger(HeartBeatTimeOutHandler.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(HeartBeatTimeOutHandler.class);
     private int loss_connect_time = 0;
 
     @Override

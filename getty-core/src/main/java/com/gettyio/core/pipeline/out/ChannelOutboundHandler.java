@@ -23,6 +23,7 @@ public interface ChannelOutboundHandler extends ChannelboundHandler {
      *
      * @param aioChannel 通道
      * @param obj        数据
+     * @throws Exception 异常
      */
     void encode(AioChannel aioChannel, Object obj) throws Exception;
 

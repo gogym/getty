@@ -13,10 +13,10 @@ import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISSLListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISessionClosedListener;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import com.gettyio.core.pipeline.PipelineDirection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.nio.ByteBuffer;
@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
  */
 public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(SslHandler.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(SslHandler.class);
 
     private SslService sslService;
     private AioChannel aioChannel;

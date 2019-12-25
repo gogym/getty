@@ -72,6 +72,7 @@ public class TcpClient {
         try {
             Thread.sleep(2000);
             AioChannel aioChannel = client.getAioChannel();
+            aioChannel.getChannelAttribute().put("key","value");
             String s = "12\r\n";
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();

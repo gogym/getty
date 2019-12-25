@@ -27,7 +27,6 @@ import java.security.cert.X509Certificate;
  */
 public class SslService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SslService.class);
 
     private static final String PROTOCOL = "TLS";
 

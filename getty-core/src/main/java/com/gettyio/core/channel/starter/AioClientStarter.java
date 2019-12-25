@@ -16,10 +16,10 @@ import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.AioClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public class AioClientStarter {
 
-    private static final Logger logger = LoggerFactory.getLogger(AioClientStarter.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AioClientStarter.class);
 
     //开启的socket模式 TCP/UDP ,默认tcp
     protected SocketChannel socketChannel = SocketChannel.TCP;

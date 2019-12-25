@@ -23,6 +23,7 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      * 连接
      *
      * @param aioChannel 通道
+     * @throws Exception 异常
      */
     void channelAdded(AioChannel aioChannel) throws Exception;
 
@@ -30,6 +31,7 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      * 连接关闭
      *
      * @param aioChannel 通道
+     * @throws Exception 异常
      */
     void channelClosed(AioChannel aioChannel) throws Exception;
 
@@ -38,6 +40,7 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      *
      * @param obj        读取消息
      * @param aioChannel 通道
+     * @throws Exception 异常
      */
     void channelRead(AioChannel aioChannel, Object obj) throws Exception;
 
@@ -46,6 +49,7 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      *
      * @param aioChannel 通道
      * @param obj        消息
+     * @throws Exception 异常
      */
     void decode(AioChannel aioChannel, Object obj) throws Exception;
 

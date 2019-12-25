@@ -51,6 +51,7 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
      *
      * @param aioChannel 通道
      * @param t          解密后的消息
+     * @throws Exception 异常
      */
     public abstract void channelRead0(AioChannel aioChannel, T t) throws Exception;
 

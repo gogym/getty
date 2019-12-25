@@ -7,8 +7,8 @@
 package com.gettyio.core.buffer;
 
 import com.gettyio.core.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeoutException;
  * 时间：2019/9/27
  */
 public final class BufferWriter extends OutputStream {
-    private static final Logger logger = LoggerFactory.getLogger(BufferWriter.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(ByteBuffer.class);
     //缓冲池
     private final ChunkPool chunkPool;
     private int chunkPoolBlockTime;

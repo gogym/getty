@@ -11,8 +11,6 @@ import java.net.InetSocketAddress;
 import java.util.List;
 
 import com.gettyio.core.channel.AioChannel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 类名：IpFilterRuleHandler.java
@@ -21,7 +19,6 @@ import org.slf4j.LoggerFactory;
  * 时间：2019/9/27
  */
 public class IpFilterRuleHandler extends AbstractRemoteAddressFilter<InetSocketAddress> {
-    private static final Logger logger = LoggerFactory.getLogger(RuleBasedIpFilter.class);
 
     IpFilterRule rules;
 
