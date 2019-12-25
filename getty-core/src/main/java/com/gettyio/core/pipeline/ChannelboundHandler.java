@@ -24,5 +24,5 @@ public interface ChannelboundHandler {
      * @param pipelineDirection 责任链
      * @param cause 异常信息
      */
-    void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection);
+    void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) throws Exception;
 }

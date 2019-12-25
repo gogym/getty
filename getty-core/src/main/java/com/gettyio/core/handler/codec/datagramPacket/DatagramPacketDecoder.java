@@ -17,7 +17,7 @@ import java.net.DatagramPacket;
 public class DatagramPacketDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) {
+    public void decode(AioChannel aioChannel, Object obj) throws Exception {
         try {
             DatagramPacket datagramPacket = (DatagramPacket) obj;
             //写到read通道里
@@ -28,7 +28,7 @@ public class DatagramPacketDecoder extends ObjectToMessageDecoder {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
         if (null != obj && aioChannel instanceof UdpChannel) {
             decode(aioChannel, obj);
         }

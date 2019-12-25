@@ -33,7 +33,7 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) {
+    public void decode(AioChannel aioChannel, Object obj)  throws Exception{
         byte[] bytes = (byte[]) obj;
         int index = 0;
         while (index < bytes.length) {
@@ -54,7 +54,7 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         if (null != obj && aioChannel instanceof TcpChannel) {
             decode(aioChannel, obj);
         }

@@ -25,7 +25,7 @@ public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         byte[] bytes = (byte[]) obj;
         if (channelStateEnum == ChannelState.CHANNEL_READ) {
             AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer(bytes.length);

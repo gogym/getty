@@ -80,7 +80,11 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
 
         //触发责任链
-        invokePipeline(ChannelState.NEW_CHANNEL);
+        try {
+            invokePipeline(ChannelState.NEW_CHANNEL);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -145,7 +149,11 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         //更新状态
         status = CHANNEL_STATUS_CLOSED;
         //触发责任链通知
-        invokePipeline(ChannelState.CHANNEL_CLOSED);
+        try {
+            invokePipeline(ChannelState.CHANNEL_CLOSED);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         //最后需要清空责任链
         if (defaultChannelPipeline != null) {
@@ -184,12 +192,20 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
             while (readBuffer.hasRemaining()) {
                 byte[] bytes = new byte[readBuffer.remaining()];
                 readBuffer.get(bytes, 0, bytes.length);
-                readToPipeline(bytes);
+                try {
+                    readToPipeline(bytes);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
             if (eof) {
                 RuntimeException exception = new RuntimeException("socket channel is shutdown");
                 logger.error(exception.getMessage(), exception);
-                invokePipeline(ChannelState.INPUT_SHUTDOWN);
+                try {
+                    invokePipeline(ChannelState.INPUT_SHUTDOWN);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 close();
                 return;
             }
@@ -232,7 +248,11 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
      * @param obj 写入的数据
      */
     public void writeAndFlush(Object obj) {
-        reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        try {
+            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**

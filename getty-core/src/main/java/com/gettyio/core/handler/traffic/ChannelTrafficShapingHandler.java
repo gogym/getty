@@ -54,7 +54,7 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         if (aioChannel instanceof TcpChannel) {
             byte[] bytes = (byte[]) obj;
             switch (channelStateEnum) {

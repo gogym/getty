@@ -25,7 +25,7 @@ import java.net.SocketAddress;
 public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends ChannelInboundHandlerAdapter {
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
         if (aioChannel instanceof TcpChannel) {
             switch (channelStateEnum) {

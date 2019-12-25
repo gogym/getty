@@ -23,7 +23,7 @@ import com.gettyio.core.handler.timeout.IdleState;
 public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter implements ChannelInboundHandler {
 
     @Override
-    public void channelAdded(AioChannel aioChannel) {
+    public void channelAdded(AioChannel aioChannel) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
@@ -38,7 +38,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
     }
 
     @Override
-    public void channelClosed(AioChannel aioChannel) {
+    public void channelClosed(AioChannel aioChannel) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
@@ -52,7 +52,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
     }
 
     @Override
-    public void channelRead(AioChannel aioChannel, Object obj) {
+    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
@@ -66,7 +66,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
@@ -80,7 +80,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) {
+    public void decode(AioChannel aioChannel, Object obj) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);
@@ -95,7 +95,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
         //把任务传递给下一个处理器
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
@@ -111,7 +111,7 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
     }
 
     @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt) {
+    public void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = this;
         while (true) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);

@@ -24,7 +24,7 @@ import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdapter {
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         //需要先判断数据流向
         ChannelHandlerAdapter channelHandlerAdapter = this;
         if (pipelineDirection == PipelineDirection.IN) {
@@ -55,7 +55,7 @@ public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdap
 
 
     @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt) {
+    public void userEventTriggered(AioChannel aioChannel, IdleState evt)  throws Exception{
         ChannelHandlerAdapter channelHandlerAdapter = this;
         if (evt == IdleState.READER_IDLE) {
             while (true) {
@@ -79,7 +79,7 @@ public abstract class ChannelInOutBoundHandlerAdapter extends ChannelHandlerAdap
 
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection)  throws Exception{
         ChannelHandlerAdapter channelHandlerAdapter = this;
         if (pipelineDirection == PipelineDirection.IN) {
             channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOne(channelHandlerAdapter);

@@ -48,7 +48,11 @@ public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
         if (readerIdleTime > 0) {
             pool.scheduleWithFixedRate(() -> {
                 if (readerIdle) {
-                    userEventTriggered(aioChannel, IdleState.READER_IDLE);
+                    try {
+                        userEventTriggered(aioChannel, IdleState.READER_IDLE);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
                 readerIdle = true;
             }, 0, readerIdleTime, unit);
@@ -57,7 +61,11 @@ public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
         if (writerIdleTime > 0) {
             pool.scheduleWithFixedRate(() -> {
                 if (writerIdle) {
-                    userEventTriggered(aioChannel, IdleState.WRITER_IDLE);
+                    try {
+                        userEventTriggered(aioChannel, IdleState.WRITER_IDLE);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
                 writerIdle = true;
             }, 0, writerIdleTime, unit);
@@ -66,7 +74,7 @@ public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
         if (aioChannel instanceof TcpChannel) {
             switch (channelStateEnum) {
                 case CHANNEL_READ:

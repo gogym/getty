@@ -18,6 +18,7 @@ import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
+import com.gettyio.core.util.ConcurrentSafeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +64,12 @@ public abstract class AioChannel {
      * 关闭监听
      */
     protected ChannelFutureListener channelFutureListener;
+
+
+    /**
+     * 用于方便设置随通道传播的属性
+     */
+    protected ConcurrentSafeMap<Object, Object> channelAttribute = new ConcurrentSafeMap<>();
 
     //-------------------------------------------------------------------------------------
 
@@ -143,7 +150,7 @@ public abstract class AioChannel {
      *
      * @param obj 消息对象
      */
-    public void readToPipeline(Object obj) {
+    public void readToPipeline(Object obj) throws Exception {
         invokePipeline(ChannelState.CHANNEL_READ, obj);
     }
 
@@ -153,7 +160,7 @@ public abstract class AioChannel {
      *
      * @param channelStateEnum 数据流向
      */
-    protected void invokePipeline(ChannelState channelStateEnum) {
+    protected void invokePipeline(ChannelState channelStateEnum) throws Exception {
         invokePipeline(channelStateEnum, null);
     }
 
@@ -163,7 +170,7 @@ public abstract class AioChannel {
      * @param channelStateEnum 数据流向
      * @param obj              消息对象
      */
-    protected void invokePipeline(ChannelState channelStateEnum, Object obj) {
+    protected void invokePipeline(ChannelState channelStateEnum, Object obj) throws Exception {
 
         Iterator<ChannelHandlerAdapter> iterator = defaultChannelPipeline.getIterator();
         while (iterator.hasNext()) {
@@ -182,7 +189,7 @@ public abstract class AioChannel {
      * @param channelStateEnum 数据流向
      * @param obj              消息对象
      */
-    protected void reverseInvokePipeline(ChannelState channelStateEnum, Object obj) {
+    protected void reverseInvokePipeline(ChannelState channelStateEnum, Object obj) throws Exception {
 
         Iterator<ChannelHandlerAdapter> iterator = defaultChannelPipeline.getReverseIterator();
         while (iterator.hasNext()) {
@@ -236,4 +243,11 @@ public abstract class AioChannel {
     }
 
 
+    public ConcurrentSafeMap<Object, Object> getChannelAttribute() {
+        return channelAttribute;
+    }
+
+    public void setChannelAttribute(ConcurrentSafeMap<Object, Object> channelAttribute) {
+        this.channelAttribute = channelAttribute;
+    }
 }

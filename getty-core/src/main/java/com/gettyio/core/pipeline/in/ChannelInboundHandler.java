@@ -24,29 +24,29 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      *
      * @param aioChannel 通道
      */
-    void channelAdded(AioChannel aioChannel);
+    void channelAdded(AioChannel aioChannel) throws Exception;
 
     /**
      * 连接关闭
      *
      * @param aioChannel 通道
      */
-    void channelClosed(AioChannel aioChannel);
+    void channelClosed(AioChannel aioChannel) throws Exception;
 
     /**
      * 消息读取
      *
-     * @param obj 读取消息
+     * @param obj        读取消息
      * @param aioChannel 通道
      */
-    void channelRead(AioChannel aioChannel, Object obj);
+    void channelRead(AioChannel aioChannel, Object obj) throws Exception;
 
     /**
      * 消息解码
      *
      * @param aioChannel 通道
-     * @param obj      消息
+     * @param obj        消息
      */
-    void decode(AioChannel aioChannel, Object obj);
+    void decode(AioChannel aioChannel, Object obj) throws Exception;
 
 }

@@ -61,7 +61,7 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) {
+    public void decode(AioChannel aioChannel, Object obj)  throws Exception{
 
         byte[] bytes = (byte[]) obj;
 

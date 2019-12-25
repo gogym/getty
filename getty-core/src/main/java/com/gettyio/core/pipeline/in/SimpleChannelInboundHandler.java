@@ -21,7 +21,7 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void handler(ChannelState channelStateEnum,Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
 
         switch (channelStateEnum) {
             case NEW_CHANNEL:
@@ -41,16 +41,17 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void channelRead(AioChannel aioChannel, Object obj) {
+    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
         channelRead0(aioChannel, (T) obj);
     }
 
 
     /**
      * 解码后的消息输出
+     *
      * @param aioChannel 通道
-     * @param t 解密后的消息
+     * @param t          解密后的消息
      */
-    public abstract void channelRead0(AioChannel aioChannel, T t);
+    public abstract void channelRead0(AioChannel aioChannel, T t) throws Exception;
 
 }

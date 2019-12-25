@@ -24,7 +24,7 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
 
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
         if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
             channelHandlerAdapter.exceptionCaught(aioChannel, cause, pipelineDirection);
@@ -33,7 +33,7 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
         //把任务传递给下一个处理器
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
         if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
@@ -45,7 +45,7 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
     }
 
     @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt) {
+    public void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
         if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
             channelHandlerAdapter.userEventTriggered(aioChannel, evt);

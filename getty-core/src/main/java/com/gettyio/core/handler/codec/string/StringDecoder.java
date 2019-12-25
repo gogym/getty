@@ -21,13 +21,9 @@ import java.io.UnsupportedEncodingException;
 public class StringDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) {
-        try {
-            String str = new String((byte[]) obj, "utf-8");
-            //写到read通道里
-            channelRead(aioChannel, str);
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
+    public void decode(AioChannel aioChannel, Object obj) throws Exception {
+        String str = new String((byte[]) obj, "utf-8");
+        //写到read通道里
+        channelRead(aioChannel, str);
     }
 }

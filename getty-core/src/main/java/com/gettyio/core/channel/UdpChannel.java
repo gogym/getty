@@ -51,7 +51,11 @@ public class UdpChannel extends AioChannel {
         //开启写监听线程
         loopWrite();
         //触发责任链回调
-        invokePipeline(ChannelState.NEW_CHANNEL);
+        try {
+            invokePipeline(ChannelState.NEW_CHANNEL);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -91,6 +95,8 @@ public class UdpChannel extends AioChannel {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (TimeoutException e) {
+                    e.printStackTrace();
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             });

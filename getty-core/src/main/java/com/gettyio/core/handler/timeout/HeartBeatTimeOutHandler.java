@@ -28,7 +28,7 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
     private int loss_connect_time = 0;
 
     @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt) {
+    public void userEventTriggered(AioChannel aioChannel, IdleState evt)  throws Exception{
         if (evt == IdleState.READER_IDLE) {
             loss_connect_time++;
             if (loss_connect_time > 2) {
@@ -46,7 +46,7 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         if (aioChannel instanceof TcpChannel) {
             switch (channelStateEnum) {
                 case CHANNEL_READ:

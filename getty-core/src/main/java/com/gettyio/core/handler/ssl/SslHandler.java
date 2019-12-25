@@ -45,7 +45,7 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         if (aioChannel instanceof TcpChannel) {
             this.channelStateEnum = channelStateEnum;
             byte[] bytes = (byte[]) obj;
@@ -136,7 +136,11 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
             //消息解码
             byte[] b = new byte[plainBytes.remaining()];
             plainBytes.get(b, 0, b.length);
-            SslHandler.super.handler(channelStateEnum, b, aioChannel, PipelineDirection.IN);
+            try {
+                SslHandler.super.handler(channelStateEnum, b, aioChannel, PipelineDirection.IN);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

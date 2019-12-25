@@ -24,11 +24,11 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
      * 实现这个方法，用于处理器传递
      *
      * @param channelStateEnum  数据方向
-     * @param obj             数据
+     * @param obj               数据
      * @param aioChannel        通道
      * @param pipelineDirection 责任链
      */
-    public abstract void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection);
+    public abstract void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception;
 
     /**
      * 该方法类似一个心态起搏器，执行读或写操作会被触发
@@ -36,6 +36,6 @@ public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
      * @param aioChannel 通道
      * @param evt        IdleState
      */
-    public abstract void userEventTriggered(AioChannel aioChannel, IdleState evt);
+    public abstract void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception;
 
 }

@@ -19,12 +19,12 @@ import com.gettyio.core.pipeline.PipelineDirection;
  */
 public class ProtobufEncoder extends MessageToByteEncoder {
     @Override
-    public void encode(AioChannel aioChannel, Object obj) {
+    public void encode(AioChannel aioChannel, Object obj)  throws Exception{
 
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) {
+    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
         super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 }

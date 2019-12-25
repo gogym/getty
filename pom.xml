@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>1.1</version>
+    <version>1.1.1</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
@@ -149,7 +149,7 @@
                             </executions>
                         </plugin>
                         <!--  必须配置GPG插件用于使用以下配置对组件进行签名 -->
-                        <!-- mvn clean deploy -projects getty-core -P ossrh -->
+                        <!-- mvn clean deploy -projects getty-core -am -P ossrh -->
                         <plugin>
                             <groupId>org.apache.maven.plugins</groupId>
                             <artifactId>maven-gpg-plugin</artifactId>
@@ -169,6 +169,7 @@
             </build>
             <!-- 【注】snapshotRepository 与 repository 中的 id 一定要与 setting.xml 中 server 的 id 保持一致！ -->
             <distributionManagement>
+                <!---->
                 <snapshotRepository>
                     <id>ossrh</id>
                     <url>https://oss.sonatype.org/content/repositories/snapshots</url>
@@ -177,6 +178,17 @@
                     <id>ossrh</id>
                     <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
                 </repository>
+
+                <!--
+                <repository>
+                    <id>maven-repository-releases</id>
+                    <url>http://192.168.167.114:8081/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>maven-repository-snapshots</id>
+                    <url>http://192.168.167.114:8081/repository/maven-snapshots/</url>
+                </snapshotRepository>
+                -->
             </distributionManagement>
         </profile>
     </profiles>
