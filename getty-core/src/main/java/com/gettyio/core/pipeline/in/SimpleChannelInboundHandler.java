@@ -8,8 +8,8 @@ package com.gettyio.core.pipeline.in;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.pipeline.PipelineDirection;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 /**
  * 类名：SimpleChannelInboundHandler.java
@@ -21,22 +21,12 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
 
-        switch (channelStateEnum) {
-            case NEW_CHANNEL:
-                channelAdded(aioChannel);
-                break;
-            case CHANNEL_CLOSED:
-                channelClosed(aioChannel);
-                break;
-            case DECODE_EXCEPTION:
-                Throwable throwable = new Throwable("decode exception");
-                exceptionCaught(aioChannel, throwable, pipelineDirection);
-            default:
-                break;
+        while (out.getCount() > 0) {
+            channelRead(aioChannel, out.poll());
         }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+
     }
 
 

@@ -9,10 +9,9 @@ package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 /**
  * 类名：DelimiterFrameDecoder.java
@@ -40,7 +39,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         byte[] bytes = (byte[]) obj;
         int index = 0;
         while (index < bytes.length) {
@@ -50,19 +49,12 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
                 exceptIndex = 0;
             } else if (++exceptIndex == endFLag.length) {
                 //传递到下一个解码器
-                super.decode(aioChannel, preBuffer.readAllWriteBytesArray());
+                super.decode(aioChannel, preBuffer.array(), out);
                 preBuffer.clear();
                 exceptIndex = 0;
             }
             index++;
         }
-    }
 
-    @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
-        if (null != obj && aioChannel instanceof TcpChannel) {
-            decode(aioChannel, obj);
-        }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
     }
 }

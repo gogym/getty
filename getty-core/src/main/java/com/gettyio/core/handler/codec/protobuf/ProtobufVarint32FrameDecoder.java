@@ -8,9 +8,9 @@ package com.gettyio.core.handler.codec.protobuf;/*
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.pipeline.PipelineDirection;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.io.IOException;
 
@@ -23,41 +23,35 @@ import java.io.IOException;
  */
 public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
 
+    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+
         byte[] bytes = (byte[]) obj;
-        if (channelStateEnum == ChannelState.CHANNEL_READ) {
-            AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer(bytes.length);
-            autoByteBuffer.writeBytes(bytes);
-            try {
+        autoByteBuffer.writeBytes(bytes);
 
-                while (autoByteBuffer.hasRemaining()) {
-
-                    int preIndex = autoByteBuffer.readerIndex();
-                    int length = readRawVarint32(autoByteBuffer);
-                    if (preIndex == autoByteBuffer.readerIndex()) {
-                        return;
-                    }
-                    if (length < 0) {
-                        throw new RuntimeException("negative length: " + length);
-                    }
-                    if (autoByteBuffer.readableBytes() < length) {
-                        autoByteBuffer.reset();
-                    } else {
-                        byte[] b = new byte[length];
-                        autoByteBuffer.readBytes(b);
-                        //解码
-                        decode(aioChannel, b);
-                    }
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("protobuf decode error", e);
+        while (autoByteBuffer.hasRemaining()) {
+            int preIndex = autoByteBuffer.readerIndex();
+            int length = readRawVarint32(autoByteBuffer);
+            if (preIndex == autoByteBuffer.readerIndex()) {
+                return;
             }
-        } else {
-            super.handler(channelStateEnum, bytes, aioChannel, pipelineDirection);
+            if (length < 0) {
+                throw new RuntimeException("negative length: " + length);
+            }
+            if (autoByteBuffer.readableBytes() < length) {
+                autoByteBuffer.reset();
+            } else {
+                byte[] b = new byte[length];
+                autoByteBuffer.readBytes(b);
+                //解码
+                super.decode(aioChannel, b, out);
+            }
         }
+
     }
+
 
     /**
      * Reads variable length 32bit int from buffer

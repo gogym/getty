@@ -411,6 +411,7 @@ public interface InternalLogger {
     /**
      * Is the logger instance enabled for the specified {@code level}?
      *
+     * @param level level
      * @return True if this Logger is enabled for the specified {@code level},
      * false otherwise.
      */
@@ -419,7 +420,8 @@ public interface InternalLogger {
     /**
      * Log a message at the specified {@code level}.
      *
-     * @param msg the message string to be logged
+     * @param level level
+     * @param msg   the message string to be logged
      */
     void log(InternalLogLevel level, String msg);
 
@@ -429,7 +431,7 @@ public interface InternalLogger {
      * <p>
      * This form avoids superfluous object creation when the logger
      * is disabled for the specified {@code level}.
-     *
+     * @param level level
      * @param format the format string
      * @param arg    the argument
      */
@@ -441,7 +443,7 @@ public interface InternalLogger {
      * <p>
      * This form avoids superfluous object creation when the logger
      * is disabled for the specified {@code level}.
-     *
+     * @param level level
      * @param format the format string
      * @param argA   the first argument
      * @param argB   the second argument
@@ -459,7 +461,7 @@ public interface InternalLogger {
      * {@link #log(InternalLogLevel, String, Object) one} and
      * {@link #log(InternalLogLevel, String, Object, Object) two} arguments exist solely
      * in order to avoid this hidden cost.
-     *
+     * @param level level
      * @param format    the format string
      * @param arguments a list of 3 or more arguments
      */
@@ -468,7 +470,7 @@ public interface InternalLogger {
     /**
      * Log an exception (throwable) at the specified {@code level} with an
      * accompanying message.
-     *
+     * @param level level
      * @param msg the message accompanying the exception
      * @param t   the exception (throwable) to log
      */
@@ -476,7 +478,7 @@ public interface InternalLogger {
 
     /**
      * Log an exception (throwable) at the specified {@code level}.
-     *
+     * @param level level
      * @param t the exception (throwable) to log
      */
     void log(InternalLogLevel level, Throwable t);

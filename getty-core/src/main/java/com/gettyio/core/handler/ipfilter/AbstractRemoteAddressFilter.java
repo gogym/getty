@@ -8,9 +8,6 @@
 package com.gettyio.core.handler.ipfilter;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 import java.io.IOException;
@@ -24,16 +21,11 @@ import java.net.SocketAddress;
  */
 public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends ChannelInboundHandlerAdapter {
 
+
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
-        if (aioChannel instanceof TcpChannel) {
-            switch (channelStateEnum) {
-                case NEW_CHANNEL:
-                    handleNewChannel(aioChannel);
-                    break;
-            }
-        }
+    public void channelAdded(AioChannel aioChannel) throws Exception {
+        super.channelAdded(aioChannel);
+        handleNewChannel(aioChannel);
     }
 
     /**

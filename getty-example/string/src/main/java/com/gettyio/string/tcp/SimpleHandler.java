@@ -2,7 +2,6 @@ package com.gettyio.string.tcp;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<String> {
@@ -26,7 +25,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause) throws Exception {
         System.out.println("出错了");
     }
 }

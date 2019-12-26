@@ -7,20 +7,14 @@ package com.gettyio.core.handler.codec.datagramPacket;/*
  */
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
-import com.gettyio.core.pipeline.PipelineDirection;
+
 
 public class DatagramPacketEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, Object obj) throws Exception {
-        //System.out.println("输出编码");
-    }
-
-    @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
-        //encode(aioChannel, obj);
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+        //udp包直接由通道发出，实际这里并没有处理什么
+        super.encode(aioChannel, obj);
     }
 }

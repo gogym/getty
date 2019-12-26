@@ -24,7 +24,7 @@ public class ImClient {
             threadPool.execute(new Runnable() {
                 @Override
                 public void run() {
-                    test(5555);
+                    test(8888);
                 }
             });
             i++;
@@ -64,8 +64,8 @@ public class ImClient {
             MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
             builder.setId("123");
 
-            for (int i = 0; i < 10; i++) {
-                aioChannel.writeAndFlush(builder.build().toByteArray());
+            for (int i = 0; i < 2; i++) {
+                aioChannel.writeAndFlush(builder.build());
                 System.out.printf(""+i);
             }
 

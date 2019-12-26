@@ -9,6 +9,8 @@ package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.io.UnsupportedEncodingException;
 
@@ -21,9 +23,9 @@ import java.io.UnsupportedEncodingException;
 public class StringDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         String str = new String((byte[]) obj, "utf-8");
-        //写到read通道里
-        channelRead(aioChannel, str);
+        out.put(str);
+        super.decode(aioChannel, obj, out);
     }
 }

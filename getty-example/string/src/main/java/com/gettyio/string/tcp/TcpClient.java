@@ -78,7 +78,7 @@ public class TcpClient {
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 100; i++) {
+            for (; i < 10; i++) {
 //                String s = i + "me\r\n";
 //                byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);

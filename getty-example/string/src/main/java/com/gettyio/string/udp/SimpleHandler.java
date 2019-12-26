@@ -2,7 +2,6 @@ package com.gettyio.string.udp;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 import java.net.DatagramPacket;
@@ -29,7 +28,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause) {
         System.out.println("出错了");
     }
 }

@@ -182,7 +182,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
      *
      * @param eof 状态回调标记
      */
-    public void readFromChannel(boolean eof) {
+    public void readFromChannel(boolean eof){
 
         final ByteBuffer readBuffer = this.readByteBuffer;
         //读取缓冲区数据到管道
@@ -199,8 +199,6 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
                 }
             }
             if (eof) {
-                RuntimeException exception = new RuntimeException("socket channel is shutdown");
-                logger.error(exception.getMessage(), exception);
                 try {
                     invokePipeline(ChannelState.INPUT_SHUTDOWN);
                 } catch (Exception e) {

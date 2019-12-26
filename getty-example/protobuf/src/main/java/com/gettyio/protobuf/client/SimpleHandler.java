@@ -2,7 +2,6 @@ package com.gettyio.protobuf.client;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import com.gettyio.protobuf.packet.MessageClass;
 
@@ -26,7 +25,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause) {
         System.out.println("出错了");
     }
 }

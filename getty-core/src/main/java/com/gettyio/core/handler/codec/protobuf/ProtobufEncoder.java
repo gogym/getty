@@ -7,9 +7,8 @@ package com.gettyio.core.handler.codec.protobuf;/*
  */
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
-import com.gettyio.core.pipeline.PipelineDirection;
+import com.google.protobuf.MessageLite;
 
 /**
  * 类名：ProtobufEncoder.java
@@ -18,13 +17,16 @@ import com.gettyio.core.pipeline.PipelineDirection;
  * 时间：2019/10/9
  */
 public class ProtobufEncoder extends MessageToByteEncoder {
-    @Override
-    public void encode(AioChannel aioChannel, Object obj)  throws Exception{
-
-    }
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+        byte[] bytes = null;
+        if (obj instanceof MessageLite) {
+            bytes = ((MessageLite) obj).toByteArray();
+        }
+        if (obj instanceof MessageLite.Builder) {
+            bytes = ((MessageLite.Builder) obj).build().toByteArray();
+        }
+        super.encode(aioChannel, bytes);
     }
 }

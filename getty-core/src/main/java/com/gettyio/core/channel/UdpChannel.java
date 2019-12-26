@@ -7,7 +7,7 @@ package com.gettyio.core.channel;/*
  */
 
 import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.buffer.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.channel.config.AioConfig;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;

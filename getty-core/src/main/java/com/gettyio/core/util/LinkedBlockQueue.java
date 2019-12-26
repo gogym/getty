@@ -1,4 +1,4 @@
-package com.gettyio.core.buffer;/*
+package com.gettyio.core.util;/*
  * 类名：LinkedBlockArray
  * 版权：Copyright by www.getty.com
  * 描述：数组实现的阻塞队列

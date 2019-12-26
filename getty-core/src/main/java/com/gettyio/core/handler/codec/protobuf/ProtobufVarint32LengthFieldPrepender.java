@@ -8,9 +8,7 @@ package com.gettyio.core.handler.codec.protobuf;/*
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
-import com.gettyio.core.pipeline.PipelineDirection;
 
 /**
  * 类名：ProtobufVarint32LengthFieldPrepender.java
@@ -22,12 +20,6 @@ public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, Object obj) throws Exception {
-
-    }
-
-
-    @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
         byte[] bytes = (byte[]) obj;
 
         int bodyLen = bytes.length;
@@ -42,8 +34,9 @@ public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
         } catch (AutoByteBuffer.ByteBufferException e) {
             e.printStackTrace();
         }
-        super.handler(channelStateEnum, b, aioChannel, pipelineDirection);
+        super.encode(aioChannel, b);
     }
+
 
     /**
      * Writes protobuf varint32 to (@link ByteBuf).

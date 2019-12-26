@@ -8,10 +8,8 @@
 package com.gettyio.core.handler.timeout;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
-import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
+import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
 
 import java.util.concurrent.TimeUnit;
@@ -22,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
+public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
 
 
     boolean readerIdle = false;
@@ -71,24 +69,21 @@ public class IdleStateHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
-        if (aioChannel instanceof TcpChannel) {
-            switch (channelStateEnum) {
-                case CHANNEL_READ:
-                    readerIdle = false;
-                    break;
-                case CHANNEL_WRITE:
-                    writerIdle = false;
-                    break;
-                case CHANNEL_CLOSED:
-                    pool.shutdown();
-                    break;
-                default:
-                    break;
-            }
-        }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
+        readerIdle = false;
+        super.channelRead(aioChannel, obj);
     }
 
+    @Override
+    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
+        writerIdle = false;
+        super.channelWrite(aioChannel, obj);
+    }
+
+    @Override
+    public void channelClosed(AioChannel aioChannel) throws Exception {
+        pool.shutdown();
+        super.channelClosed(aioChannel);
+    }
 
 }

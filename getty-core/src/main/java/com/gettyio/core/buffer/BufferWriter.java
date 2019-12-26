@@ -9,6 +9,7 @@ package com.gettyio.core.buffer;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.io.IOException;
 import java.io.OutputStream;

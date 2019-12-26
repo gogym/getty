@@ -8,17 +8,15 @@
 package com.gettyio.core.handler.ssl;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISSLListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISessionClosedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
-import com.gettyio.core.pipeline.PipelineDirection;
+import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
-import javax.net.ssl.SSLException;
 import java.nio.ByteBuffer;
 
 /**
@@ -27,15 +25,13 @@ import java.nio.ByteBuffer;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class SslHandler extends ChannelInOutBoundHandlerAdapter {
+public class SslHandler extends ChannelAllBoundHandlerAdapter {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(SslHandler.class);
 
     private SslService sslService;
     private AioChannel aioChannel;
-
-
-    private ChannelState channelStateEnum;
+    LinkedBlockQueue<Object> out;
 
     public SslHandler(AioChannel aioChannel) {
         this.aioChannel = aioChannel;
@@ -45,45 +41,57 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
-        if (aioChannel instanceof TcpChannel) {
-            this.channelStateEnum = channelStateEnum;
-            byte[] bytes = (byte[]) obj;
-            if (!sslService.getSsl().isHandshakeCompleted() && bytes != null) {
-                //握手
-                ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-                try {
-                    //byteBuffer.compact();
-                    //byteBuffer.flip();
-                    sslService.getSsl().decrypt(byteBuffer);
+    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+        byte[] bytes = (byte[]) obj;
+        if (!sslService.getSsl().isHandshakeCompleted() && obj != null) {
+            //握手
+            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+            try {
+                //byteBuffer.compact();
+                //byteBuffer.flip();
+                sslService.getSsl().decrypt(byteBuffer);
 
-                    byte[] b = new byte[byteBuffer.remaining()];
-                    byteBuffer.get(bytes, 0, b.length);
-                    aioChannel.writeToChannel(b);
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                    sslService.getSsl().close();
-                }
-            } else if (bytes != null) {
-                ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-                try {
-                    if (pipelineDirection == PipelineDirection.IN) {
-                        //SSL doUnWard
-                        //byteBuffer.compact();
-                        // byteBuffer.flip();
-                        sslService.getSsl().decrypt(byteBuffer);
-                    } else {
-                        //ssl doWard
-                        //byteBuffer.compact();
-                        //byteBuffer.flip();
-                        sslService.getSsl().encrypt(byteBuffer);
-                    }
-                } catch (SSLException e) {
-                    logger.error(e.getMessage(), e);
-                }
+                byte[] b = new byte[byteBuffer.remaining()];
+                byteBuffer.get(bytes, 0, b.length);
+                aioChannel.writeToChannel(b);
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+                sslService.getSsl().close();
             }
-        } else {
-            super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+        } else if (bytes != null) {
+            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+            //SSL doUnWard
+            //byteBuffer.compact();
+            // byteBuffer.flip();
+            sslService.getSsl().encrypt(byteBuffer);
+        }
+    }
+
+    @Override
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+        this.out = out;
+        byte[] bytes = (byte[]) obj;
+        if (!sslService.getSsl().isHandshakeCompleted() && obj != null) {
+            //握手
+            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+            try {
+                //byteBuffer.compact();
+                //byteBuffer.flip();
+                sslService.getSsl().decrypt(byteBuffer);
+
+                byte[] b = new byte[byteBuffer.remaining()];
+                byteBuffer.get(bytes, 0, b.length);
+                aioChannel.writeToChannel(b);
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+                sslService.getSsl().close();
+            }
+        } else if (bytes != null) {
+            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+            //SSL doUnWard
+            //byteBuffer.compact();
+            // byteBuffer.flip();
+            sslService.getSsl().decrypt(byteBuffer);
         }
     }
 
@@ -125,7 +133,8 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
 //                wrappedBytes.flip();
                 byte[] b = new byte[wrappedBytes.remaining()];
                 wrappedBytes.get(b, 0, b.length);
-                aioChannel.writeToChannel(b);
+                //回调父类方法
+                SslHandler.super.encode(aioChannel, b);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
@@ -137,7 +146,7 @@ public class SslHandler extends ChannelInOutBoundHandlerAdapter {
             byte[] b = new byte[plainBytes.remaining()];
             plainBytes.get(b, 0, b.length);
             try {
-                SslHandler.super.handler(channelStateEnum, b, aioChannel, PipelineDirection.IN);
+                SslHandler.super.decode(aioChannel, b, out);
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -7,31 +7,19 @@ package com.gettyio.core.handler.codec.datagramPacket;/*
  */
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.pipeline.PipelineDirection;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.net.DatagramPacket;
 
 public class DatagramPacketDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj) throws Exception {
-        try {
-            DatagramPacket datagramPacket = (DatagramPacket) obj;
-            //写到read通道里
-            channelRead(aioChannel, datagramPacket);
-        } catch (ClassCastException e) {
-            e.printStackTrace();
-        }
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+        DatagramPacket datagramPacket = (DatagramPacket) obj;
+        out.put(datagramPacket);
+        super.decode(aioChannel, obj, out);
     }
 
-    @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
-        if (null != obj && aioChannel instanceof UdpChannel) {
-            decode(aioChannel, obj);
-        }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
-    }
 }

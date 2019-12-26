@@ -8,10 +8,7 @@
 package com.gettyio.core.handler.traffic;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
-import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
+import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
 
 import java.util.concurrent.TimeUnit;
@@ -22,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapter {
+public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter {
 
     //总读取字节
     private long totalRead;
@@ -54,30 +51,28 @@ public class ChannelTrafficShapingHandler extends ChannelInOutBoundHandlerAdapte
 
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
-        if (aioChannel instanceof TcpChannel) {
-            byte[] bytes = (byte[]) obj;
-            switch (channelStateEnum) {
-                case CHANNEL_READ:
-                    totalRead += bytes.length;
-                    intervalTotalReadTmp += bytes.length;
-                    totalReadCount++;
-                    break;
-                case CHANNEL_WRITE:
-                    totalWrite += bytes.length;
-                    intervalTotalWriteTmp += bytes.length;
-                    totolWriteCount++;
-                    break;
-                case CHANNEL_CLOSED:
-                    pool.shutdown();
-                    break;
-                default:
-                    break;
-            }
-        }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
+        byte[] bytes = (byte[]) obj;
+        totalRead += bytes.length;
+        intervalTotalReadTmp += bytes.length;
+        totalReadCount++;
+        super.channelRead(aioChannel, obj);
     }
 
+    @Override
+    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
+        byte[] bytes = (byte[]) obj;
+        totalWrite += bytes.length;
+        intervalTotalWriteTmp += bytes.length;
+        totolWriteCount++;
+        super.channelWrite(aioChannel, obj);
+    }
+
+    @Override
+    public void channelClosed(AioChannel aioChannel) throws Exception {
+        pool.shutdown();
+        super.channelClosed(aioChannel);
+    }
 
     public long getTotalRead() {
         return totalRead;

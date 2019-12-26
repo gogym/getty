@@ -8,6 +8,10 @@
 package com.gettyio.core.pipeline;
 
 
+import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
+import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
+import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
+
 import java.util.Iterator;
 import java.util.LinkedList;
 
@@ -18,23 +22,29 @@ import java.util.LinkedList;
  * 时间：2019/9/27
  */
 public class DefaultChannelPipeline {
-    LinkedList<ChannelHandlerAdapter> pipeList;
+    //入站链
+    LinkedList<ChannelHandlerAdapter> inPipeList;
+    //出站链
+    LinkedList<ChannelHandlerAdapter> outPipeList;
 
     public DefaultChannelPipeline() {
-        if (pipeList == null) {
-            pipeList = new LinkedList<>();
+        if (inPipeList == null) {
+            inPipeList = new LinkedList<>();
+        }
+        if (outPipeList == null) {
+            outPipeList = new LinkedList<>();
         }
     }
 
 
-    //正向获取责任链
-    public Iterator<ChannelHandlerAdapter> getIterator() {
-        return pipeList.iterator();
+    //获取入站责任链
+    public Iterator<ChannelHandlerAdapter> getInPipeList() {
+        return inPipeList.iterator();
     }
 
-    //反向获取责任链
-    public Iterator<ChannelHandlerAdapter> getReverseIterator() {
-        LinkedList<ChannelHandlerAdapter> newList = reverseLinkedList(pipeList);
+    //获取责任链
+    public Iterator<ChannelHandlerAdapter> getOutPipeList() {
+        LinkedList<ChannelHandlerAdapter> newList = reverseLinkedList(outPipeList);
         return newList.iterator();
     }
 
@@ -49,57 +59,57 @@ public class DefaultChannelPipeline {
     }
 
     /**
-     * 正向获取第一个处理器
+     * 获取第一个入站处理器
      *
      * @return ChannelHandlerAdapter
      */
-    public ChannelHandlerAdapter first() {
-        if (pipeList != null && pipeList.size() > 0) {
-            return pipeList.getFirst();
+    public ChannelHandlerAdapter inPipeFirst() {
+        if (inPipeList != null && inPipeList.size() > 0) {
+            return inPipeList.getFirst();
         }
         return null;
     }
 
     /**
-     * 获取最后一个处理器
+     * 获取第一个出站处理器
      *
      * @return ChannelHandlerAdapter
      */
-    public ChannelHandlerAdapter last() {
-        if (pipeList != null && pipeList.size() > 0) {
-            return pipeList.getLast();
+    public ChannelHandlerAdapter outPipeFirst() {
+        if (outPipeList != null && outPipeList.size() > 0) {
+            return outPipeList.getLast();
         }
         return null;
     }
 
 
     /**
-     * 正向获取下一个处理器
+     * 获取下一个入站处理器
      *
      * @param channelHandlerAdapter 当前处理器
      * @return ChannelHandlerAdapter
      */
-    public ChannelHandlerAdapter nextOne(ChannelHandlerAdapter channelHandlerAdapter) {
-        int index = pipeList.indexOf(channelHandlerAdapter);
+    public ChannelHandlerAdapter nextInPipe(ChannelHandlerAdapter channelHandlerAdapter) {
+        int index = inPipeList.indexOf(channelHandlerAdapter);
         index++;
-        if (pipeList.size() > index) {
-            return pipeList.get(index);
+        if (inPipeList.size() > index) {
+            return inPipeList.get(index);
         }
         return null;
     }
 
 
     /**
-     * 反向获取下一个处理器
+     * 获取下一个出站处理器
      *
      * @param channelHandlerAdapter 当前处理器
      * @return ChannelHandlerAdapter
      */
-    public ChannelHandlerAdapter lastOne(ChannelHandlerAdapter channelHandlerAdapter) {
-        int index = pipeList.indexOf(channelHandlerAdapter);
+    public ChannelHandlerAdapter nextOutPipe(ChannelHandlerAdapter channelHandlerAdapter) {
+        int index = outPipeList.indexOf(channelHandlerAdapter);
         index--;
         if (index >= 0) {
-            return pipeList.get(index);
+            return outPipeList.get(index);
         }
         return null;
     }
@@ -110,7 +120,14 @@ public class DefaultChannelPipeline {
      * @param channelHandlerAdapter 当前处理器
      */
     public void addLast(ChannelHandlerAdapter channelHandlerAdapter) {
-        pipeList.addLast(channelHandlerAdapter);
+        if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+            inPipeList.addLast(channelHandlerAdapter);
+        } else if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
+            outPipeList.addLast(channelHandlerAdapter);
+        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+            inPipeList.addLast(channelHandlerAdapter);
+            outPipeList.addLast(channelHandlerAdapter);
+        }
     }
 
     /**
@@ -119,7 +136,14 @@ public class DefaultChannelPipeline {
      * @param channelHandlerAdapter 当前处理器
      */
     public void addFirst(ChannelHandlerAdapter channelHandlerAdapter) {
-        pipeList.addFirst(channelHandlerAdapter);
+        if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+            inPipeList.addFirst(channelHandlerAdapter);
+        } else if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
+            outPipeList.addFirst(channelHandlerAdapter);
+        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+            inPipeList.addFirst(channelHandlerAdapter);
+            outPipeList.addFirst(channelHandlerAdapter);
+        }
     }
 
 
@@ -127,7 +151,8 @@ public class DefaultChannelPipeline {
      * 清理责任链
      */
     public void clean() {
-        pipeList.clear();
+        inPipeList.clear();
+        outPipeList.clear();
     }
 
 }

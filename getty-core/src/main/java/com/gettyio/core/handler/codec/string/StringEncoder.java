@@ -7,10 +7,8 @@
  */
 package com.gettyio.core.handler.codec.string;
 
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
-import com.gettyio.core.pipeline.PipelineDirection;
 
 /**
  * 类名：StringEncoder.java
@@ -22,14 +20,7 @@ public class StringEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, Object obj) throws Exception {
-        //System.out.println("输出编码");
-    }
-
-
-    @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
-        //encode(aioChannel, bytes);
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+        super.encode(aioChannel, obj);
     }
 
 

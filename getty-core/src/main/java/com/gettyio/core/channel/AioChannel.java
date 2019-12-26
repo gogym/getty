@@ -14,17 +14,17 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
+import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
+import com.gettyio.core.util.ArrayList;
 import com.gettyio.core.util.ConcurrentSafeMap;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Iterator;
 
 /**
  * 类名：AioChannel.java
@@ -65,6 +65,10 @@ public abstract class AioChannel {
      */
     protected ChannelFutureListener channelFutureListener;
 
+    /**
+     * 用于保存以及decode的消息
+     */
+    private LinkedBlockQueue<Object> outList = new LinkedBlockQueue<>();
 
     /**
      * 用于方便设置随通道传播的属性
@@ -159,49 +163,84 @@ public abstract class AioChannel {
     /**
      * 正向执行管道处理
      *
-     * @param channelStateEnum 数据流向
+     * @param channelState 数据流向
      * @throws Exception 异常
      */
-    protected void invokePipeline(ChannelState channelStateEnum) throws Exception {
-        invokePipeline(channelStateEnum, null);
+    protected void invokePipeline(ChannelState channelState) throws Exception {
+        invokePipeline(channelState, null);
     }
 
     /**
      * 正向执行管道处理
      *
-     * @param channelStateEnum 数据流向
+     * @param channelState 数据流向
      * @param obj              消息对象
      * @throws Exception 异常
      */
-    protected void invokePipeline(ChannelState channelStateEnum, Object obj) throws Exception {
-
-        Iterator<ChannelHandlerAdapter> iterator = defaultChannelPipeline.getIterator();
-        while (iterator.hasNext()) {
-            ChannelHandlerAdapter channelHandlerAdapter = iterator.next();
-            if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
-                channelHandlerAdapter.handler(channelStateEnum, obj, this, PipelineDirection.IN);
-                return;
-            }
+    protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.inPipeFirst();
+        if (channelHandlerAdapter == null) {
+            return;
         }
+
+        switch (channelState) {
+            case NEW_CHANNEL:
+                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelAdded(this);
+                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelAdded(this);
+                }
+                break;
+            case CHANNEL_READ:
+                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).decode(this, obj, outList);
+                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).decode(this, obj, outList);
+                }
+                break;
+            case CHANNEL_CLOSED:
+                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelClosed(this);
+                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelClosed(this);
+                }
+                break;
+            case INPUT_SHUTDOWN:
+                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
+                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).exceptionCaught(this, new RuntimeException("socket channel is shutdown"));
+                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelClosed(this);
+                }
+                break;
+        }
+
+
     }
 
 
     /**
      * 反向执行管道
      *
-     * @param channelStateEnum 数据流向
+     * @param channelState 数据流向
      * @param obj              消息对象
      * @throws Exception 异常
      */
-    protected void reverseInvokePipeline(ChannelState channelStateEnum, Object obj) throws Exception {
+    protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.outPipeFirst();
+        if (channelHandlerAdapter == null) {
+            //如果没有对应的处理器，直接输出到wirter
+            writeToChannel(obj);
+            return;
+        }
 
-        Iterator<ChannelHandlerAdapter> iterator = defaultChannelPipeline.getReverseIterator();
-        while (iterator.hasNext()) {
-            ChannelHandlerAdapter channelHandlerAdapter = iterator.next();
-            if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter) {
-                channelHandlerAdapter.handler(channelStateEnum, obj, this, PipelineDirection.OUT);
-                return;
-            }
+        if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
+            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).channelWrite(this, obj);
+            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).encode(this, obj);
+            return;
+        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
+            ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelWrite(this, obj);
+            ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).encode(this, obj);
+            return;
         }
         //如果没有对应的处理器，直接输出到wirter
         writeToChannel(obj);

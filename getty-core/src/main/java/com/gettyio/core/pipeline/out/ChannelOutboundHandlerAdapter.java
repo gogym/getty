@@ -8,11 +8,8 @@
 package com.gettyio.core.pipeline.out;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.timeout.IdleState;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
-import com.gettyio.core.pipeline.all.ChannelInOutBoundHandlerAdapter;
-import com.gettyio.core.pipeline.PipelineDirection;
 
 /**
  * 类名：ChannelOutboundHandlerAdapter.java
@@ -24,30 +21,27 @@ public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapte
 
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
-        if (channelHandlerAdapter != null && channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            channelHandlerAdapter.exceptionCaught(aioChannel, cause, pipelineDirection);
+    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
+        if (channelHandlerAdapter != null) {
+            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).channelWrite(aioChannel, obj);
         }
     }
 
-
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception {
-        //把任务传递给下一个处理器
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
-        if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
-            channelHandlerAdapter.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
+        if (channelHandlerAdapter != null) {
+            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).encode(aioChannel, obj);
         } else {
-            //没有下一个处理器，表示责任链已经走完，写出
             aioChannel.writeToChannel(obj);
         }
     }
 
     @Override
     public void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().lastOne(this);
-        if (channelHandlerAdapter != null && (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter || channelHandlerAdapter instanceof ChannelInOutBoundHandlerAdapter)) {
+        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
+        if (channelHandlerAdapter != null) {
             channelHandlerAdapter.userEventTriggered(aioChannel, evt);
         }
     }

@@ -8,11 +8,8 @@
 package com.gettyio.core.handler.timeout;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 import java.io.IOException;
@@ -28,7 +25,7 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
     private int loss_connect_time = 0;
 
     @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt)  throws Exception{
+    public void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception {
         if (evt == IdleState.READER_IDLE) {
             loss_connect_time++;
             if (loss_connect_time > 2) {
@@ -40,20 +37,14 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
                 }
                 aioChannel.close();
             }
-        } else {
-            super.userEventTriggered(aioChannel, evt);
         }
+        super.userEventTriggered(aioChannel, evt);
     }
 
     @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
-        if (aioChannel instanceof TcpChannel) {
-            switch (channelStateEnum) {
-                case CHANNEL_READ:
-                    loss_connect_time = 0;
-                    break;
-            }
-        }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
+    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
+        loss_connect_time = 0;
+        super.channelRead(aioChannel, obj);
     }
+
 }

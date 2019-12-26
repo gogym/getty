@@ -21,17 +21,6 @@ import com.gettyio.core.handler.timeout.IdleState;
 public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
 
     /**
-     * 实现这个方法，用于处理器传递
-     *
-     * @param channelStateEnum  数据方向
-     * @param obj               数据
-     * @param aioChannel        通道
-     * @param pipelineDirection 责任链
-     * @throws Exception 异常
-     */
-    public abstract void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection) throws Exception;
-
-    /**
      * 该方法类似一个心态起搏器，执行读或写操作会被触发
      *
      * @param aioChannel 通道

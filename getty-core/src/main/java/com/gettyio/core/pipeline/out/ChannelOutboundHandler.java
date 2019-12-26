@@ -18,6 +18,17 @@ import com.gettyio.core.pipeline.ChannelboundHandler;
  */
 public interface ChannelOutboundHandler extends ChannelboundHandler {
 
+
+    /**
+     * 消息写出
+     *
+     * @param aioChannel 通道
+     * @param obj        数据
+     * @throws Exception 异常
+     */
+    void channelWrite(AioChannel aioChannel, Object obj) throws Exception;
+
+
     /**
      * 消息编码
      *

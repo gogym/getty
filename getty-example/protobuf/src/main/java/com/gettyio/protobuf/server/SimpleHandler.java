@@ -3,7 +3,6 @@ package com.gettyio.protobuf.server;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.group.DefaultChannelGroup;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import com.gettyio.protobuf.packet.MessageClass;
 
@@ -18,8 +17,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
         //把连接保存起来以备使用
         defaultChannelGroup.add(aioChannel);
         //可以通过AioChannel的channelId获取通道。比如与用户映射起来
-        AioChannel tempChannel = defaultChannelGroup.find(aioChannel.getChannelId());
-        tempChannel.writeAndFlush("123".getBytes());
+        //AioChannel tempChannel = defaultChannelGroup.find(aioChannel.getChannelId());
+        //tempChannel.writeAndFlush("123".getBytes());
     }
 
     @Override
@@ -34,7 +33,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause, PipelineDirection pipelineDirection) {
+    public void exceptionCaught(AioChannel aioChannel, Throwable cause) {
         System.out.println("出错了");
     }
 

@@ -8,10 +8,9 @@
 package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.pipeline.PipelineDirection;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
+import com.gettyio.core.util.ArrayList;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 /**
  * 类名：DefaultFrameDecoder.java
@@ -22,16 +21,8 @@ import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 public class DefaultFrameDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj)  throws Exception{
-        //传递到下一个decode
-        super.decode(aioChannel, obj);
+    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+        super.decode(aioChannel, obj, out);
     }
 
-    @Override
-    public void handler(ChannelState channelStateEnum, Object obj, AioChannel aioChannel, PipelineDirection pipelineDirection)  throws Exception{
-        if (null != obj && aioChannel instanceof TcpChannel) {
-            decode(aioChannel, obj);
-        }
-        super.handler(channelStateEnum, obj, aioChannel, pipelineDirection);
-    }
 }

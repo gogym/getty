@@ -100,8 +100,9 @@ public abstract class InternalLoggerFactory {
 
     /**
      * Creates a new logger instance with the specified name.
-     * * @param name n
-     * * @return InternalLogger
+     *
+     * @param name n
+     * @return InternalLogger
      */
     protected abstract InternalLogger newInstance(String name);
 
