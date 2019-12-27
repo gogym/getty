@@ -39,6 +39,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
     public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+
         byte[] bytes = (byte[]) obj;
         int index = 0;
         while (index < bytes.length) {

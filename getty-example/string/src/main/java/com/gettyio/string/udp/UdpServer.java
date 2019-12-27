@@ -5,8 +5,10 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.datagramPacket.DatagramPacketDecoder;
-import com.gettyio.core.handler.codec.datagramPacket.DatagramPacketEncoder;
+import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketDecoder;
+import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketEncoder;
+import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
+import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 
@@ -46,6 +48,12 @@ public class UdpServer {
 
                     defaultChannelPipeline.addLast(new DatagramPacketEncoder());
                     defaultChannelPipeline.addLast(new DatagramPacketDecoder());
+
+                    //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
+                    defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
+                    //添加字符串解码器
+                    defaultChannelPipeline.addLast(new StringDecoder());
+
                     defaultChannelPipeline.addLast(new SimpleHandler());
                 }
             }).start();

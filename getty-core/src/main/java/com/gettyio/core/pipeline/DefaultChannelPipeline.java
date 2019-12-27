@@ -8,6 +8,8 @@
 package com.gettyio.core.pipeline;
 
 
+import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
@@ -27,7 +29,10 @@ public class DefaultChannelPipeline {
     //出站链
     LinkedList<ChannelHandlerAdapter> outPipeList;
 
-    public DefaultChannelPipeline() {
+    AioChannel aioChannel;
+
+    public DefaultChannelPipeline(AioChannel aioChannel) {
+        this.aioChannel = aioChannel;
         if (inPipeList == null) {
             inPipeList = new LinkedList<>();
         }
@@ -120,6 +125,10 @@ public class DefaultChannelPipeline {
      * @param channelHandlerAdapter 当前处理器
      */
     public void addLast(ChannelHandlerAdapter channelHandlerAdapter) {
+        if (aioChannel instanceof UdpChannel && !(channelHandlerAdapter instanceof DatagramPacketHandler)) {
+            //如果是udp模式，则有些处理器是不适合udp使用的，不加入
+            return;
+        }
         if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
             inPipeList.addLast(channelHandlerAdapter);
         } else if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
@@ -136,6 +145,11 @@ public class DefaultChannelPipeline {
      * @param channelHandlerAdapter 当前处理器
      */
     public void addFirst(ChannelHandlerAdapter channelHandlerAdapter) {
+        if (aioChannel instanceof UdpChannel && !(channelHandlerAdapter instanceof DatagramPacketHandler)) {
+            //如果是udp模式，则有些处理器是不适合udp使用的，不加入
+            return;
+        }
+
         if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
             inPipeList.addFirst(channelHandlerAdapter);
         } else if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {

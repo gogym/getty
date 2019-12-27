@@ -36,9 +36,6 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
     }
 
     public IdleStateHandler(AioChannel aioChannel, long readerIdleTime, long writerIdleTime, TimeUnit unit) {
-        if (!(aioChannel instanceof TcpChannel)) {
-            return;
-        }
         pool = new ThreadPool(ThreadPool.FixedThread, 3);
         if (readerIdleTime > 0) {
             pool.scheduleWithFixedRate(() -> {

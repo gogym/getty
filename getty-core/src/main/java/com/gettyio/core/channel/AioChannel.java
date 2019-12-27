@@ -174,7 +174,7 @@ public abstract class AioChannel {
      * 正向执行管道处理
      *
      * @param channelState 数据流向
-     * @param obj              消息对象
+     * @param obj          消息对象
      * @throws Exception 异常
      */
     protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
@@ -222,7 +222,7 @@ public abstract class AioChannel {
      * 反向执行管道
      *
      * @param channelState 数据流向
-     * @param obj              消息对象
+     * @param obj          消息对象
      * @throws Exception 异常
      */
     protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
@@ -253,7 +253,7 @@ public abstract class AioChannel {
      * @return com.gettyio.core.pipeline.DefaultChannelPipeline
      */
     public DefaultChannelPipeline getDefaultChannelPipeline() {
-        return defaultChannelPipeline != null ? defaultChannelPipeline : (defaultChannelPipeline = new DefaultChannelPipeline());
+        return defaultChannelPipeline != null ? defaultChannelPipeline : (defaultChannelPipeline = new DefaultChannelPipeline(this));
     }
 
 //--------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ public class StringDecoder extends ObjectToMessageDecoder {
 
     @Override
     public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+
         String str = new String((byte[]) obj, "utf-8");
         out.put(str);
         super.decode(aioChannel, obj, out);

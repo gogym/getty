@@ -67,7 +67,6 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
     public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         byte[] bytes = (byte[]) obj;
-
         final byte[] array;
         final int offset;
 

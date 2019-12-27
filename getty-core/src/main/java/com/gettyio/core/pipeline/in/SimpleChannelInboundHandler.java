@@ -8,6 +8,7 @@ package com.gettyio.core.pipeline.in;
 
 
 import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.pipeline.DatagramPacketHandler;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 
 /**
@@ -16,7 +17,7 @@ import com.gettyio.core.util.LinkedNonBlockQueue;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandlerAdapter {
+public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandlerAdapter implements DatagramPacketHandler {
 
 
     @Override

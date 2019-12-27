@@ -20,6 +20,7 @@ public class ProtobufEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, Object obj) throws Exception {
+
         byte[] bytes = null;
         if (obj instanceof MessageLite) {
             bytes = ((MessageLite) obj).toByteArray();

@@ -1,4 +1,4 @@
-package com.gettyio.core.handler.codec.datagramPacket;/*
+package com.gettyio.core.handler.codec.datagrampacket;/*
  * 类名：DatagramPacketDecoder
  * 版权：Copyright by www.getty.com
  * 描述：
@@ -8,11 +8,12 @@ package com.gettyio.core.handler.codec.datagramPacket;/*
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.pipeline.DatagramPacketHandler;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.net.DatagramPacket;
 
-public class DatagramPacketDecoder extends ObjectToMessageDecoder {
+public class DatagramPacketDecoder extends ObjectToMessageDecoder implements DatagramPacketHandler {
 
     @Override
     public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
