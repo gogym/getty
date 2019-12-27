@@ -10,8 +10,7 @@ package com.gettyio.core.pipeline.in;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.pipeline.ChannelboundHandler;
-import com.gettyio.core.util.ArrayList;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 
 /**
@@ -63,6 +62,6 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      * @param obj        消息
      * @throws Exception 异常
      */
-    void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception;
+    void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception;
 
 }

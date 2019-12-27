@@ -7,8 +7,13 @@ import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
+import com.gettyio.core.handler.ssl.ClientAuth;
+import com.gettyio.core.handler.ssl.SslConfig;
+import com.gettyio.core.handler.ssl.SslHandler;
+import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import org.springframework.util.ResourceUtils;
 
 import java.net.StandardSocketOptions;
 
@@ -41,6 +46,24 @@ public class TcpServer {
                 public void initChannel(AioChannel channel) throws Exception {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+
+                    //获取证书
+                    String pkPath = ResourceUtils.getURL("classpath:serverStore.jks")
+                            .getPath();
+                    //ssl配置
+                    SslConfig sSLConfig = new SslConfig();
+                    sSLConfig.setKeyFile(pkPath);
+                    sSLConfig.setKeyPassword("123456");
+                    sSLConfig.setKeystorePassword("123456");
+                    sSLConfig.setTrustFile(pkPath);
+                    sSLConfig.setTrustPassword("123456");
+                    //设置服务器模式
+                    sSLConfig.setClientMode(false);
+                    //设置单向验证或双向验证
+                    sSLConfig.setClientAuth(ClientAuth.REQUIRE);
+                    //初始化ssl服务
+                    SslService sSLService = new SslService(sSLConfig);
+                    defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
 
 
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割

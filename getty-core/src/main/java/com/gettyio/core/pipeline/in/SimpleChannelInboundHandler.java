@@ -8,8 +8,7 @@ package com.gettyio.core.pipeline.in;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.util.ArrayList;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 /**
  * 类名：SimpleChannelInboundHandler.java
@@ -21,7 +20,7 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         while (out.getCount() > 0) {
             channelRead(aioChannel, out.poll());

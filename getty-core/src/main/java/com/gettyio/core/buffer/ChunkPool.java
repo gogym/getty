@@ -93,7 +93,7 @@ public final class ChunkPool {
     }
 
     /**
-     * 分配给定大小的缓冲区。如果没有足够的内存和缓冲池，此方法将阻塞
+     * 从空闲池分配给定大小的缓冲区。如果没有足够的内存和缓冲池，此方法将阻塞
      *
      * @param size             以字节为单位分配的缓冲区大小
      * @param maxTimeToBlockMs 缓冲区内存分配的最大阻塞时间(以毫秒为单位)
@@ -203,6 +203,100 @@ public final class ChunkPool {
                         this.availableMemory -= got;
                         accumulated += got;
                     }
+                }
+
+                // 删除此线程让下一个线程通过，开始获取内存
+                Condition removed = this.waiters.removeFirst();
+                if (removed != moreMemory) {
+                    throw new IllegalStateException("Wrong condition: this shouldn't happen.");
+                }
+
+                // 如果内存不够，就通知其他等待者,避免一直阻塞
+                if (this.availableMemory > 0 || !this.mediumFree.isEmpty()) {
+                    if (!this.waiters.isEmpty()) {
+                        this.waiters.peekFirst().signal();
+                    }
+                }
+
+                // 解锁并返回缓冲区
+                lock.unlock();
+                if (buffer == null) {
+                    return direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
+                } else {
+                    return buffer;
+                }
+            }
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+
+
+    /**
+     * 按需分配大小的缓冲区。如果没有足够的内存和缓冲池，此方法将阻塞
+     *
+     * @param size             以字节为单位分配的缓冲区大小
+     * @param maxTimeToBlockMs 缓冲区内存分配的最大阻塞时间(以毫秒为单位)
+     * @return The buffer 返回缓冲区
+     * @throws InterruptedException 异常
+     * @throws TimeoutException     异常
+     */
+    public ByteBuffer allocateBySize(int size, long maxTimeToBlockMs) throws InterruptedException, TimeoutException {
+        if (size > this.totalMemory) {
+            //分配内存大于总内存，抛出异常
+            throw new IllegalArgumentException("Attempt to allocate " + size
+                    + " bytes, but there is a hard limit of "
+                    + this.totalMemory
+                    + " on memory allocations.");
+        }
+
+        this.lock.lock();
+        try {
+            //检查总空闲内存是否满足分配需要
+            int freeListSize = (this.tinySize * this.tinyFree.size()) + (this.smallSize * this.smallFree.size()) + (this.mediumSize * this.mediumFree.size()) + (this.largeSize * this.largeFree.size());
+            if (this.availableMemory + freeListSize >= size) {
+                //尝试释放空闲池
+                freeUp(size);
+                this.availableMemory -= size;
+                lock.unlock();
+                return direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
+            } else {
+                // 我们的内存不足，将不得不阻塞
+                int accumulated = 0;
+                ByteBuffer buffer = null;
+                Condition moreMemory = this.lock.newCondition();
+                long remainingTimeToBlockNs = TimeUnit.MILLISECONDS.toNanos(maxTimeToBlockMs);
+                // 循环，直到我们有一个缓冲区有足够的内存来分配
+                this.waiters.addLast(moreMemory);
+                while (accumulated < size) {
+                    long startWaitNs = time.nanoseconds();
+                    long timeNs;
+                    boolean waitingTimeElapsed;
+                    try {
+                        waitingTimeElapsed = !moreMemory.await(remainingTimeToBlockNs, TimeUnit.NANOSECONDS);
+                    } catch (InterruptedException e) {
+                        this.waiters.remove(moreMemory);
+                        throw e;
+                    } finally {
+                        long endWaitNs = time.nanoseconds();
+                        timeNs = Math.max(0L, endWaitNs - startWaitNs);
+                    }
+                    //如果等待时长超时，则抛出一个异常
+                    if (waitingTimeElapsed) {
+                        this.waiters.remove(moreMemory);
+                        throw new TimeoutException("Failed to allocate memory within the configured max blocking time " + maxTimeToBlockMs + " ms.");
+                    }
+
+                    remainingTimeToBlockNs -= timeNs;
+
+                    // 没有刚好合适的缓冲池，尝试释放
+                    freeUp(size - accumulated);
+                    int got = (int) Math.min(size - accumulated, this.availableMemory);
+                    this.availableMemory -= got;
+                    accumulated += got;
+
                 }
 
                 // 删除此线程让下一个线程通过，开始获取内存

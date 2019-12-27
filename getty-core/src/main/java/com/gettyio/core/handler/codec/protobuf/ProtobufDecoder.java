@@ -10,6 +10,7 @@ import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.util.ArrayList;
 import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -63,7 +64,7 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         byte[] bytes = (byte[]) obj;
 

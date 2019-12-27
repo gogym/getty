@@ -9,7 +9,7 @@ package com.gettyio.core.buffer;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -31,13 +31,13 @@ public final class BufferWriter extends OutputStream {
     //当前是否已关闭
     private boolean closed = false;
     //阻塞队列
-    private final LinkedBlockQueue<ByteBuffer> queue;
+    private final LinkedNonBlockQueue<ByteBuffer> queue;
 
     public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
         this.chunkPoolBlockTime = chunkPoolBlockTime;
         this.function = flushFunction;
-        queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
+        queue = new LinkedNonBlockQueue<>(bufferWriterQueueSize);
     }
 
     @Deprecated
@@ -61,6 +61,7 @@ public final class BufferWriter extends OutputStream {
         if (len <= 0 || b.length == 0) {
             return;
         }
+
         try {
             //申请写缓冲
             ByteBuffer chunkPage = chunkPool.allocate(len - off, chunkPoolBlockTime);
@@ -122,7 +123,9 @@ public final class BufferWriter extends OutputStream {
         if (closed) {
             throw new IOException("OutputStream has closed");
         }
-        flush();
+        while (queue.getCount() > 0) {
+            flush();
+        }
         closed = true;
         if (chunkPool != null) {
             //清空内存池

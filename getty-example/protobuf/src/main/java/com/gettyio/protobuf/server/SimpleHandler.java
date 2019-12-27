@@ -23,7 +23,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
 
     @Override
     public void channelClosed(AioChannel aioChannel) {
-        System.out.println("连接关闭了");
+        System.out.println("服务器端连接关闭了");
     }
 
 

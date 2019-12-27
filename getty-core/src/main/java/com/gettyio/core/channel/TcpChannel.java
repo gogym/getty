@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class TcpChannel extends AioChannel implements Function<BufferWriter, Void> {
 
@@ -52,6 +53,8 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
     private SslService sslService;
 
     protected BufferWriter bufferWriter;
+
+
 
     /**
      * @param channel                通道
@@ -109,15 +112,6 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
             return;
         }
 
-        try {
-            if (!bufferWriter.isClosed()) {
-                bufferWriter.close();
-            }
-            bufferWriter = null;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
 
         if (readByteBuffer != null) {
             chunkPool.deallocate(readByteBuffer);
@@ -129,6 +123,15 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
 
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
+        }
+
+        try {
+            if (!bufferWriter.isClosed()) {
+                bufferWriter.close();
+            }
+            bufferWriter = null;
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         try {
@@ -182,7 +185,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
      *
      * @param eof 状态回调标记
      */
-    public void readFromChannel(boolean eof){
+    public void readFromChannel(boolean eof) {
 
         final ByteBuffer readBuffer = this.readByteBuffer;
         //读取缓冲区数据到管道
@@ -254,7 +257,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
     }
 
     /**
-     * 直接写到socket通道
+     * 写到BufferWriter输出器，不经过责任链
      *
      * @param obj 写入的数组
      */
@@ -265,7 +268,6 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
             e.printStackTrace();
         }
     }
-
 
     /**
      * 继续写

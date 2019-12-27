@@ -14,8 +14,7 @@ import com.gettyio.core.handler.ssl.sslfacade.ISessionClosedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.util.ArrayList;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.nio.ByteBuffer;
 
@@ -31,7 +30,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
 
     private SslService sslService;
     private AioChannel aioChannel;
-    LinkedBlockQueue<Object> out;
+    LinkedNonBlockQueue<Object> out;
 
     public SslHandler(AioChannel aioChannel) {
         this.aioChannel = aioChannel;
@@ -68,7 +67,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         this.out = out;
         byte[] bytes = (byte[]) obj;
         if (!sslService.getSsl().isHandshakeCompleted() && obj != null) {
@@ -78,7 +77,6 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
                 //byteBuffer.compact();
                 //byteBuffer.flip();
                 sslService.getSsl().decrypt(byteBuffer);
-
                 byte[] b = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bytes, 0, b.length);
                 aioChannel.writeToChannel(b);
@@ -134,6 +132,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
                 byte[] b = new byte[wrappedBytes.remaining()];
                 wrappedBytes.get(b, 0, b.length);
                 //回调父类方法
+                //aioChannel.writeToChannel(b);
                 SslHandler.super.encode(aioChannel, b);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);

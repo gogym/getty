@@ -19,9 +19,8 @@ import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
-import com.gettyio.core.util.ArrayList;
 import com.gettyio.core.util.ConcurrentSafeMap;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -68,7 +67,7 @@ public abstract class AioChannel {
     /**
      * 用于保存以及decode的消息
      */
-    private LinkedBlockQueue<Object> outList = new LinkedBlockQueue<>();
+    private LinkedNonBlockQueue<Object> outList = new LinkedNonBlockQueue<>();
 
     /**
      * 用于方便设置随通道传播的属性
@@ -113,18 +112,19 @@ public abstract class AioChannel {
 
 
     /**
-     * 写出数据
+     * 写出数据，经过责任链
      *
      * @param obj 写入的数组
      */
     public abstract void writeAndFlush(Object obj);
 
     /**
-     * 直接写到socket通道
+     * 写到BufferWriter输出器，不经过责任链
      *
      * @param obj 写入的数组
      */
     public abstract void writeToChannel(Object obj);
+
 
     //-----------------------------------------------------------------------------------
 

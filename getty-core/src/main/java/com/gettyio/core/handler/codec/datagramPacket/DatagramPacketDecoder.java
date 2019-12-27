@@ -8,15 +8,14 @@ package com.gettyio.core.handler.codec.datagramPacket;/*
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.util.ArrayList;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.net.DatagramPacket;
 
 public class DatagramPacketDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         DatagramPacket datagramPacket = (DatagramPacket) obj;
         out.put(datagramPacket);
         super.decode(aioChannel, obj, out);

@@ -7,10 +7,13 @@ import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.SslConfig;
+import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
+import org.springframework.util.ResourceUtils;
+
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
@@ -47,10 +50,21 @@ public class TcpClient {
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
 
+                //获取证书
+                String pkPath = ResourceUtils.getURL("classpath:clientStore.jks")
+                        .getPath();
+                //ssl配置
                 SslConfig sSLConfig = new SslConfig();
+                sSLConfig.setKeyFile(pkPath);
+                sSLConfig.setKeyPassword("123456");
+                sSLConfig.setKeystorePassword("123456");
+                sSLConfig.setTrustFile(pkPath);
+                sSLConfig.setTrustPassword("123456");
+                //设置服务器模式
                 sSLConfig.setClientMode(true);
+                //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                //defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
+                defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
 
 
                 //指定结束符解码器
@@ -70,9 +84,9 @@ public class TcpClient {
 
 
         try {
-            Thread.sleep(2000);
+            Thread.sleep(3000);
             AioChannel aioChannel = client.getAioChannel();
-            aioChannel.getChannelAttribute().put("key","value");
+            aioChannel.getChannelAttribute().put("key", "value");
             String s = "12\r\n";
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
@@ -80,7 +94,7 @@ public class TcpClient {
             int i = 0;
             for (; i < 10; i++) {
 //                String s = i + "me\r\n";
-//                byte[] msgBody = s.getBytes("utf-8");
+                // byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);
                 //aioChannel.writeAndFlush(msgBody);
                 //aioChannel.writeAndFlush(msgBody);

@@ -1,7 +1,7 @@
 package com.gettyio.core.util;/*
  * 类名：LinkedBlockArray
  * 版权：Copyright by www.getty.com
- * 描述：数组实现的阻塞队列
+ * 描述：数组实现的出队非阻塞队列
  * 修改人：gogym
  * 时间：2019/12/13
  */
@@ -10,7 +10,7 @@ import java.lang.reflect.Array;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class LinkedBlockQueue<T> {
+public class LinkedNonBlockQueue<T> {
 
     /**
      * 队列实现
@@ -45,11 +45,11 @@ public class LinkedBlockQueue<T> {
     Condition notEmpty = lock.newCondition();
 
 
-    public LinkedBlockQueue() {
+    public LinkedNonBlockQueue() {
         this(1024);
     }
 
-    public LinkedBlockQueue(int capacity) {
+    public LinkedNonBlockQueue(int capacity) {
         items = (T[]) new Object[capacity];
         this.capacity = capacity;
     }
@@ -98,8 +98,8 @@ public class LinkedBlockQueue<T> {
         try {
             while (count == 0) {
                 //出队阻塞
-                notEmpty.await();
-               // return null;
+                //notEmpty.await();
+                return null;
             }
             t = this.items[removeIndex];
             this.items[removeIndex] = null;

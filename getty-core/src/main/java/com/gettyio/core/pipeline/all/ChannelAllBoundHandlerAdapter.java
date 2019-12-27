@@ -14,7 +14,7 @@ import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandler;
 import com.gettyio.core.handler.timeout.IdleState;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 /**
  * 类名：ChannelInOutBoundHandlerAdapter.java
@@ -119,7 +119,7 @@ public abstract class ChannelAllBoundHandlerAdapter extends ChannelHandlerAdapte
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;

@@ -73,7 +73,7 @@ public class UdpClient {
             DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
             long ct = System.currentTimeMillis();
 
-            for(int j=0;j<3;j++){
+            for(int j=0;j<1;j++){
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
