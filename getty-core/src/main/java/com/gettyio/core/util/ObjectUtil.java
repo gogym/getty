@@ -150,4 +150,27 @@ public final class ObjectUtil {
     public static long longValue(Long wrapper, long defaultValue) {
         return wrapper != null ? wrapper : defaultValue;
     }
+
+
+    /**
+     * <li>方法名：toLong
+     * <li>@param b
+     * <li>@return
+     * <li>返回类型：long
+     */
+    public static long toLong(byte... b) {
+        int mask = 0xff;
+        int temp = 0;
+        long res = 0;
+        int byteslen = b.length;
+        if (byteslen > 8) {
+            return Long.valueOf(0L);
+        }
+        for (int i = 0; i < byteslen; i++) {
+            res <<= 8;
+            temp = b[i] & mask;
+            res |= temp;
+        }
+        return res;
+    }
 }

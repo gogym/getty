@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>1.5-SNAPSHOT</version>
+    <version>1.1.2</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
@@ -248,7 +248,7 @@
             </build>
             <!-- 【注】snapshotRepository 与 repository 中的 id 一定要与 setting.xml 中 server 的 id 保持一致！ -->
             <distributionManagement>
-                <!--
+
                 <snapshotRepository>
                     <id>ossrh</id>
                     <url>https://oss.sonatype.org/content/repositories/snapshots</url>
@@ -257,16 +257,16 @@
                     <id>ossrh</id>
                     <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
                 </repository>
-                -->
-                <repository>
-                    <id>maven-repository-releases</id>
-                    <url>http://192.168.167.114:8081/repository/maven-releases/</url>
-                </repository>
-                <snapshotRepository>
-                    <id>maven-repository-snapshots</id>
-                    <url>http://192.168.167.114:8081/repository/maven-snapshots/</url>
-                </snapshotRepository>
-
+                <!--
+                               <repository>
+                                   <id>maven-repository-releases</id>
+                                   <url>http://192.168.167.114:8081/repository/maven-releases/</url>
+                               </repository>
+                               <snapshotRepository>
+                                   <id>maven-repository-snapshots</id>
+                                   <url>http://192.168.167.114:8081/repository/maven-snapshots/</url>
+                               </snapshotRepository>
+               -->
             </distributionManagement>
         </profile>
     </profiles>

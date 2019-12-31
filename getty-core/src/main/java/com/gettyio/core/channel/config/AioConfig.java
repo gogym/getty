@@ -41,8 +41,8 @@ public class AioConfig {
     //服务器端口号
     private int port;
 
-    //消息读取缓存大小，默认512
-    private int readBufferSize = 128;
+    //消息读取缓存大小，默认2048
+    private int readBufferSize = 2048;
     //内存池最大阻塞时间。默认1s
     private int chunkPoolBlockTime = 1000;
     //输出类队列大小，默认10*1024*1024

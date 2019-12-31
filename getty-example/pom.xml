@@ -5,7 +5,7 @@
     <parent>
         <artifactId>getty</artifactId>
         <groupId>com.gettyio</groupId>
-        <version>1.5-SNAPSHOT</version>
+        <version>1.1.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>getty-example</artifactId>
@@ -16,6 +16,7 @@
         <module>netty</module>
         <module>protobuf</module>
         <module>test</module>
+        <module>websocket</module>
     </modules>
 
     <build>
