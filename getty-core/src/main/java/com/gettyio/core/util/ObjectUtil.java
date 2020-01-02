@@ -153,6 +153,16 @@ public final class ObjectUtil {
 
 
     /**
+     * <li>方法名：toInt
+     * <li>@param b
+     * <li>@return
+     * <li>返回类型：int
+     */
+    public static int toInt(byte... b) {
+        return (int) toLong(b);
+    }
+
+    /**
      * <li>方法名：toLong
      * <li>@param b
      * <li>@return
@@ -172,5 +182,42 @@ public final class ObjectUtil {
             res |= temp;
         }
         return res;
+    }
+
+
+    /**
+     * <li>方法名：numberToByte
+     * <li>@param l
+     * <li>@param length
+     * <li>@return
+     * <li>返回类型：byte[]
+     */
+    private static byte[] numberToByte(long l, int length) {
+        byte[] bts = new byte[length];
+        for (int i = 0; i < length; i++) {
+            bts[i] = (byte) (l >> ((length - i - 1) * 8));
+        }
+        return bts;
+    }
+
+    /**
+     * <li>方法名：shortToByte
+     * <li>@param i
+     * <li>@return
+     * <li>返回类型：byte[]
+     */
+    public static byte[] shortToByte(int i) {
+        return numberToByte(i, 2);
+    }
+
+
+    /**
+     * <li>方法名：longToByte
+     * <li>@param i
+     * <li>@return
+     * <li>返回类型：byte[]
+     */
+    public static byte[] longToByte(long i) {
+        return numberToByte(i, 8);
     }
 }

@@ -8,6 +8,7 @@ import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.websocket.WebSocketDecoder;
+import com.gettyio.core.handler.codec.websocket.WebSocketEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
@@ -66,6 +67,7 @@ public class WsServer {
                     SslService sSLService = new SslService(sSLConfig);
                     //defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
 
+                    defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());
                     defaultChannelPipeline.addLast(new StringDecoder());
                     //添加自定义的简单消息处理器

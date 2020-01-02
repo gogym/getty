@@ -22,6 +22,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
     public void channelRead0(AioChannel aioChannel, String str) {
 
         System.out.println("读取消息了:" + str);
+        aioChannel.writeAndFlush(str);
     }
 
     @Override
