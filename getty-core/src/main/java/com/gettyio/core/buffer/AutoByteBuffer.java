@@ -266,6 +266,8 @@ public class AutoByteBuffer {
      * 读取数据到bytes，写入从offset到offset+length的区域
      *
      * @param bytes 数组
+     * @param offset 下标
+     * @param length 长度
      * @return int
      * @throws ByteBufferException 抛出异常
      */

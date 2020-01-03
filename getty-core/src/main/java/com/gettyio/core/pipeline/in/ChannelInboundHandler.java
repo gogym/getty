@@ -60,6 +60,7 @@ public interface ChannelInboundHandler extends ChannelboundHandler {
      *
      * @param aioChannel 通道
      * @param obj        消息
+     * @param out 消息队列
      * @throws Exception 异常
      */
     void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception;

@@ -266,7 +266,6 @@ public abstract class AioChannel {
     /**
      * 设置SSLHandler
      *
-     * @param sslHandler sslHandler
      * @return AioChannel
      */
     public void setSslHandler(SslHandler sslHandler) {

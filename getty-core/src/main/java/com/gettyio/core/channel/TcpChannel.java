@@ -345,7 +345,6 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
     /**
      * 设置SSLHandler
      *
-     * @param sslHandler sslHandler
      * @return AioChannel
      */
     public void setSslHandler(SslHandler sslHandler) {

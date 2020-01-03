@@ -23,7 +23,7 @@ public class WebSocketHandShak {
     /**
      * 方法名：parserRequest
      *
-     * @param requestData
+     * @param requestData 请求字符串
      * @return WebSocketRequest
      * 请求参数进行解析
      */
@@ -124,11 +124,10 @@ public class WebSocketHandShak {
 
 
     /**
-     * <li>方法名：makeResponseToken
-     * <li>@param requestInfo
-     * <li>@param token
-     * <li>@return String
-     * <li>@throws NoSuchAlgorithmException
+     * 方法名：makeResponseToken
+     * @param requestInfo 请求字符串
+     * @param token token
+     * @return String
      */
     protected static String makeResponseToken(WebSocketRequest requestInfo, byte[] token) {
         MD5 md5 = new MD5();
@@ -147,9 +146,9 @@ public class WebSocketHandShak {
 
 
     /**
-     * <li>方法名：getKey
-     * <li>@param key
-     * <li>@return String
+     * 方法名：getKey
+     * @param key key
+     * @return String
      */
     public static String getKey(String key) {
         // CHROME WEBSOCKET VERSION 8中定义的GUID
@@ -178,7 +177,8 @@ public class WebSocketHandShak {
     /**
      * 方法名：generateHandshake
      *
-     * @param requestInfo
+     * @param requestInfo 请求字符串
+     * @param aioChannel 通道
      * @return String
      */
     public static String generateHandshake(WebSocketRequest requestInfo, AioChannel aioChannel) {

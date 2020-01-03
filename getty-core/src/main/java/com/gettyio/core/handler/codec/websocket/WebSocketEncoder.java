@@ -50,8 +50,6 @@ import com.gettyio.core.util.ObjectUtil;
  * +---------------------------------------------------------------+
  * :                       Application data                        :
  * +---------------------------------------------------------------+
- * <p>
- * <p>
  * http协议响应编码器
  */
 public class WebSocketEncoder extends MessageToByteEncoder {

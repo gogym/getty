@@ -19,7 +19,7 @@ public class ArrayList<T> {
     /***
      * 有参构造函数
      * 指定数组的大小
-     * @param initialCapacity
+     * @param initialCapacity 长度
      */
     public ArrayList(int initialCapacity) {
         if (initialCapacity < 0) {

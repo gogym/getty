@@ -169,10 +169,10 @@ public class WebSocketMessage {
     }
 
     /**
-     * <li>方法名：setDateLength
-     * <li>@param len
-     * <li>返回类型：void
-     * <li>说明：设置数据长度
+     * 方法名：setDateLength
+     *
+     * @param len 长度
+     *            设置数据长度
      */
     public void setDateLength(long len) {
         if (len < HAS_EXTEND_DATA) {
@@ -191,22 +191,22 @@ public class WebSocketMessage {
     }
 
     /**
-     * <li>方法名：computeCount
-     * <li>@param buffer
-     * <li>@param count
-     * <li>@return
-     * <li>返回类型：int
-     * <li>说明：计算获取数据的长度
+     * 方法名：computeCount
+     *
+     * @param buffer
+     * @param count
+     * @return int
+     * 计算获取数据的长度
      */
     public int computeCount(AutoByteBuffer buffer, int count) {
         return (buffer.readableBytes() >= count) ? count : buffer.readableBytes();
     }
 
     /**
-     * <li>方法名：parseMessageHeader
-     * <li>@param buffer
-     * <li>返回类型：void
-     * <li>说明：解析消息头部信息
+     * 方法名：parseMessageHeader
+     *
+     * @param buffer 数据
+     * 解析消息头部信息
      */
     public void parseMessageHeader(AutoByteBuffer buffer) throws Exception {
         int bt, b2;
