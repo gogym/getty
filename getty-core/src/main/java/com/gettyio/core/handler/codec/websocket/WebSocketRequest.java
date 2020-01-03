@@ -2,8 +2,8 @@ package com.gettyio.core.handler.codec.websocket;
 
 
 /**
- * <li>类型名称：ParamterWrap
- * <li>说明：请求信息bean，用于解析握手信息
+ * ParamterWrap
+ * 请求信息bean，用于解析握手信息
  */
 class WebSocketRequest {
     private String requestUri;// 请求地址

@@ -8,7 +8,6 @@
 package com.gettyio.core.handler.timeout;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
 

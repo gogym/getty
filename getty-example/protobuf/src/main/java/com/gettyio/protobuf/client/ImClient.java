@@ -60,7 +60,7 @@ public class ImClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
+                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 defaultChannelPipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
                 defaultChannelPipeline.addLast(new ProtobufEncoder());

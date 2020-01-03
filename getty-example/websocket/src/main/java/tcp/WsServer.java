@@ -5,7 +5,6 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.websocket.WebSocketDecoder;
 import com.gettyio.core.handler.codec.websocket.WebSocketEncoder;
@@ -23,6 +22,7 @@ public class WsServer {
 
 
     public static void main(String[] args) {
+        //System.setProperty("javax.net.debug", "all");
         try {
             //初始化配置对象
             AioServerConfig aioServerConfig = new AioServerConfig();
@@ -62,10 +62,10 @@ public class WsServer {
                     //设置服务器模式
                     sSLConfig.setClientMode(false);
                     //设置单向验证或双向验证
-                    sSLConfig.setClientAuth(ClientAuth.REQUIRE);
+                    sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
-                    SslService sSLService = new SslService(sSLConfig);
-                    //defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
+                    SslService sslService = new SslService(sSLConfig, "TLSv1.2");
+                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
 
                     defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());

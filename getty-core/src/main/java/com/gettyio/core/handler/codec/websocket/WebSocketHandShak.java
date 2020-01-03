@@ -9,7 +9,8 @@ package com.gettyio.core.handler.codec.websocket;/*
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import sun.misc.BASE64Encoder;
+import com.gettyio.core.util.Base64;
+import com.gettyio.core.util.fastmd5.util.MD5;
 
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -20,19 +21,18 @@ public class WebSocketHandShak {
     protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
 
     /**
-     * <li>方法名：parserRequest
-     * <li>@param str
-     * <li>@param requestInfo
-     * <li>返回类型：void
-     * <li>说明：对请求参数进行解析
+     * 方法名：parserRequest
      *
-     * @throws UnsupportedEncodingException
+     * @param requestData
+     * @return WebSocketRequest
+     * 请求参数进行解析
      */
-    public static WebSocketRequest parserRequest(String requestData) throws UnsupportedEncodingException {
+    public static WebSocketRequest parserRequest(String requestData) {
+
+
         // 解析握手信息
         WebSocketRequest requestInfo = new WebSocketRequest();
         String[] requestDatas = requestData.split("\r\n");
-
         if (requestDatas.length < 0) {
             return null;
         }
@@ -48,15 +48,14 @@ public class WebSocketHandShak {
             // 解析单条请求信息
             line = requestDatas[i];
             // 如果获取到空行，则读取后面的内容信息
-            if (line.equalsIgnoreCase(WebSocketConstants.BLANK)) {// 版本0---3放到消息体中的
-                if ((i + 1) < requestDatas.length) {// 有发送内容到服务器端
+            if (line.equalsIgnoreCase(WebSocketConstants.BLANK)) {
+                // 版本0---3放到消息体中的
+                if ((i + 1) < requestDatas.length) {
+                    // 有发送内容到服务器端
                     line = requestDatas[i + 1] + "00000000";
-                    byte[] token = line.getBytes();//.substring(0, 8).getBytes(Utf8Coder.UTF8);
-                    try {
-                        requestInfo.setDigest(makeResponseToken(requestInfo, token));// 设置签名
-                    } catch (NoSuchAlgorithmException e) {
-                        e.printStackTrace();
-                    }
+                    byte[] token = line.getBytes();
+                    // 设置签名
+                    requestInfo.setDigest(makeResponseToken(requestInfo, token));
                     break;
                 }
             }
@@ -106,11 +105,15 @@ public class WebSocketHandShak {
                 }
             } else if (name.equals("cookie")) {
                 requestInfo.setCookie(value);
-            } else if (name.equals("sec-websocket-key")) {// 版本4以及以上放到sec key中
-                requestInfo.setDigest(getKey(parts[1]));// 设置签名
-            } else if (name.equals("sec-websocket-version")) {//获取安全控制版本
-                requestInfo.setSecVersion(Integer.valueOf(value));// 设置版本
-            } else if (name.equals("sec-websocket-extensions")) {//获取安全控制版本
+            } else if (name.equals("sec-websocket-key")) {
+                // 版本4以及以上放到sec key中
+                // 设置签名
+                requestInfo.setDigest(getKey(parts[1]));
+            } else if (name.equals("sec-websocket-version")) {
+                //获取安全控制版本
+                // 设置版本
+                requestInfo.setSecVersion(Integer.valueOf(value));
+            } else if (name.equals("sec-websocket-extensions")) {
                 log.info(value);
             } else {
                 log.info("Unexpected header field: " + line);
@@ -124,11 +127,11 @@ public class WebSocketHandShak {
      * <li>方法名：makeResponseToken
      * <li>@param requestInfo
      * <li>@param token
-     * <li>@return
+     * <li>@return String
      * <li>@throws NoSuchAlgorithmException
      */
-    protected static String makeResponseToken(WebSocketRequest requestInfo, byte[] token) throws NoSuchAlgorithmException {
-        MessageDigest md5digest = MessageDigest.getInstance("MD5");
+    protected static String makeResponseToken(WebSocketRequest requestInfo, byte[] token) {
+        MD5 md5 = new MD5();
         for (Integer i = 0; i < 2; ++i) {
             byte[] asByte = new byte[4];
             long key = (i == 0) ? requestInfo.getKey1().intValue() : requestInfo.getKey2().intValue();
@@ -136,21 +139,20 @@ public class WebSocketHandShak {
             asByte[1] = (byte) ((key << 8) >> 24);
             asByte[2] = (byte) ((key << 16) >> 24);
             asByte[3] = (byte) ((key << 24) >> 24);
-            md5digest.update(asByte);
+            md5.Update(asByte);
         }
-        md5digest.update(token);
-        return new String(md5digest.digest());
+        md5.Update(token);
+        return md5.asHex();
     }
 
 
     /**
      * <li>方法名：getKey
      * <li>@param key
-     * <li>@return
-     * <li>返回类型：String
+     * <li>@return String
      */
     public static String getKey(String key) {
-        // CHROME WEBSOCKET VERSION 8中定义的GUID，详细文档地址：http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
+        // CHROME WEBSOCKET VERSION 8中定义的GUID
         String guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         key += guid;
         log.info(key);
@@ -168,49 +170,54 @@ public class WebSocketHandShak {
     }
 
     public static String base64Encode(byte[] input) {
-        BASE64Encoder encoder = new BASE64Encoder();
-        String base64 = encoder.encode(input);
+        String base64 = Base64.encodeBytes(input);
         return base64;
     }
 
 
     /**
-     * <li>方法名：generateHandshake
-     * <li>@param requestInfo
-     * <li>@throws UnsupportedEncodingException
-     * <li>返回类型：void
+     * 方法名：generateHandshake
+     *
+     * @param requestInfo
+     * @return String
      */
-    public static String generateHandshake(WebSocketRequest requestInfo) throws UnsupportedEncodingException {
+    public static String generateHandshake(WebSocketRequest requestInfo, AioChannel aioChannel) {
         StringBuilder sb = new StringBuilder();
-        if (requestInfo.getSecVersion() < 4) {// 版本0--3
+        if (requestInfo.getSecVersion() < 4) {
+            // 版本0--3
             sb.append("HTTP/1.1 101 WebSocket Protocol Handshake").append("\r\n")
                     .append("Upgrade: WebSocket").append("\r\n")
                     .append("Connection: Upgrade").append("\r\n")
-                    .append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n")
-                    .append("Sec-WebSocket-Location: ws://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
+                    .append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
+            if (aioChannel.getSslHandler() == null) {
+                sb.append("Sec-WebSocket-Location: ws://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
+            } else {
+                sb.append("Sec-WebSocket-Location: wss://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
+            }
 
             if (requestInfo.getCookie() != null) {
                 sb.append("cookie: ").append(requestInfo.getCookie()).append("\r\n");
             }
-
-            sb.append("\r\n"); // 写入空行
+            sb.append("\r\n");
 
             sb.append(requestInfo.getDigest());
-            //ByteBuffer buffer = ByteBuffer.allocate(sb.length() + requestInfo.getDigest().length);
-            //buffer.put(sb.toString().getBytes(Utf8Coder.UTF8)).put(requestInfo.getDigest());
-        } else {// 大于等于版本4
+        } else {
+            // 大于等于版本4
             sb.append("HTTP/1.1 101 Switching Protocols").append("\r\n")
                     .append("Upgrade: websocket").append("\r\n")
                     .append("Connection: Upgrade").append("\r\n")
                     .append("Sec-WebSocket-Accept: ").append(requestInfo.getDigest()).append("\r\n")
-                    .append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n")
-                    .append("Sec-WebSocket-Location: ws://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
+                    .append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
+            if (aioChannel.getSslHandler() == null) {
+                sb.append("Sec-WebSocket-Location: ws://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
+            } else {
+                sb.append("Sec-WebSocket-Location: wss://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
+            }
             //.append("Sec-WebSocket-Protocol: chat").append("\r\n");
-
-            sb.append("\r\n"); // 写入空行
+            // 写入换行
+            sb.append("\r\n");
         }
         log.info("the response: " + sb.toString());
-
         return sb.toString();
     }
 }

@@ -51,7 +51,7 @@ public class ImServer implements CommandLineRunner {
                 sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
+                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
 
                 //添加protobuf编码器

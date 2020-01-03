@@ -1,21 +1,9 @@
-/**
- * <li>文件名：MessageFrame.java
- * <li>说明：
- * <li>创建人：CshBBrain;技术博客：http://cshbbrain.iteye.com/
- * <li>创建日期：2012-9-12
- * <li>修改人：
- * <li>修改日期：
- */
 package com.gettyio.core.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.util.ObjectUtil;
 
 
-/**
- * <li>类型名称：
- * <li>说明：
- */
 public class WebSocketMessage {
     public static final byte FIN = (byte) 0x80; // 1000 0000
     public static final byte RSV1 = 0x70; // 0111 0000

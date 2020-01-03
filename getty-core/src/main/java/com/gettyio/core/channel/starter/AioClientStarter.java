@@ -196,9 +196,9 @@ public class AioClientStarter {
      */
     public AioChannel getAioChannel() {
         if (aioChannel != null) {
-            if ((aioChannel.getSSLService()) != null && socketChannel != SocketChannel.UDP) {
+            if ((aioChannel.getSslHandler()) != null && socketChannel != SocketChannel.UDP) {
                 //如果开启了ssl,要先判断是否已经完成握手
-                if (aioChannel.getSSLService().getSsl().isHandshakeCompleted()) {
+                if (aioChannel.getSslHandler().getSslService().getSsl().isHandshakeCompleted()) {
                     return aioChannel;
                 }
                 aioChannel.close();

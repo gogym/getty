@@ -12,7 +12,6 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
-import java.io.IOException;
 
 /**
  * 类名：HeartBeatTimeOutHandler.java

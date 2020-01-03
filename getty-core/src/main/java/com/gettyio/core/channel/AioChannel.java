@@ -10,6 +10,7 @@ package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
@@ -178,6 +179,10 @@ public abstract class AioChannel {
      * @throws Exception 异常
      */
     protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
+        if (defaultChannelPipeline == null) {
+            return;
+        }
+
         ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.inPipeFirst();
         if (channelHandlerAdapter == null) {
             return;
@@ -259,13 +264,12 @@ public abstract class AioChannel {
 //--------------------------------------------------------------------------------------
 
     /**
-     * 创建SSL
+     * 设置SSLHandler
      *
-     * @param sslService ssl服务
+     * @param sslHandler sslHandler
      * @return AioChannel
      */
-    public AioChannel createSSL(SslService sslService) {
-        return this;
+    public void setSslHandler(SslHandler sslHandler) {
     }
 
     /**
@@ -273,7 +277,7 @@ public abstract class AioChannel {
      *
      * @return com.gettyio.core.handler.ssl.SslService
      */
-    public SslService getSSLService() {
+    public SslHandler getSslHandler() {
         return null;
     }
 

@@ -32,12 +32,17 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
     private AioChannel aioChannel;
     LinkedNonBlockQueue<Object> out;
 
-    public SslHandler(AioChannel aioChannel) {
+    public SslHandler(AioChannel aioChannel, SslService sslService) {
         this.aioChannel = aioChannel;
-        sslService = aioChannel.getSSLService();
-        aioChannel.getSSLService().createSSLFacade(new handshakeCompletedListener(), new SSLListener(), new sessionClosedListener());
+        this.sslService = sslService;
+        this.aioChannel.setSslHandler(this);
+        sslService.createSSLFacade(new handshakeCompletedListener(), new SSLListener(), new sessionClosedListener());
     }
 
+
+    public SslService getSslService() {
+        return sslService;
+    }
 
     @Override
     public void encode(AioChannel aioChannel, Object obj) throws Exception {
@@ -83,6 +88,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
                 sslService.getSsl().close();
+                return;
             }
         } else if (bytes != null) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
@@ -115,6 +121,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
             logger.info("Handshake failure");
             //当握手失败时，关闭当前客户端连接
             aioChannel.close();
+            return;
         }
     }
 

@@ -9,7 +9,6 @@ package com.gettyio.core.pipeline;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.timeout.IdleState;
 
 /**

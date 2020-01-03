@@ -22,7 +22,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
     protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
     // 是否已经握手
     static boolean handShak = false;
-    //协议版本
+    //协议版本,默认0
     static String protocolVersion = "0";
 
     WebSocketMessage messageFrame;
@@ -32,7 +32,6 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
         if (handShak) {
             // 已经握手处理
             if (Integer.valueOf(protocolVersion) >= WebSocketConstants.SPLITVERSION6) {
-                // 通过0x00,0xff分隔数据
                 AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
                 //解析数据帧
                 byte[] bytes = parserVersion6(autoByteBuffer);
@@ -53,7 +52,14 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             String msg = new String((byte[]) obj, CharsetUtil.UTF_8);
             WebSocketRequest requestInfo = WebSocketHandShak.parserRequest(msg);
             //写出握手信息到客户端
-            aioChannel.writeToChannel(WebSocketHandShak.generateHandshake(requestInfo).getBytes());
+            byte[] bytes = WebSocketHandShak.generateHandshake(requestInfo, aioChannel).getBytes();
+            if (aioChannel.getSslHandler() == null) {
+                aioChannel.writeToChannel(bytes);
+            } else {
+                //需要注意的是，当开启了ssl，握手信息需要经过ssl encode之后才能输出给客户端。
+                //为了避免握手信息经过其他的encoder，所以直接指定通过sslHandler输出
+                aioChannel.getSslHandler().encode(aioChannel, bytes);
+            }
             protocolVersion = requestInfo.getSecVersion().toString();
             handShak = true;
         }
@@ -62,16 +68,16 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
 
     /**
-     * <li>方法名：parser
-     * <li>@param buffer
-     * <li>@param sockector
-     * <li>返回类型：void
-     * <li>说明：解析版本6以后的数据帧格式
+     * 方法名：parser
+     *
+     * @param buffer
+     * @return byte[]
+     * 说明：解析版本6以后的数据帧格式
      */
     private byte[] parserVersion6(AutoByteBuffer buffer) throws Exception {
         do {
             if (messageFrame == null) {
-                // 没有出现半包的情况
+                // 没有出现半包
                 messageFrame = new WebSocketMessage();
             }
             if (!messageFrame.isReadFinish()) {
@@ -80,26 +86,33 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             }
             int bufferDataLength = buffer.readableBytes();
             int dataLength = bufferDataLength > messageFrame.getDateLength() ? new Long(messageFrame.getDateLength()).intValue() : bufferDataLength;
-            byte[] datas = new byte[dataLength];
+            byte[] bytes = new byte[dataLength];
             if (dataLength > 0) {
-                buffer.readBytes(datas);
-                if (messageFrame.isMask()) {// 做加密处理
+                buffer.readBytes(bytes);
+                if (messageFrame.isMask()) {
+                    // 做加密处理
                     for (int i = 0; i < dataLength; i++) {
-                        datas[i] ^= messageFrame.getMaskingKey()[(i % 4)];
+                        bytes[i] ^= messageFrame.getMaskingKey()[(i % 4)];
                     }
                 }
-                messageFrame.setPayloadData(datas);
+                messageFrame.setPayloadData(bytes);
             }
 
             if (messageFrame.isReadFinish()) {
-                datas = messageFrame.getPayloadData().readableBytesArray();
+                bytes = messageFrame.getPayloadData().readableBytesArray();
                 messageFrame = null;
-                return datas;
+                return bytes;
             }
 
-        } while (buffer.hasRemaining());// 处理粘包的情况
+        } while (buffer.hasRemaining());
         return null;
     }
 
 
+    @Override
+    public void channelClosed(AioChannel aioChannel) throws Exception {
+        handShak = false;
+        protocolVersion = "0";
+        super.channelClosed(aioChannel);
+    }
 }

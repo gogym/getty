@@ -20,8 +20,8 @@ public class SSLFacade implements ISSLFacade {
         // so no need to take a peerHost or port from the host application
         final String who = client ? "client" : "server";
         SSLEngine engine = makeSSLEngine(context, client, clientAuthRequired);
-        engine.setEnabledProtocols(new String[]{"TLSv1", "TLSv1.1",
-                "TLSv1.2"});
+        engine.setEnabledProtocols(new String[]{context.getProtocol()});
+        //engine.setEnabledProtocols(new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"});
         Buffers buffers = new Buffers(engine.getSession());
         _worker = new Worker(who, engine, buffers);
         _handshaker = new Handshaker(client, _worker, taskHandler);

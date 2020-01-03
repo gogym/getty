@@ -20,7 +20,6 @@ public class StringEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(AioChannel aioChannel, Object obj) throws Exception {
-
         super.encode(aioChannel, obj);
     }
 

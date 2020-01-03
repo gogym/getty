@@ -8,8 +8,6 @@
 package com.gettyio.core.handler.ssl;
 
 import com.gettyio.core.handler.ssl.sslfacade.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
 import java.io.FileInputStream;
@@ -27,8 +25,8 @@ import java.security.cert.X509Certificate;
  */
 public class SslService {
 
-
-    private static final String PROTOCOL = "TLS";
+    //默认protocolVersion
+    private static String PROTOCOL = "TLSv1.2";
 
     //SSL上下文
     private SSLContext sslContext;
@@ -38,6 +36,12 @@ public class SslService {
     private ISSLFacade ssl;
 
     public SslService(SslConfig config) {
+        this.config = config;
+        init(config);
+    }
+
+    public SslService(SslConfig config, String protocolVersion) {
+        this.PROTOCOL = protocolVersion;
         this.config = config;
         init(config);
     }

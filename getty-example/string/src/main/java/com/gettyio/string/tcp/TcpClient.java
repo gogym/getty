@@ -64,7 +64,7 @@ public class TcpClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel.createSSL(sSLService)));
+                defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
 
 
                 //指定结束符解码器

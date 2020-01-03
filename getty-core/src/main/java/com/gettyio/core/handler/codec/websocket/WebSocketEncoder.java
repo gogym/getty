@@ -12,13 +12,8 @@ import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.util.ObjectUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.io.IOException;
 
 /**
- * * <pre>
  * version 5+
  * 0                   1                   2                   3
  * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -55,9 +50,9 @@ import java.io.IOException;
  * +---------------------------------------------------------------+
  * :                       Application data                        :
  * +---------------------------------------------------------------+
- *
- * <li>类型名称：
- * <li>说明：http协议响应编码器
+ * <p>
+ * <p>
+ * http协议响应编码器
  */
 public class WebSocketEncoder extends MessageToByteEncoder {
 
@@ -70,13 +65,7 @@ public class WebSocketEncoder extends MessageToByteEncoder {
             } else {
                 bytes = (byte[]) obj;
             }
-            if (Integer.valueOf(WebSocketDecoder.protocolVersion) <= WebSocketConstants.SPLITVERSION0) {// 通过0x00,0xff分隔数据
-			/*ByteBuffer buffer = ByteBuffer.allocate(msg.getBody().getBytes(Utf8Coder.UTF8).length + 2);
-			buffer.put((byte)0x00);
-			buffer.put(msg.getBody().getBytes(Utf8Coder.UTF8));
-			buffer.put((byte)0xFF);
-			msg.setBody(Utf8Coder.decode(buffer));*/
-                //log.info("the bg and end : " + Constants.BEGIN_MSG + " : " + Constants.END_MSG);
+            if (Integer.valueOf(WebSocketDecoder.protocolVersion) <= WebSocketConstants.SPLITVERSION0) {
                 String str = new String(bytes, "utf-8");
                 String msg = (WebSocketConstants.BEGIN_MSG + str + WebSocketConstants.END_MSG);
                 obj = msg.getBytes();
@@ -89,47 +78,46 @@ public class WebSocketEncoder extends MessageToByteEncoder {
 
 
     /**
-     * <li>方法名：codeVersion6
-     * <li>@param sockector
-     * <li>@param msg
-     * <li>返回类型：void
-     * <li>说明：对websocket协议进行编码
-     * <li>创建人：CshBBrain, 技术博客：http://cshbbrain.iteye.com/
-     * <li>创建日期：2012-10-2
-     * <li>修改人：
-     * <li>修改日期：
+     * 方法名：codeVersion6
+     *
+     * @param msg byte[]
+     * @return byte[]
+     * 对websocket协议进行编码
      */
     public byte[] codeVersion6(byte[] msg) {
 
         AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-
         WebSocketMessage messageFrame = new WebSocketMessage();
         messageFrame.setDateLength(msg.length);
 
         byte[] headers = new byte[2];
-        // todo list
-        headers[0] = WebSocketMessage.FIN;// 需要调整
+        headers[0] = WebSocketMessage.FIN;
         headers[0] |= messageFrame.getRsv1() | messageFrame.getRsv2() | messageFrame.getRsv3() | WebSocketMessage.TXT;
         headers[1] = 0;
         //headers[1] |=  messageFrame.getMask() | messageFrame.getPayloadLen();
         headers[1] |= 0x00 | messageFrame.getPayloadLen();
-        autoByteBuffer.writeBytes(headers);// 头部控制信息
+        // 头部控制信息
+        autoByteBuffer.writeBytes(headers);
 
-        if (messageFrame.getPayloadLen() == WebSocketMessage.HAS_EXTEND_DATA) {// 处理数据长度为126位的情况
+        if (messageFrame.getPayloadLen() == WebSocketMessage.HAS_EXTEND_DATA) {
+            // 处理数据长度为126位的情况
             autoByteBuffer.writeBytes(ObjectUtil.shortToByte(messageFrame.getPayloadLenExtended()));
-        } else if (messageFrame.getPayloadLen() == WebSocketMessage.HAS_EXTEND_DATA_CONTINUE) {// 处理数据长度为127位的情况
+        } else if (messageFrame.getPayloadLen() == WebSocketMessage.HAS_EXTEND_DATA_CONTINUE) {
+            // 处理数据长度为127位的情况
             autoByteBuffer.writeBytes(ObjectUtil.longToByte(messageFrame.getPayloadLenExtendedContinued()));
         }
 
-        if (messageFrame.isMask()) {
-            // 做了掩码处理的，需要传递掩码的key
-            byte[] keys = messageFrame.getMaskingKey();
-            autoByteBuffer.writeBytes(messageFrame.getMaskingKey());
-
-            for (int i = 0; i < autoByteBuffer.array().length; ++i) {// 进行掩码处理
-                autoByteBuffer.array()[i] ^= keys[i % 4];
-            }
-        }
+        //写到客户端可以不做掩码处理
+//        if (messageFrame.isMask()) {
+//            // 做了掩码处理的，需要传递掩码的key
+//            byte[] keys = messageFrame.getMaskingKey();
+//            autoByteBuffer.writeBytes(messageFrame.getMaskingKey());
+//
+//            for (int i = 0; i < autoByteBuffer.array().length; ++i) {
+        //进行掩码处理
+//                autoByteBuffer.array()[i] ^= keys[i % 4];
+//            }
+//        }
         autoByteBuffer.writeBytes(msg);
 
         return autoByteBuffer.readableBytesArray();

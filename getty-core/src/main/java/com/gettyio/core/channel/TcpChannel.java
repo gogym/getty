@@ -12,6 +12,7 @@ import com.gettyio.core.channel.config.AioConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.function.Function;
+import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelPipeline;
 
@@ -50,10 +51,9 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
     /**
      * SSL服务
      */
-    private SslService sslService;
+    private SslHandler sslHandler;
 
     protected BufferWriter bufferWriter;
-
 
 
     /**
@@ -96,9 +96,9 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
      */
     public void starRead() {
         continueRead();
-        if (this.sslService != null) {
+        if (this.sslHandler != null) {
             //若开启了SSL，则需要握手
-            this.sslService.beginHandshake();
+            this.sslHandler.getSslService().beginHandshake();
         }
     }
 
@@ -343,18 +343,17 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
 //--------------------------------------------------------------------------------------
 
     /**
-     * 创建SSL
+     * 设置SSLHandler
      *
-     * @param sslService ssl服务
+     * @param sslHandler sslHandler
      * @return AioChannel
      */
-    public AioChannel createSSL(SslService sslService) {
-        this.sslService = sslService;
-        return this;
+    public void setSslHandler(SslHandler sslHandler) {
+        this.sslHandler = sslHandler;
     }
 
-    public SslService getSSLService() {
-        return this.sslService;
+    public SslHandler getSslHandler() {
+        return this.sslHandler;
     }
 
     @Override
