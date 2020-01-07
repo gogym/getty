@@ -65,7 +65,7 @@ public class WsServer {
                     sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
                     SslService sslService = new SslService(sSLConfig, "TLSv1.2");
-                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
+                    defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
 
                     defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());
@@ -74,9 +74,7 @@ public class WsServer {
                     defaultChannelPipeline.addLast(new SimpleHandler());
                 }
             }).start();
-
-
-            System.out.println("启动了TCP");
+            System.out.println("启动ws服务");
         } catch (Exception e) {
 
         }

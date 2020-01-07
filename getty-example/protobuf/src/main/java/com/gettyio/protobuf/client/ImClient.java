@@ -81,7 +81,7 @@ public class ImClient {
         }
 
         try {
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             AioChannel aioChannel = client.getAioChannel();
 
 

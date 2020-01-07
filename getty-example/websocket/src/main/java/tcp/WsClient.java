@@ -46,14 +46,11 @@ public class WsClient {
         sSLConfig.setKeystorePassword("123456");
         sSLConfig.setTrustFile(pkPath);
         sSLConfig.setTrustPassword("123456");
-        //设置服务器模式
+        //设置客户端模式
         sSLConfig.setClientMode(true);
-
         SSLContext sslContext = init(sSLConfig);
-
-        SSLSocketFactory factory = sslContext.getSocketFactory();// (SSLSocketFactory) SSLSocketFactory.getDefault();
-
-        //chatclient.setSocketFactory(factory);
+        SSLSocketFactory factory = sslContext.getSocketFactory();
+        chatclient.setSocketFactory(factory);
 
         chatclient.connectBlocking();
 

@@ -62,8 +62,8 @@ public class ImServer implements CommandLineRunner {
                 defaultChannelPipeline.addLast(new ProtobufVarint32FrameDecoder());
                 defaultChannelPipeline.addLast(new ProtobufDecoder(MessageClass.Message.getDefaultInstance()));
 
-                defaultChannelPipeline.addLast(new IdleStateHandler(channel, 2, 0));
-                defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
+//                defaultChannelPipeline.addLast(new IdleStateHandler(channel, 2, 0));
+//                defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
 
 
                 defaultChannelPipeline.addLast(new SimpleHandler());
