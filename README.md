@@ -98,6 +98,8 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.2.0'
  **gogym** 
 
  **email:189155278@qq.com** 
+ 
+ ### getty交流群1 ：708758323
 
 
 
