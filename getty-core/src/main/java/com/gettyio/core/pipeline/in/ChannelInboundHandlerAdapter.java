@@ -95,5 +95,6 @@ public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter
         } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
             ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).decode(aioChannel, obj, out);
         }
+
     }
 }

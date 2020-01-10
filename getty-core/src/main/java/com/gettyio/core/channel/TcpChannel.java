@@ -76,6 +76,11 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
+            try {
+                channel.close();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
             throw new RuntimeException("channelPipeline init exception", e);
         }
 
@@ -199,6 +204,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
                     readToPipeline(bytes);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    close();
                 }
             }
             if (eof) {

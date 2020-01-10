@@ -213,6 +213,16 @@ public class AutoByteBuffer {
         }
     }
 
+    public byte read(int index) throws ByteBufferException {
+        if (writerIndex() > index) {
+            byte i = data[index];
+            return i;
+        } else {
+            throw new ByteBufferException("IndexOutOfBoundsException");
+        }
+    }
+
+
     /**
      * 读取数据到byte，1 byte，从readIndex位置开始
      *
