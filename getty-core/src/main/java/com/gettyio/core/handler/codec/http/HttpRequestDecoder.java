@@ -17,25 +17,42 @@ public class HttpRequestDecoder extends ObjectToMessageDecoder {
 
     protected static final InternalLogger log = InternalLoggerFactory.getInstance(HttpRequestDecoder.class);
 
-    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
 
+    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+    HttpRequest httpRequest;
 
     @Override
     public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         autoByteBuffer.writeBytes((byte[]) obj);
-        HttpRequest httpRequest = new HttpRequest();
-        //读取请求行
-        if (!HttpSerializer.readRequestLine(autoByteBuffer, httpRequest)) {
-            return;
-        }
-        if(!HttpSerializer.readHeaders(autoByteBuffer, httpRequest)){
-            return;
+
+        if (httpRequest == null) {
+            httpRequest = new HttpRequest();
+            httpRequest.setReadStatus(HttpSerializer.readRequestLine);
         }
 
-        if(!HttpSerializer.readContent(autoByteBuffer, httpRequest)){
-            return;
+        if (httpRequest.getReadStatus() == HttpSerializer.readRequestLine) {
+            if (!HttpSerializer.readRequestLine(autoByteBuffer, httpRequest)) {
+                return;
+            }
+            httpRequest.setReadStatus(HttpSerializer.readHeaders);
+        }
+
+        if (httpRequest.getReadStatus() == HttpSerializer.readHeaders) {
+            if (!HttpSerializer.readHeaders(autoByteBuffer, httpRequest)) {
+                return;
+            }
+            httpRequest.setReadStatus(HttpSerializer.readContent);
+        }
+
+
+        if (httpRequest.getReadStatus() == HttpSerializer.readContent) {
+            if (!HttpSerializer.readContent(autoByteBuffer, httpRequest)) {
+                return;
+            }
         }
         super.decode(aioChannel, httpRequest, out);
+        autoByteBuffer.clear();
+        httpRequest = null;
     }
 }

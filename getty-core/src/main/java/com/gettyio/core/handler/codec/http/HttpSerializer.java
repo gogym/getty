@@ -13,11 +13,15 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HttpSerializer {
 
     protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
-
+    public static final int readRequestLine = 1;
+    public static final int readHeaders = 2;
+    public static final int readContent = 3;
 
     /**
      * 读取请求行
@@ -65,7 +69,7 @@ public class HttpSerializer {
         request.setRequestUri(requestLineArray[1]);
         request.setHttpVersion(HttpVersion.valueOf(requestLineArray[2]));
 
-        String uri=requestLineArray[1];
+        String uri = requestLineArray[1];
 
         int at = uri.indexOf('?');
         String queryString = uri;
@@ -237,7 +241,144 @@ public class HttpSerializer {
         buffer.readBytes(bytes);
         request.getHttpBody().setContent(bytes);
 
+        if (request.getHttpBody().getContentType().contains("multipart/")) {
+            //需要解multipart/form-data; boundary=--------------------------806979702282165592642856
+            //System.out.printf(new String(request.getHttpBody().getContent()));
+            readMultipart(request);
+        } else {
+            System.out.printf(new String(request.getHttpBody().getContent()));
+            decodeParamsFromUri(new String(request.getHttpBody().getContent()), request);
+        }
+
         return true;
+    }
+
+
+    public static boolean readMultipart(HttpRequest request) {
+
+        int indexOfBoundary = request.getHttpBody().getContentType().indexOf("boundary=");
+        if (indexOfBoundary == -1) {
+            throw new NullPointerException("boundary is null");
+        }
+        String boundary = request.getHttpBody().getContentType().substring(indexOfBoundary);
+        boundary = "--" + getSubAttribute(boundary, "boundary");
+        String endBoundary = boundary + "--";
+
+        byte[] content = request.getHttpBody().getContent();
+        long contentLength = request.getHttpBody().getContentLength();
+        Step step = Step.BOUNDARY;
+
+        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+        AutoByteBuffer bodyBuffer = AutoByteBuffer.newByteBuffer();
+        FieldItem fileItem = null;
+        Map<String, String> headers = new HashMap<>();
+
+        for (int index = 0; index < contentLength; index++) {
+            byte nextByte = content[index];
+            if (nextByte == HttpConstants.CR) {
+                index++;
+                nextByte = content[index];
+                if (nextByte == HttpConstants.LF) {
+                    //index++;
+                    switch (step) {
+                        case BOUNDARY:
+                            String line = new String(autoByteBuffer.readableBytesArray());
+                            if (line.equals(boundary)) {
+                                step = Step.HEADER;
+                                fileItem = new FieldItem();
+                                autoByteBuffer.clear();
+                            }
+                            continue;
+                        case HEADER:
+                            Map map = getKeyValueAttribute(new String(autoByteBuffer.readableBytesArray()));
+                            headers.putAll(map);
+
+                            fileItem.setContentDisposition(headers.get("Content-Disposition".toLowerCase()));
+                            fileItem.setContentType(headers.get("Content-Type".toLowerCase()));
+                            String name = headers.get("name");
+                            fileItem.setName(name);
+                            name = headers.get("filename");
+                            if (name != null) {
+                                fileItem.setFilename(name);
+                                fileItem.setFormField(false);
+                            }
+
+                            nextByte = content[index + 1];
+                            if (nextByte == HttpConstants.CR) {
+                                index++;
+                                nextByte = content[index + 1];
+                                if (nextByte == HttpConstants.LF) {
+                                    index++;
+                                    step = Step.BODY;
+                                }
+                            }
+                            autoByteBuffer.clear();
+                            continue;
+                        case BODY:
+
+                            String body = new String(autoByteBuffer.readableBytesArray());
+                            if (body.equals(endBoundary)) {
+                                step = Step.END;
+                                if (fileItem.isFormField()) {
+                                    String v = new String(bodyBuffer.readableBytesArray());
+                                    request.addParameter(fileItem.getName(), v);
+                                    fileItem.setValue(v);
+                                } else {
+                                    fileItem.setFile(bodyBuffer.readableBytesArray());
+                                }
+                                request.addFieldItem(fileItem.getName(), fileItem);
+                                return true;
+                            } else if (body.equals(boundary)) {
+                                step = Step.HEADER;
+                                if (fileItem.isFormField()) {
+                                    String v = new String(bodyBuffer.readableBytesArray());
+                                    request.addParameter(fileItem.getName(), v);
+                                    fileItem.setValue(v);
+                                } else {
+                                    fileItem.setFile(bodyBuffer.readableBytesArray());
+                                }
+                                request.addFieldItem(fileItem.getName(), fileItem);
+
+                                fileItem = new FieldItem();
+                                headers.clear();
+                                autoByteBuffer.clear();
+                                bodyBuffer.clear();
+                                continue;
+                            } else {
+                                //读取到另一个数组暂存
+                                bodyBuffer.writeBytes(autoByteBuffer);
+                                autoByteBuffer.clear();
+                                continue;
+                            }
+//                            nextByte = content[index];
+//                            if (nextByte == HttpConstants.CR) {
+//                                index++;
+//                                nextByte = content[index];
+//                                if (nextByte == HttpConstants.LF) {
+//                                    index++;
+//                                    step = Step.END;
+//                                    autoByteBuffer.clear();
+//                                    continue;
+//                                }
+//                            }
+//                            break;
+
+//                        case END:
+//                            String end = new String(autoByteBuffer.readableBytesArray());
+//                            if (end.equals(endBoundary)) {
+//                                return true;
+//                            } else if (end.equals(boundary)) {
+//                                step = Step.HEADER;
+//                                fileItem = new FileItem();
+//                                autoByteBuffer.clear();
+//                                continue;
+//                            }
+                    }
+                }
+            }
+            autoByteBuffer.writeByte(nextByte);
+        }
+        return false;
     }
 
 
@@ -272,4 +413,50 @@ public class HttpSerializer {
     }
 
 
+    public static String getSubAttribute(String str, String name) {
+        int index = str.indexOf(name + "=");
+        if (index == -1) {
+            index = str.indexOf(name + ":");
+            if (index == -1) {
+                return null;
+            }
+        }
+        int startIndex = index + 1 + name.length();
+        char[] c = new char[str.length() - startIndex];
+        for (int i = 0; i < c.length; i++) {
+            char charAt = str.charAt(i + startIndex);
+            if (charAt == ';') {
+                break;
+            }
+            c[i] = charAt;
+        }
+        return new String(c).replaceAll("['\"]", "");
+    }
+
+    public static Map<String, String> getKeyValueAttribute(String str) {
+        int index = str.indexOf(":");
+        int index2 = str.indexOf("=");
+        if (index == -1 && index2 == -1) {
+            return null;
+        }
+        Map<String, String> map = new HashMap<>();
+        String[] strings = str.split(";");
+
+        for (String s : strings) {
+            if (s.contains(":")) {
+                String[] arr = s.split(":");
+                map.put(arr[0].toLowerCase().trim().replaceAll("['\"]", ""), arr[1].trim().replaceAll("['\"]", ""));
+            } else if (s.contains("=")) {
+                String[] arr = s.split("=");
+                map.put(arr[0].toLowerCase().trim().replaceAll("['\"]", ""), arr[1].trim().replaceAll("['\"]", ""));
+            }
+
+        }
+        return map;
+    }
+
+
+    public static enum Step {
+        BOUNDARY, HEADER, BODY, END
+    }
 }

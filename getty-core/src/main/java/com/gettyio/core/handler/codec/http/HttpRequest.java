@@ -17,9 +17,12 @@ public class HttpRequest {
     private HttpVersion httpVersion;
     private HttpHeaders httpHeaders = new HttpHeaders();
     private HttpBody httpBody = new HttpBody();
-
     private Map<String, String> parameters;
+    private Map<String, FieldItem> fieldItems;
     private String queryString;
+
+
+    private int readStatus;
 
 
     public HttpMethod getHttpMethod() {
@@ -94,6 +97,18 @@ public class HttpRequest {
         parameters.put(key, value);
     }
 
+
+    public FieldItem getFieldItem(String name) {
+        return fieldItems == null ? null : fieldItems.get(name);
+    }
+
+    public void addFieldItem(String key, FieldItem value) {
+        if (fieldItems == null) {
+            fieldItems = new HashMap<>();
+        }
+        fieldItems.put(key, value);
+    }
+
     public String getQueryString() {
         return queryString;
     }
@@ -102,64 +117,12 @@ public class HttpRequest {
         this.queryString = queryString;
     }
 
-    //------------------------------------------------------------------------------------------------
-
-    private String host;// 机器地址
-    private String origin;// 源地址
-    private String cookie;// cookie
-    private Boolean upgrade = false;// 是否更新
-    private Boolean connection = false;// 是否保存链接
-    private Long key1;// key1
-    private Long key2;// key2
-    private String digest;// 签名
-    private Integer secVersion = 0;//版本，默认为0
-
-    public Boolean getConnection() {
-        return connection;
+    public int getReadStatus() {
+        return readStatus;
     }
 
-    public void setConnection(Boolean connection) {
-        this.connection = connection;
-    }
-
-    public String getCookie() {
-        return cookie;
-    }
-
-    public void setCookie(String cookie) {
-        this.cookie = cookie;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public Long getKey1() {
-        return key1;
-    }
-
-    public void setKey1(Long key1) {
-        this.key1 = key1;
-    }
-
-    public Long getKey2() {
-        return key2;
-    }
-
-    public void setKey2(Long key2) {
-        this.key2 = key2;
-    }
-
-    public String getOrigin() {
-        return origin;
-    }
-
-    public void setOrigin(String origin) {
-        this.origin = origin;
+    public void setReadStatus(int readStatus) {
+        this.readStatus = readStatus;
     }
 
     public String getRequestUri() {
@@ -170,27 +133,5 @@ public class HttpRequest {
         this.requestUri = requestUri;
     }
 
-    public Boolean getUpgrade() {
-        return upgrade;
-    }
 
-    public void setUpgrade(Boolean upgrade) {
-        this.upgrade = upgrade;
-    }
-
-    public String getDigest() {
-        return digest;
-    }
-
-    public void setDigest(String digest) {
-        this.digest = digest;
-    }
-
-    public Integer getSecVersion() {
-        return secVersion;
-    }
-
-    public void setSecVersion(Integer secVersion) {
-        this.secVersion = secVersion;
-    }
 }

@@ -31,7 +31,7 @@ public final class HttpConstants {
     public static final byte HT = 9;
 
     /**
-     * Carriage return
+     * Carriage return \r
      */
     public static final byte CR = 13;
 
@@ -41,7 +41,7 @@ public final class HttpConstants {
     public static final byte EQUALS = 61;
 
     /**
-     * Line feed character
+     * Line feed character \n
      */
     public static final byte LF = 10;
 
