@@ -14,7 +14,9 @@
  * under the License.
  */
 package com.gettyio.core.handler.codec.http;
+
 import com.gettyio.core.util.CharsetUtil;
+
 import java.nio.charset.Charset;
 
 
@@ -64,6 +66,16 @@ public final class HttpConstants {
      * Double quote '"'
      */
     public static final byte DOUBLE_QUOTE = '"';
+
+    /**
+     * carriage return line feed
+     */
+    public static final byte[] CRLF = new byte[]{CR, LF};
+
+    /**
+     * COLON_SP
+     */
+    public static final byte[] COLON_SP = new byte[]{COLON, SP};
 
     /**
      * Default character set (UTF-8)

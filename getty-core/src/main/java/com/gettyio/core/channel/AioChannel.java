@@ -44,6 +44,11 @@ public abstract class AioChannel {
     protected static final byte CHANNEL_STATUS_ENABLED = 3;
 
     /**
+     * 默认保持长连接
+     */
+    protected boolean keepAlive = true;
+
+    /**
      * 内存池
      */
     protected ChunkPool chunkPool;
@@ -295,5 +300,9 @@ public abstract class AioChannel {
 
     public void setChannelAttribute(ConcurrentSafeMap<Object, Object> channelAttribute) {
         this.channelAttribute = channelAttribute;
+    }
+
+    public void setKeepAlive(boolean keepAlive) {
+        this.keepAlive = keepAlive;
     }
 }

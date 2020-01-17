@@ -6,15 +6,10 @@ package com.gettyio.core.handler.codec.http;/*
  * 时间：2020/1/10
  */
 
-import java.io.InputStream;
-import java.io.OutputStream;
-
 public class HttpBody {
 
     private String contentType;
-
     private long contentLength;
-
     private byte[] content;
 
 

@@ -159,7 +159,7 @@ public class AutoByteBuffer {
     /**
      * 当前可读长度，writerIndex - readerIndex
      *
-     * @return 当前可读长度
+     * @return 当前可读长度 相当于remaining()
      */
     public int readableBytes() {
         return writerIndex - readerIndex;

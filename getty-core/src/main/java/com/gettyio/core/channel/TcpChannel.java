@@ -112,6 +112,8 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
      * 立即关闭会话
      */
     public synchronized void close() {
+
+
         if (status == CHANNEL_STATUS_CLOSED) {
             logger.warn("Channel:{} is closed:", getChannelId());
             return;
@@ -195,6 +197,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         final ByteBuffer readBuffer = this.readByteBuffer;
         //读取缓冲区数据到管道
         if (null != readBuffer) {
+
             readBuffer.flip();
             //读取缓冲区数据，输送到责任链
             while (readBuffer.hasRemaining()) {
@@ -307,6 +310,11 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         }
         //完全写完释放信息量
         semaphore.release();
+
+        if (!keepAlive) {
+            this.close();
+        }
+
     }
 
     //-----------------------------------------------------------------------------------

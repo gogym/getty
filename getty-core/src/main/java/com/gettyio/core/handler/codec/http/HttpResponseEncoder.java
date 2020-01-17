@@ -6,5 +6,25 @@ package com.gettyio.core.handler.codec.http;/*
  * 时间：2020/1/8
  */
 
-public class HttpResponseEncoder {
+import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.handler.codec.MessageToByteEncoder;
+
+public class HttpResponseEncoder extends MessageToByteEncoder {
+
+
+    @Override
+    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+
+        AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer();
+        if (obj instanceof HttpResponse) {
+            HttpResponse httpResponse = (HttpResponse) obj;
+            HttpEncodeSerializer.encodeInitialLine(buffer, httpResponse);
+            HttpEncodeSerializer.encodeHeaders(buffer, httpResponse);
+            HttpEncodeSerializer.encodeContent(buffer, httpResponse);
+            obj = buffer.readableBytesArray();
+            //System.out.printf( new String(buffer.readableBytesArray()));
+        }
+        super.encode(aioChannel, obj);
+    }
 }

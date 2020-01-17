@@ -16,10 +16,10 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HttpSerializer {
+public class HttpDecodeSerializer {
 
     protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
-    public static final int readRequestLine = 1;
+    public static final int readLine = 1;
     public static final int readHeaders = 2;
     public static final int readContent = 3;
 
@@ -59,6 +59,53 @@ public class HttpSerializer {
     }
 
 
+    public static boolean readResponseLine(AutoByteBuffer autoByteBuffer, HttpResponse response) throws HttpException, AutoByteBuffer.ByteBufferException, UnsupportedEncodingException {
+        StringBuilder sb = new StringBuilder(64);
+        int lineLength = 0;
+        int limit = autoByteBuffer.writerIndex();
+        int position = autoByteBuffer.readerIndex();
+        for (int index = position; index < limit; index++) {
+            byte nextByte = autoByteBuffer.read(index);
+            if (nextByte == HttpConstants.CR) {
+                nextByte = autoByteBuffer.read(index + 1);
+                if (nextByte == HttpConstants.LF) {
+                    autoByteBuffer.readerIndex(index + 2);
+                    decodeResponseLine(sb.toString(), response);
+                    return true;
+                }
+            } else if (nextByte == HttpConstants.LF) {
+                autoByteBuffer.readerIndex(index + 2);
+                decodeResponseLine(sb.toString(), response);
+                return true;
+            } else {
+                if (lineLength >= autoByteBuffer.writerIndex()) {
+                    throw new HttpException(HttpResponseStatus.REQUEST_URI_TOO_LONG, "An HTTP line is larger than " + autoByteBuffer.writerIndex() + " bytes.");
+                }
+                lineLength++;
+                sb.append((char) nextByte);
+            }
+        }
+        return false;
+    }
+
+
+    private static void decodeResponseLine(String requestLine, HttpResponse response) throws UnsupportedEncodingException {
+
+        String[] requestLineArray = requestLine.split(" ");
+        if (requestLineArray.length < 2) {
+            throw new UnsupportedEncodingException("Wrong Request-Line format: " + requestLine);
+        }
+        response.setHttpVersion(HttpVersion.valueOf(requestLineArray[0]));
+        HttpResponseStatus responseStatus = HttpResponseStatus.valueOf(Integer.valueOf(requestLineArray[1]));
+        response.setHttpResponseStatus(responseStatus);
+    }
+
+    /**
+     * 解析请求字符串
+     *
+     * @return void
+     * @params [requestLine, request]
+     */
     private static void decodeQueryString(String requestLine, HttpRequest request) throws UnsupportedEncodingException {
 
         String[] requestLineArray = requestLine.split(" ");
@@ -81,6 +128,12 @@ public class HttpSerializer {
         request.setQueryString(queryString);
     }
 
+    /**
+     * 解析请求参数
+     *
+     * @return void
+     * @params [params, request]
+     */
     public static void decodeParamsFromUri(String params, HttpRequest request) throws UnsupportedEncodingException {
 
         String charset = "UTF-8";
@@ -175,9 +228,59 @@ public class HttpSerializer {
         return false;
     }
 
+    public static boolean readHeaders(AutoByteBuffer buffer, HttpResponse response) throws HttpException, AutoByteBuffer.ByteBufferException {
+        StringBuilder sb = new StringBuilder(64);
+        int limit = buffer.writerIndex();
+        int position = buffer.readerIndex();
+        int lineLength = 0;
+        for (int index = position; index < limit; index++) {
+            byte nextByte = buffer.read(index);
+            if (nextByte == HttpConstants.CR) {
+                nextByte = buffer.read(index + 1);
+                if (nextByte == HttpConstants.LF) {
+                    buffer.readerIndex(index);
+                    if (lineLength == 0) {
+                        buffer.readerIndex(index + 2);
+                        return true;
+                    } else {
+                        buffer.readerIndex(index);
+                    }
+                    readHeader(response, sb.toString());
+                    lineLength = 0;
+                    sb.setLength(0);
+                    index++;
+                }
+            } else if (nextByte == HttpConstants.LF) {
+                if (lineLength == 0) {
+                    buffer.readerIndex(index + 2);
+                    return true;
+                } else {
+                    buffer.readerIndex(index);
+                }
+                readHeader(response, sb.toString());
+                lineLength = 0;
+                sb.setLength(0);
+                index++;
+            } else {
+                if (lineLength >= buffer.writerIndex()) {
+                    throw new HttpException(HttpResponseStatus.BAD_REQUEST, "An HTTP header is larger than " + buffer.writerIndex() + " bytes.");
+                }
+                lineLength++;
+                sb.append((char) nextByte);
+            }
+        }
+        return false;
+    }
+
+
     private static void readHeader(HttpRequest request, String header) {
         String[] kv = splitHeader(header);
         request.addHeader(kv[0], kv[1]);
+    }
+
+    private static void readHeader(HttpResponse response, String header) {
+        String[] kv = splitHeader(header);
+        response.addHeader(kv[0], kv[1]);
     }
 
     private static String[] splitHeader(String sb) {
@@ -246,7 +349,6 @@ public class HttpSerializer {
             //System.out.printf(new String(request.getHttpBody().getContent()));
             readMultipart(request);
         } else {
-            System.out.printf(new String(request.getHttpBody().getContent()));
             decodeParamsFromUri(new String(request.getHttpBody().getContent()), request);
         }
 
@@ -254,6 +356,39 @@ public class HttpSerializer {
     }
 
 
+    /**
+     * 读取消息体
+     *
+     * @return boolean
+     * @params [buffer, request]
+     */
+    public static boolean readContent(AutoByteBuffer buffer, HttpResponse response) throws Exception {
+        long contentLength =HttpHeaders.getContentLength(response);
+        if (contentLength <= 0) {
+            return true;
+        }
+        int remain = buffer.readableBytes();
+        if (remain < contentLength) {
+            return false;
+        }
+        response.getHttpBody().setContentLength(contentLength);
+        String contentType = response.getHeader(HttpHeaders.Names.CONTENT_TYPE);
+        response.getHttpBody().setContentType(contentType);
+
+        byte[] bytes = new byte[Long.valueOf(contentLength).intValue()];
+        buffer.readBytes(bytes);
+        response.getHttpBody().setContent(bytes);
+
+        return true;
+    }
+
+
+    /**
+     * 读取Multipart
+     *
+     * @return boolean
+     * @params [request]
+     */
     public static boolean readMultipart(HttpRequest request) {
 
         int indexOfBoundary = request.getHttpBody().getContentType().indexOf("boundary=");
@@ -412,7 +547,6 @@ public class HttpSerializer {
         return result;
     }
 
-
     public static String getSubAttribute(String str, String name) {
         int index = str.indexOf(name + "=");
         if (index == -1) {
@@ -454,7 +588,6 @@ public class HttpSerializer {
         }
         return map;
     }
-
 
     public static enum Step {
         BOUNDARY, HEADER, BODY, END

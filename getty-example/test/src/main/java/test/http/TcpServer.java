@@ -5,7 +5,9 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
+import com.gettyio.core.handler.codec.http.HttpDecoder;
 import com.gettyio.core.handler.codec.http.HttpRequestDecoder;
+import com.gettyio.core.handler.codec.http.HttpResponseEncoder;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
@@ -35,7 +37,7 @@ public class TcpServer {
             //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
             aioServerConfig.setBufferWriterQueueSize(10 * 1024 * 1024);
             //设置读取缓存块大小，一般不用设置这个参数，默认128字节
-            aioServerConfig.setReadBufferSize(128);
+            aioServerConfig.setReadBufferSize(4096);
             //设置内存池等待分配内存的最大阻塞时间，默认是1秒
             aioServerConfig.setChunkPoolBlockTime(1000);
             //设置SocketOptions
@@ -48,17 +50,16 @@ public class TcpServer {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
-                    //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
+                    defaultChannelPipeline.addLast(new HttpResponseEncoder());
                     defaultChannelPipeline.addLast(new HttpRequestDecoder());
-                    //添加字符串解码器
-                    defaultChannelPipeline.addLast(new StringDecoder());
+                    defaultChannelPipeline.addLast(new HttpDecoder());
                     //添加自定义的简单消息处理器
-                    //defaultChannelPipeline.addLast(new SimpleHandler());
+                    defaultChannelPipeline.addLast(new SimpleHandler());
                 }
             }).start();
 
 
-            System.out.println("启动了TCP");
+            System.out.println("启动了http");
         } catch (Exception e) {
 
         }

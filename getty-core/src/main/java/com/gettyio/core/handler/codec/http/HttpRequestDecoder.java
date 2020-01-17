@@ -28,26 +28,26 @@ public class HttpRequestDecoder extends ObjectToMessageDecoder {
 
         if (httpRequest == null) {
             httpRequest = new HttpRequest();
-            httpRequest.setReadStatus(HttpSerializer.readRequestLine);
+            httpRequest.setReadStatus(HttpDecodeSerializer.readLine);
         }
 
-        if (httpRequest.getReadStatus() == HttpSerializer.readRequestLine) {
-            if (!HttpSerializer.readRequestLine(autoByteBuffer, httpRequest)) {
+        if (httpRequest.getReadStatus() == HttpDecodeSerializer.readLine) {
+            if (!HttpDecodeSerializer.readRequestLine(autoByteBuffer, httpRequest)) {
                 return;
             }
-            httpRequest.setReadStatus(HttpSerializer.readHeaders);
+            httpRequest.setReadStatus(HttpDecodeSerializer.readHeaders);
         }
 
-        if (httpRequest.getReadStatus() == HttpSerializer.readHeaders) {
-            if (!HttpSerializer.readHeaders(autoByteBuffer, httpRequest)) {
+        if (httpRequest.getReadStatus() == HttpDecodeSerializer.readHeaders) {
+            if (!HttpDecodeSerializer.readHeaders(autoByteBuffer, httpRequest)) {
                 return;
             }
-            httpRequest.setReadStatus(HttpSerializer.readContent);
+            httpRequest.setReadStatus(HttpDecodeSerializer.readContent);
         }
 
 
-        if (httpRequest.getReadStatus() == HttpSerializer.readContent) {
-            if (!HttpSerializer.readContent(autoByteBuffer, httpRequest)) {
+        if (httpRequest.getReadStatus() == HttpDecodeSerializer.readContent) {
+            if (!HttpDecodeSerializer.readContent(autoByteBuffer, httpRequest)) {
                 return;
             }
         }

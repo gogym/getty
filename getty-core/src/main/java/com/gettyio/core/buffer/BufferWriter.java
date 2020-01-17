@@ -33,6 +33,10 @@ public final class BufferWriter extends OutputStream {
     //阻塞队列
     private final LinkedNonBlockQueue<ByteBuffer> queue;
 
+    public LinkedNonBlockQueue<ByteBuffer> getQueue() {
+        return queue;
+    }
+
     public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
         this.chunkPoolBlockTime = chunkPoolBlockTime;
