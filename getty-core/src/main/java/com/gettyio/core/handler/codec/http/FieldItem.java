@@ -5,7 +5,6 @@ package com.gettyio.core.handler.codec.http;/*
  * 修改人：gogym
  * 时间：2020/1/15
  */
-
 public class FieldItem {
 
     private String name;

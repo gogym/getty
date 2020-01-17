@@ -12,8 +12,6 @@ public class HttpBody {
     private long contentLength;
     private byte[] content;
 
-
-
     public String getContentType() {
         return contentType;
     }
