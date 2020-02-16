@@ -25,6 +25,7 @@ import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.AsynchronousSocketChannel;
 
 /**
  * 类名：AioChannel.java
@@ -195,32 +196,16 @@ public abstract class AioChannel {
 
         switch (channelState) {
             case NEW_CHANNEL:
-                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelAdded(this);
-                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelAdded(this);
-                }
+                channelHandlerAdapter.channelAdded(this);
                 break;
             case CHANNEL_READ:
-                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).decode(this, obj, outList);
-                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).decode(this, obj, outList);
-                }
+                channelHandlerAdapter.decode(this, obj, outList);
                 break;
             case CHANNEL_CLOSED:
-                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).channelClosed(this);
-                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelClosed(this);
-                }
+                channelHandlerAdapter.channelClosed(this);
                 break;
             case INPUT_SHUTDOWN:
-                if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-                    ((ChannelInboundHandlerAdapter) channelHandlerAdapter).exceptionCaught(this, new RuntimeException("socket channel is shutdown"));
-                } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-                    ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelClosed(this);
-                }
+                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel is shutdown"));
                 break;
         }
 
@@ -244,12 +229,12 @@ public abstract class AioChannel {
         }
 
         if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).channelWrite(this, obj);
-            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).encode(this, obj);
+            channelHandlerAdapter.channelWrite(this, obj);
+            channelHandlerAdapter.encode(this, obj);
             return;
         } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelWrite(this, obj);
-            ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).encode(this, obj);
+            channelHandlerAdapter.channelWrite(this, obj);
+            channelHandlerAdapter.encode(this, obj);
             return;
         }
         //如果没有对应的处理器，直接输出到wirter
@@ -267,6 +252,15 @@ public abstract class AioChannel {
     }
 
 //--------------------------------------------------------------------------------------
+
+    public AsynchronousSocketChannel getAsynchronousSocketChannel() {
+        return null;
+    }
+
+
+    public ChunkPool getChunkPool() {
+        return chunkPool;
+    }
 
     /**
      * 设置SSLHandler

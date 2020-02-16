@@ -21,42 +21,4 @@ import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 public abstract class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter implements ChannelOutboundHandler {
 
 
-    @Override
-    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
-        if (channelHandlerAdapter == null) {
-            return;
-        }
-
-        if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).channelWrite(aioChannel, obj);
-        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).channelWrite(aioChannel, obj);
-        }
-
-    }
-
-    @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
-        if (channelHandlerAdapter == null) {
-            aioChannel.writeToChannel(obj);
-            return;
-        }
-        if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            ((ChannelOutboundHandlerAdapter) channelHandlerAdapter).encode(aioChannel, obj);
-        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            ((ChannelAllBoundHandlerAdapter) channelHandlerAdapter).encode(aioChannel, obj);
-        }
-    }
-
-    @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
-        if (channelHandlerAdapter != null) {
-            channelHandlerAdapter.userEventTriggered(aioChannel, evt);
-        }
-    }
-
-
 }

@@ -356,6 +356,12 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
 
 //--------------------------------------------------------------------------------------
 
+
+    @Override
+    public AsynchronousSocketChannel getAsynchronousSocketChannel() {
+        return channel;
+    }
+
     /**
      * 设置SSLHandler
      *

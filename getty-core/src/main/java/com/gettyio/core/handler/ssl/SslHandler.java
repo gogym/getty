@@ -154,7 +154,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
             try {
                 SslHandler.super.decode(aioChannel, b, out);
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(), e);
             }
         }
     }

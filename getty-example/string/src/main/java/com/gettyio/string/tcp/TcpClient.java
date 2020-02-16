@@ -9,6 +9,7 @@ import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
@@ -66,6 +67,7 @@ public class TcpClient {
                 SslService sSLService = new SslService(sSLConfig);
                 defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
 
+                defaultChannelPipeline.addLast(new ReConnectHandler(client));
 
                 //指定结束符解码器
                 defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
