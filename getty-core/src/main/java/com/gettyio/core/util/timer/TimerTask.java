@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 定时任务
+ * 参考自netty 4.3
  */
 public interface TimerTask {
 

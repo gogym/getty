@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 时间轮接口
+ * * 参考自netty 4.3
  */
 public interface Timer {
 

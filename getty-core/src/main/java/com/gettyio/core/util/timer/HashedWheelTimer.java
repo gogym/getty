@@ -18,6 +18,7 @@ import static com.gettyio.core.util.StringUtil.simpleClassName;
 
 /**
  * 时间轮
+ * 参考自netty 4.3
  */
 public class HashedWheelTimer implements Timer {
 

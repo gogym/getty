@@ -1,7 +1,7 @@
 package com.gettyio.core.util.timer;
 
 /**
- * {@link Timer} 处理  {@link TimerTask} 完成, 返回值
+ * * 参考自netty 4.3
  */
 public interface Timeout {
 
