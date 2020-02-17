@@ -19,8 +19,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
     @Override
     public void channelRead0(AioChannel aioChannel, HttpRequest request) {
-
         System.out.println("读取消息了:" + request.getHttpVersion());
+        //设置keep-alive为false
         aioChannel.setKeepAlive(false);
 
         HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -29,12 +29,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
         //response.getHttpHeaders().setHeader(HttpHeaders.Names.TRANSFER_ENCODING,"chunked");
         //response.getHttpHeaders().setHeader(HttpHeaders.Names.CONTENT_ENCODING,HttpHeaders.Values.GZIP);
         //response.getHttpHeaders().setHeader(HttpHeaders.Names.CONTENT_LENGTH,"111".getBytes().length);
-
         response.getHttpBody().setContent("111".getBytes());
-
         aioChannel.writeAndFlush(response);
-        //aioChannel.close();
-
     }
 
     @Override

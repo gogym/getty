@@ -67,8 +67,8 @@ public class TcpServer {
                     SslService sSLService = new SslService(sSLConfig);
                     defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
-                    defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
-                    defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
+                    //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
+                   // defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
                     defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
                     //添加字符串解码器

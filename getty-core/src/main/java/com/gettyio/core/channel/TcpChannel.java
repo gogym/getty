@@ -55,6 +55,8 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
 
     protected BufferWriter bufferWriter;
 
+    private ChannelPipeline channelPipeline;
+
 
     /**
      * @param channel                通道
@@ -70,6 +72,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         this.writeCompletionHandler = writeCompletionHandler;
         this.aioConfig = config;
         this.chunkPool = chunkPool;
+        this.channelPipeline = channelPipeline;
         try {
             //初始化读缓冲区
             this.readByteBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
@@ -360,6 +363,11 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
     @Override
     public AsynchronousSocketChannel getAsynchronousSocketChannel() {
         return channel;
+    }
+
+    @Override
+    public ChannelPipeline getChannelPipeline() {
+        return channelPipeline;
     }
 
     /**

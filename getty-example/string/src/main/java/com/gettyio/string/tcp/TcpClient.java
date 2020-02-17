@@ -67,7 +67,7 @@ public class TcpClient {
                 SslService sSLService = new SslService(sSLConfig);
                 defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
 
-                defaultChannelPipeline.addLast(new ReConnectHandler(client));
+                defaultChannelPipeline.addLast(new ReConnectHandler(channel));
 
                 //指定结束符解码器
                 defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));

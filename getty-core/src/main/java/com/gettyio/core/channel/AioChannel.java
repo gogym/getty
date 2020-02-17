@@ -14,6 +14,7 @@ import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.handler.ssl.SslService;
@@ -260,6 +261,11 @@ public abstract class AioChannel {
 
     public ChunkPool getChunkPool() {
         return chunkPool;
+    }
+
+
+    public ChannelPipeline getChannelPipeline() {
+        return null;
     }
 
     /**

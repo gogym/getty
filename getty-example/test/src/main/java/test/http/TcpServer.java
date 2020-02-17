@@ -50,8 +50,11 @@ public class TcpServer {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
+                    //添加http response 编码器
                     defaultChannelPipeline.addLast(new HttpResponseEncoder());
+                    //添加http request 解码器
                     defaultChannelPipeline.addLast(new HttpRequestDecoder());
+                    //添加 http解码
                     defaultChannelPipeline.addLast(new HttpDecoder());
                     //添加自定义的简单消息处理器
                     defaultChannelPipeline.addLast(new SimpleHandler());
