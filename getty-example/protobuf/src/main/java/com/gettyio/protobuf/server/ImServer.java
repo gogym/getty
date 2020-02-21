@@ -28,7 +28,7 @@ public class ImServer implements CommandLineRunner {
     public void run(String... args) throws Exception {
 
 
-        AioServerStarter server = new AioServerStarter(8888);
+        AioServerStarter server = new AioServerStarter(9999);
         server.channelInitializer(new ChannelInitializer() {
             @Override
             public void initChannel(AioChannel channel) throws Exception {
