@@ -15,17 +15,61 @@
  */
 package com.gettyio.core.util;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
+import java.util.Formatter;
 
 /**
  * String utility class.
  */
 public final class StringUtil {
 
+    public static final String NEWLINE;
+    public static final String EMPTY_STRING = "";
+    private static final String[] BYTE2HEX_PAD = new String[256];
+    private static final String[] BYTE2HEX_NOPAD = new String[256];
+
     private static final char PACKAGE_SEPARATOR_CHAR = '.';
+
+
+    static {
+        // Determine the newline character of the current platform.
+        String newLine;
+
+        try {
+            newLine = new Formatter().format("%n").toString();
+        } catch (Exception e) {
+            // Should not reach here, but just in case.
+            newLine = "\n";
+        }
+
+        NEWLINE = newLine;
+
+        // Generate the lookup table that converts a byte into a 2-digit hexadecimal integer.
+        int i;
+        for (i = 0; i < 10; i++) {
+            StringBuilder buf = new StringBuilder(2);
+            buf.append('0');
+            buf.append(i);
+            BYTE2HEX_PAD[i] = buf.toString();
+            BYTE2HEX_NOPAD[i] = String.valueOf(i);
+        }
+        for (; i < 16; i++) {
+            StringBuilder buf = new StringBuilder(2);
+            char c = (char) ('a' + i - 10);
+            buf.append('0');
+            buf.append(c);
+            BYTE2HEX_PAD[i] = buf.toString();
+            BYTE2HEX_NOPAD[i] = String.valueOf(c);
+        }
+        for (; i < BYTE2HEX_PAD.length; i++) {
+            StringBuilder buf = new StringBuilder(2);
+            buf.append(Integer.toHexString(i));
+            String str = buf.toString();
+            BYTE2HEX_PAD[i] = str;
+            BYTE2HEX_NOPAD[i] = str;
+        }
+    }
+
 
     /**
      * The shortcut to {@link #simpleClassName(Class) simpleClassName(o.getClass())}.

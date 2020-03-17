@@ -3,6 +3,9 @@ package com.gettyio.core.util.timer;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.LinkedNonBlockQueue;
+import com.gettyio.core.util.PlatformDependent;
+import com.gettyio.core.util.detector.ResourceLeakDetector;
+import com.gettyio.core.util.detector.ResourceLeakTracker;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -73,8 +76,8 @@ public class HashedWheelTimer implements Timer {
 
     /*****************************************************************/
     //内存泄露检测器
-    //private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = ResourceLeakDetectorFactory.instance().newResourceLeakDetector(HashedWheelTimer.class, 1);
-    // private final ResourceLeakTracker<HashedWheelTimer> leak;
+    private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = new ResourceLeakDetector(HashedWheelTimer.class, 1);
+    private final ResourceLeakTracker<HashedWheelTimer> leak;
 
     /*****************************************************************/
 
@@ -130,7 +133,7 @@ public class HashedWheelTimer implements Timer {
         workerThread = threadFactory.newThread(worker);
 
         //这里默认是启动内存泄露检测：当HashedWheelTimer实例超过当前cpu可用核数 *4的时候，将发出警告
-        //leak = leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;
+        leak = leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;
 
         //设置最大等待处理次数
         this.maxPendingTimeouts = maxPendingTimeouts;
@@ -181,9 +184,7 @@ public class HashedWheelTimer implements Timer {
      *                      默认设置{@code true}
      *                      如果工作线程不是守护线程，需设置 false
      */
-    public HashedWheelTimer(
-            ThreadFactory threadFactory,
-            long tickDuration, TimeUnit unit, int ticksPerWheel) {
+    public HashedWheelTimer(ThreadFactory threadFactory, long tickDuration, TimeUnit unit, int ticksPerWheel) {
         this(threadFactory, tickDuration, unit, ticksPerWheel, true);
     }
 
@@ -291,10 +292,10 @@ public class HashedWheelTimer implements Timer {
             if (WORKER_STATE_UPDATER.getAndSet(this, WORKER_STATE_SHUTDOWN) != WORKER_STATE_SHUTDOWN) {
                 //实例计数器减一
                 INSTANCE_COUNTER.decrementAndGet();
-//                if (leak != null) {
-//                    boolean closed = leak.close(this);
-//                    assert closed;
-//                }
+                if (leak != null) {
+                    boolean closed = leak.close(this);
+                    assert closed;
+                }
             }
             return Collections.emptySet();
         }
@@ -327,10 +328,10 @@ public class HashedWheelTimer implements Timer {
         } finally {
             //实例计数器加一
             INSTANCE_COUNTER.decrementAndGet();
-//            if (leak != null) {
-//                boolean closed = leak.close(this);
-//                assert closed;
-//            }
+            if (leak != null) {
+                boolean closed = leak.close(this);
+                assert closed;
+            }
         }
 
         // 返回未处理的任务
@@ -578,9 +579,9 @@ public class HashedWheelTimer implements Timer {
                     }
                 }
                 // 这里是因为windows平台的定时调度最小单位为10ms，如果不是10ms的倍数，可能会引起sleep时间不准确
-//                if (PlatformDependent.isWindows()) {
-//                    sleepTimeMs = sleepTimeMs / 10 * 10;
-//                }
+                if (PlatformDependent.isWindows()) {
+                    sleepTimeMs = sleepTimeMs / 10 * 10;
+                }
 
                 try {
                     Thread.sleep(sleepTimeMs);
