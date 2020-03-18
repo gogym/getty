@@ -64,7 +64,6 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        logger.debug("正在重连...");
 
         AioConfig aioClientConfig = aioChannel.getConfig();
         ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
@@ -104,6 +103,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     public void reConnect(AioChannel aioChannel) {
         //判断是否已经连接
         if (aioChannel.isInvalid()) {
+            logger.debug("reconnect...");
             // 重连的间隔时间会越来越长
             long timeout = attempts * threshold;
             //启动定时器，通过定时器连接
