@@ -65,7 +65,7 @@ public class TcpClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
+               // defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
 
                 defaultChannelPipeline.addLast(new ReConnectHandler(channel));
 

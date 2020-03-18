@@ -45,8 +45,6 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     public void channelAdded(AioChannel aioChannel) throws Exception {
         //重置时间基数
         attempts = 0;
-        //停止定时器
-        //timer.stop();
         super.channelAdded(aioChannel);
     }
 
