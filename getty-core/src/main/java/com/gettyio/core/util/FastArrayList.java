@@ -1,12 +1,12 @@
 package com.gettyio.core.util;/*
  * 类名：ArrayList
  * 版权：Copyright by www.getty.com
- * 描述：
+ * 描述：自定义高性能的数组集合
  * 修改人：gogym
  * 时间：2019/12/26
  */
 
-public class ArrayList<T> {
+public class FastArrayList<T> {
 
     //用于存储数据
     //关键字transient，序列化对象的时候，这个属性就不会被序列化。
@@ -21,7 +21,7 @@ public class ArrayList<T> {
      * 指定数组的大小
      * @param initialCapacity 长度
      */
-    public ArrayList(int initialCapacity) {
+    public FastArrayList(int initialCapacity) {
         if (initialCapacity < 0) {
             throw new IllegalArgumentException("非法的集合初始容量值 Illegal Capacity: " +
                     initialCapacity);
@@ -35,7 +35,7 @@ public class ArrayList<T> {
      * 无参构造函数
      * 指定数组的初始大小为 10
      */
-    public ArrayList() {
+    public FastArrayList() {
         this(DEFAULT_CAPACITY);
     }
 

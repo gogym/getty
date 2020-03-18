@@ -5,7 +5,6 @@ import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.channel.config.AioConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
-import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
@@ -28,7 +27,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     protected static final InternalLogger logger = InternalLoggerFactory.getInstance(ReConnectHandler.class);
 
     private int attempts = 0;// 时间基数，重连时间会越来越长
-    private int threshold = 1000;//间隔阈值
+    private long threshold = 1000;//间隔阈值
     private final HashedWheelTimer timer = new HashedWheelTimer();// 创建一个定时器
 
     private AioChannel aioChannel;
@@ -107,13 +106,13 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     public void reConnect(AioChannel aioChannel) {
         //判断是否已经连接
         if (aioChannel.isInvalid()) {
+            // 重连的间隔时间会越来越长
+            long timeout = attempts * threshold;
+            //启动定时器，通过定时器连接
+            timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
             if (attempts < 10) {
                 attempts++;
             }
-            // 重连的间隔时间会越来越长
-            int timeout = attempts * threshold;
-            //启动定时器，通过定时器连接
-            timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
         }
     }
 }
