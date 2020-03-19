@@ -1,6 +1,7 @@
 package com.gettyio.core.util;
 
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -119,5 +120,21 @@ public class ConcurrentSafeMap<K, V> {
             r.unlock();
         }
     }
+
+
+    public V putIfAbsent(K key, V value) {
+
+        if (containsKey(key)) {
+            return get(key);
+        } else {
+            put(key, value);
+            return null;
+        }
+    }
+
+    public Collection<V> values() {
+        return map.values();
+    }
+
 
 }

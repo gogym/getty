@@ -13,7 +13,6 @@ import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelPipeline;
 
 import java.io.IOException;
@@ -22,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class TcpChannel extends AioChannel implements Function<BufferWriter, Void> {
 
@@ -141,7 +139,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
             }
             bufferWriter = null;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e);
         }
 
         try {
@@ -209,7 +207,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
                 try {
                     readToPipeline(bytes);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error(e);
                     close();
                 }
             }
@@ -217,7 +215,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
                 try {
                     invokePipeline(ChannelState.INPUT_SHUTDOWN);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error(e);
                 }
                 close();
                 return;
@@ -264,7 +262,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         try {
             reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 
@@ -277,7 +275,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         try {
             bufferWriter.writeAndFlush((byte[]) obj);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 

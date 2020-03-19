@@ -54,7 +54,7 @@ public class UdpChannel extends AioChannel {
         try {
             invokePipeline(ChannelState.NEW_CHANNEL);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 
@@ -91,13 +91,13 @@ public class UdpChannel extends AioChannel {
                         it.remove();
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.error(e);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.error(e);
                 } catch (TimeoutException e) {
-                    e.printStackTrace();
+                    logger.error(e);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error(e);
                 }
             });
         }
@@ -134,7 +134,7 @@ public class UdpChannel extends AioChannel {
         try {
             datagramChannel.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e);
         }
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
@@ -206,11 +206,11 @@ public class UdpChannel extends AioChannel {
         } catch (ClassCastException e) {
             logger.error(e.getMessage(), e);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            logger.error(e);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e);
         } catch (TimeoutException e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 

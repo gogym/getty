@@ -22,8 +22,7 @@ import java.util.concurrent.ConcurrentMap;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class DefaultChannelGroup extends AbstractSet<AioChannel> implements
-        ChannelGroup {
+public class DefaultChannelGroup extends AbstractSet<AioChannel> implements ChannelGroup {
 
     private final String name;
     //用于保存连接的map
