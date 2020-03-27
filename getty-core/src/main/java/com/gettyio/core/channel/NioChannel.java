@@ -46,7 +46,7 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
     private Semaphore semaphore = new Semaphore(1);
 
     //线程池
-    private int workerThreadNum;
+    private int workerThreadNum = 3;
 
     public NioChannel(SocketChannel channel, AioConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
         this.channel = channel;
@@ -78,6 +78,7 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
     @Override
     public void starRead() {
         ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
+
         for (int i = 0; i < workerThreadNum; i++) {
             workerThreadPool.execute(new Runnable() {
                 @Override
@@ -87,7 +88,13 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
                             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                             while (it.hasNext()) {
                                 SelectionKey sk = it.next();
-                                if (sk.isReadable()) {
+                                if (sk.isConnectable()) {
+                                    SocketChannel channel = (SocketChannel) sk.channel();
+                                    //during connecting, finish the connect
+                                    if (channel.isConnectionPending()) {
+                                        channel.finishConnect();
+                                    }
+                                } else if (sk.isReadable()) {
                                     ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
                                     //接收数据
                                     ((SocketChannel) sk.channel()).read(readBuffer);
@@ -114,18 +121,13 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
                             }
                             it.remove();
                         }
-                    } catch (IOException e) {
-                        logger.error(e);
-                    } catch (InterruptedException e) {
-                        logger.error(e);
-                    } catch (TimeoutException e) {
-                        logger.error(e);
                     } catch (Exception e) {
                         logger.error(e);
                     }
                 }
             });
         }
+
     }
 
 
@@ -177,13 +179,20 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
 
     @Override
     public void writeAndFlush(Object obj) {
-
+        try {
+            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        } catch (Exception e) {
+            logger.error(e);
+        }
     }
 
     @Override
-    @Deprecated
     public void writeToChannel(Object obj) {
-
+        try {
+            bufferWriter.writeAndFlush((byte[]) obj);
+        } catch (IOException e) {
+            logger.error(e);
+        }
     }
 
     @Override
@@ -206,8 +215,6 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
 
     /**
      * 继续写
-     *
-     * @param writeBuffer 写入的缓冲区
      */
     private void continueWrite() {
 

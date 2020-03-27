@@ -47,8 +47,7 @@ public class NioClientStarter {
     private ChunkPool chunkPool;
     //线程池
     private ThreadPool workerThreadPool;
-    //IO线程组。
-    private AsynchronousChannelGroup asynchronousChannelGroup;
+
     //责任链对象
     protected ChannelPipeline channelPipeline;
 
@@ -112,16 +111,10 @@ public class NioClientStarter {
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
         //初始化内存池
         chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), new Time(), aioClientConfig.isDirect());
-        this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable target) {
-                return new Thread(target);
-            }
-        });
         //调用内部启动
 
         if (socketChannel == SocketMode.TCP) {
-            startTcp(asynchronousChannelGroup);
+            startTcp();
         } else {
             startUDP();
         }
@@ -131,10 +124,8 @@ public class NioClientStarter {
 
     /**
      * 该方法为非阻塞连接。连接成功与否，会回调
-     *
-     * @param asynchronousChannelGroup 线程组
      */
-    private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
+    private void startTcp() throws Exception {
 
         final SocketChannel socketChannel = SocketChannel.open();
         if (aioClientConfig.getSocketOptions() != null) {
@@ -159,16 +150,30 @@ public class NioClientStarter {
          */
         socketChannel.register(selector, SelectionKey.OP_CONNECT);
 
-        NioChannel nioChannel = null;
-        try {
-            nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, channelPipeline);
-            //创建成功立即开始读
-            nioChannel.starRead();
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-            if (nioChannel != null) {
-                closeChannel(socketChannel);
+
+        while (selector.select() > 0) {
+            Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+            while (it.hasNext()) {
+                SelectionKey sk = it.next();
+                if (sk.isConnectable()) {
+                    SocketChannel channel = (SocketChannel) sk.channel();
+                    //during connecting, finish the connect
+                    if (channel.isConnectionPending()) {
+                        channel.finishConnect();
+                        try {
+                            aioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, channelPipeline);
+                            //创建成功立即开始读
+                            aioChannel.starRead();
+                        } catch (Exception e) {
+                            logger.error(e.getMessage(), e);
+                            if (aioChannel != null) {
+                                closeChannel(socketChannel);
+                            }
+                        }
+                    }
+                }
             }
+            it.remove();
         }
 
 
@@ -198,11 +203,6 @@ public class NioClientStarter {
         if (aioChannel != null) {
             aioChannel.close();
             aioChannel = null;
-        }
-        //仅Client内部创建的ChannelGroup需要shutdown
-        if (asynchronousChannelGroup != null) {
-            asynchronousChannelGroup.shutdown();
-            asynchronousChannelGroup = null;
         }
     }
 

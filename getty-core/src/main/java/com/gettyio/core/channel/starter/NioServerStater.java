@@ -8,6 +8,7 @@ package com.gettyio.core.channel.starter;/*
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
+import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioServerConfig;
@@ -208,6 +209,7 @@ public class NioServerStater extends NioStarter {
                                     }
                                 });
                             }
+                            iterator.remove();
                         }
                     } catch (IOException e) {
                         LOGGER.error("socketChannel accept Exception", e);
@@ -226,14 +228,14 @@ public class NioServerStater extends NioStarter {
      * @param channel 通道
      */
     private void createTcpChannel(SocketChannel channel) {
-        NioChannel nioChannel = null;
+        AioChannel aioChannel = null;
         try {
-            nioChannel = new NioChannel(channel, config, chunkPool, channelPipeline);
+            aioChannel = new NioChannel(channel, config, chunkPool, channelPipeline);
             //创建成功立即开始读
-            nioChannel.starRead();
+            aioChannel.starRead();
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            if (nioChannel != null) {
+            if (aioChannel != null) {
                 closeChannel(channel);
             }
         }
