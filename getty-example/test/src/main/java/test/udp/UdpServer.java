@@ -23,10 +23,10 @@ public class UdpServer {
 
         try {
 
-            DatagramChannel dc = DatagramChannel.open();
+            final DatagramChannel dc = DatagramChannel.open();
             dc.configureBlocking(false);
             dc.bind(new InetSocketAddress(9898));
-            Selector selector = Selector.open();
+            final Selector selector = Selector.open();
             dc.register(selector, SelectionKey.OP_READ);
 
             //线程池

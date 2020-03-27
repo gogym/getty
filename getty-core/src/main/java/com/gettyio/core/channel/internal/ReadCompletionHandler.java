@@ -32,7 +32,12 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, TcpChan
     @Override
     public void completed(final Integer result, final TcpChannel tcpChannel) {
         //通过多线程形式读取
-        executorService.execute(() -> tcpChannel.readFromChannel(result == -1));
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                tcpChannel.readFromChannel(result == -1);
+            }
+        });
     }
 
     @Override

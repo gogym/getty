@@ -16,17 +16,11 @@ import com.gettyio.core.handler.timeout.IdleStateHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.protobuf.packet.MessageClass;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-import org.springframework.util.ResourceUtils;
 
-@Component
-public class ImServer implements CommandLineRunner {
+public class ImServer {
 
 
-    @Override
-    public void run(String... args) throws Exception {
-
+    public static void main(String[] args) {
 
         AioServerStarter server = new AioServerStarter(9999);
         server.channelInitializer(new ChannelInitializer() {
@@ -36,8 +30,7 @@ public class ImServer implements CommandLineRunner {
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                 //获取证书
-                String pkPath = ResourceUtils.getURL("classpath:serverStore.jks")
-                        .getPath();
+                String pkPath = getClass().getClassLoader().getResource("classpath:serverStore.jks").getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
                 sSLConfig.setKeyFile(pkPath);
@@ -51,7 +44,7 @@ public class ImServer implements CommandLineRunner {
                 sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
 
                 //添加protobuf编码器
@@ -62,15 +55,19 @@ public class ImServer implements CommandLineRunner {
                 defaultChannelPipeline.addLast(new ProtobufVarint32FrameDecoder());
                 defaultChannelPipeline.addLast(new ProtobufDecoder(MessageClass.Message.getDefaultInstance()));
 
-//                defaultChannelPipeline.addLast(new IdleStateHandler(channel, 2, 0));
-//                defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
+                defaultChannelPipeline.addLast(new IdleStateHandler(channel, 5, 0));
+                defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
 
 
                 defaultChannelPipeline.addLast(new SimpleHandler());
 
             }
         });
-        server.start();
+        try {
+            server.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
 
         System.out.println("启动了服务器");

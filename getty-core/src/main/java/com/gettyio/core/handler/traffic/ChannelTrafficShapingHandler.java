@@ -41,11 +41,14 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
     public ChannelTrafficShapingHandler(int checkInterval) {
 
         pool = new ThreadPool(ThreadPool.SingleThread, 1);
-        pool.scheduleWithFixedRate(() -> {
-            intervalTotalRead = intervalTotalReadTmp;
-            intervalTotalReadTmp = 0;
-            intervalTotalWrite = intervalTotalWriteTmp;
-            intervalTotalWriteTmp = 0;
+        pool.scheduleWithFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                intervalTotalRead = intervalTotalReadTmp;
+                intervalTotalReadTmp = 0;
+                intervalTotalWrite = intervalTotalWriteTmp;
+                intervalTotalWriteTmp = 0;
+            }
         }, 0, checkInterval, TimeUnit.MILLISECONDS);
     }
 

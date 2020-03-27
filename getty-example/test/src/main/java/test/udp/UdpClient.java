@@ -32,7 +32,7 @@ public class UdpClient {
             DatagramChannel dc = DatagramChannel.open();
             dc.configureBlocking(false);
 
-            Selector selector = Selector.open();
+            final Selector selector = Selector.open();
             dc.register(selector, SelectionKey.OP_READ);
 
             //线程池
@@ -93,18 +93,21 @@ public class UdpClient {
 
     public static void test2() {
         try {
-            DatagramChannel dc = DatagramChannel.open();
+            final DatagramChannel dc = DatagramChannel.open();
             dc.configureBlocking(true);
-            new Thread(() -> {
-                try {
-                    while (true) {
-                        ByteBuffer bb = ByteBuffer.allocate(1024);
-                        dc.receive(bb);
-                        String m1 = new String(bb.array(), 0, bb.limit(), "utf-8");
-                        System.out.println("收到服务器消息:" + m1);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        while (true) {
+                            ByteBuffer bb = ByteBuffer.allocate(1024);
+                            dc.receive(bb);
+                            String m1 = new String(bb.array(), 0, bb.limit(), "utf-8");
+                            System.out.println("收到服务器消息:" + m1);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
             }).start();
             ByteBuffer buf = ByteBuffer.allocate(1024);

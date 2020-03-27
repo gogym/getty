@@ -2,7 +2,7 @@ package com.gettyio.string.udp;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketDecoder;
@@ -39,7 +39,7 @@ public class UdpServer {
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(8888);
-            server.socketChannel(SocketChannel.UDP).channelInitializer(new ChannelInitializer() {
+            server.socketChannel(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(AioChannel channel) throws Exception {
                     //获取责任链对象

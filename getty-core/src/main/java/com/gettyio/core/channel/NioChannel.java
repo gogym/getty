@@ -6,10 +6,12 @@ package com.gettyio.core.channel;/*
  * 时间：2019/12/17
  */
 
+import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.function.Function;
 import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
@@ -19,38 +21,52 @@ import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.util.Iterator;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class UdpChannel extends AioChannel {
+public class NioChannel extends AioChannel implements Function<BufferWriter, Void> {
 
-
-    //udp通道
-    private DatagramChannel datagramChannel;
+    private SocketChannel channel;
     //selector
     private Selector selector;
-    //阻塞队列
-    private LinkedBlockQueue<Object> queue;
+
+    protected BufferWriter bufferWriter;
+
+    /**
+     * 写缓冲
+     */
+    protected ByteBuffer writeByteBuffer;
+
+    /**
+     * 输出信号量
+     */
+    private Semaphore semaphore = new Semaphore(1);
+
     //线程池
     private int workerThreadNum;
 
-    public UdpChannel(DatagramChannel datagramChannel, Selector selector, AioConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline, int workerThreadNum) {
-        this.datagramChannel = datagramChannel;
-        this.selector = selector;
+    public NioChannel(SocketChannel channel, AioConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
+        this.channel = channel;
         this.aioConfig = config;
         this.chunkPool = chunkPool;
-        this.workerThreadNum = workerThreadNum;
-        queue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
         try {
+            this.selector = Selector.open();
+            channel.register(selector, SelectionKey.OP_READ);
+
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
-            throw new RuntimeException("channelPipeline init exception", e);
+            close();
+            throw new RuntimeException("SocketChannel init exception", e);
         }
 
-        //开启写监听线程
-        loopWrite();
-        //触发责任链回调
+        //初始化数据输出类
+        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
+
+        //触发责任链
         try {
             invokePipeline(ChannelState.NEW_CHANNEL);
         } catch (Exception e) {
@@ -74,18 +90,24 @@ public class UdpChannel extends AioChannel {
                                 if (sk.isReadable()) {
                                     ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
                                     //接收数据
-                                    InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer);
+                                    ((SocketChannel) sk.channel()).read(readBuffer);
+
+                                    //读取缓冲区数据到管道
                                     if (null != readBuffer) {
+
                                         readBuffer.flip();
                                         //读取缓冲区数据，输送到责任链
                                         while (readBuffer.hasRemaining()) {
                                             byte[] bytes = new byte[readBuffer.remaining()];
                                             readBuffer.get(bytes, 0, bytes.length);
-                                            //读取的数据封装成DatagramPacket
-                                            DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
-                                            //输出到链条
-                                            UdpChannel.this.readToPipeline(datagramPacket);
+                                            try {
+                                                readToPipeline(bytes);
+                                            } catch (Exception e) {
+                                                logger.error(e);
+                                                close();
+                                            }
                                         }
+                                        //触发读取完成，清理缓冲区
                                         chunkPool.deallocate(readBuffer);
                                     }
                                 }
@@ -107,29 +129,6 @@ public class UdpChannel extends AioChannel {
     }
 
 
-    /**
-     * 多线程持续写出
-     */
-    private void loopWrite() {
-        ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-        for (int i = 0; i < workerThreadNum; i++) {
-            workerThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Object obj;
-                        while ((obj = queue.poll()) != null) {
-                            UdpChannel.this.send(obj);
-                        }
-                    } catch (InterruptedException e) {
-                        logger.error(e.getMessage(), e);
-                    }
-                }
-            });
-        }
-    }
-
-
     @Override
     public void close() {
 
@@ -137,47 +136,60 @@ public class UdpChannel extends AioChannel {
             logger.warn("Channel:{} is closed:", getChannelId());
             return;
         }
-        try {
-            datagramChannel.close();
-        } catch (IOException e) {
-            logger.error(e);
-        }
+
+
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
         }
+
+
+        try {
+            channel.shutdownInput();
+        } catch (IOException e) {
+            logger.debug(e.getMessage(), e);
+        }
+        try {
+            channel.shutdownOutput();
+        } catch (IOException e) {
+            logger.debug(e.getMessage(), e);
+        }
+        try {
+            channel.close();
+        } catch (IOException e) {
+            logger.error("close channel exception", e);
+        }
         //更新状态
         status = CHANNEL_STATUS_CLOSED;
+        //触发责任链通知
+        try {
+            invokePipeline(ChannelState.CHANNEL_CLOSED);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         //最后需要清空责任链
         if (defaultChannelPipeline != null) {
             defaultChannelPipeline.clean();
             defaultChannelPipeline = null;
         }
+
     }
 
     @Override
     public void writeAndFlush(Object obj) {
-        try {
-            queue.put(obj);
-        } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
-        }
+
     }
 
     @Override
     @Deprecated
     public void writeToChannel(Object obj) {
-        try {
-            queue.put(obj);
-        } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
-        }
+
     }
 
     @Override
     public InetSocketAddress getLocalAddress() throws IOException {
         assertChannel();
-        return (InetSocketAddress) datagramChannel.getLocalAddress();
+        return (InetSocketAddress) channel.getLocalAddress();
     }
 
     /**
@@ -186,39 +198,59 @@ public class UdpChannel extends AioChannel {
      * @throws IOException 异常
      */
     private void assertChannel() throws IOException {
-        if (status == CHANNEL_STATUS_CLOSED || datagramChannel == null) {
+        if (status == CHANNEL_STATUS_CLOSED || channel == null) {
             throw new IOException("channel is closed");
         }
     }
 
 
     /**
-     * 往目标地址发送消息
+     * 继续写
      *
-     * @return void
-     * @params [obj]
+     * @param writeBuffer 写入的缓冲区
      */
-    private void send(Object obj) {
-        try {
-            //转换成udp数据包
-            DatagramPacket datagramPacket = (DatagramPacket) obj;
-            ByteBuffer byteBuffer = chunkPool.allocate(datagramPacket.getLength(), aioConfig.getChunkPoolBlockTime());
-            byteBuffer.put(datagramPacket.getData());
-            byteBuffer.flip();
-            //写出到目标地址
-            datagramChannel.send(byteBuffer, datagramPacket.getSocketAddress());
-            //释放内存
-            chunkPool.deallocate(byteBuffer);
-        } catch (ClassCastException e) {
-            logger.error(e.getMessage(), e);
-        } catch (InterruptedException e) {
-            logger.error(e);
-        } catch (IOException e) {
-            logger.error(e);
-        } catch (TimeoutException e) {
-            logger.error(e);
+    private void continueWrite() {
+
+        if (writeByteBuffer == null) {
+            writeByteBuffer = bufferWriter.poll();
+        } else if (!writeByteBuffer.hasRemaining()) {
+            //写完及时释放
+            chunkPool.deallocate(writeByteBuffer);
+            writeByteBuffer = bufferWriter.poll();
+        }
+
+        if (writeByteBuffer != null) {
+            //再次写
+            try {
+                channel.write(writeByteBuffer);
+            } catch (IOException e) {
+                logger.error("write error", e);
+            }
+            //这里为了确保这个线程可以完全写完需要输出的数据。因此循环输出，直至输出完毕
+            continueWrite();
+        }
+        //完全写完释放信息量
+        semaphore.release();
+
+        if (!keepAlive) {
+            this.close();
         }
     }
 
+
+    @Override
+    public Void apply(BufferWriter input) {
+        //获取信息量
+        if (!semaphore.tryAcquire()) {
+            return null;
+        }
+        NioChannel.this.writeByteBuffer = input.poll();
+        if (null == writeByteBuffer) {
+            semaphore.release();
+        } else {
+            NioChannel.this.continueWrite();
+        }
+        return null;
+    }
 
 }

@@ -1,7 +1,7 @@
 package com.gettyio.string.udp;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketDecoder;
@@ -41,7 +41,7 @@ public class UdpClient {
 
 
         AioClientStarter client = new AioClientStarter(aioConfig);
-        client.socketChannel(SocketChannel.UDP).channelInitializer(new ChannelInitializer() {
+        client.socketChannel(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
             @Override
             public void initChannel(AioChannel channel) throws Exception {
                 //责任链
@@ -63,11 +63,11 @@ public class UdpClient {
 
         try {
             Thread.sleep(2000);
-            AioChannel aioChannel = client.getAioChannel();
+            final AioChannel aioChannel = client.getAioChannel();
             String s = "12";
             byte[] msgBody = s.getBytes("utf-8");
-            DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
-            long ct = System.currentTimeMillis();
+            final DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
+            final long ct = System.currentTimeMillis();
 
             for(int j=0;j<1;j++){
                 new Thread(new Runnable() {

@@ -11,6 +11,7 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
+import com.gettyio.core.util.LinkedNonBlockQueue;
 
 
 /**
@@ -36,10 +37,11 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
         super.userEventTriggered(aioChannel, evt);
     }
 
+
     @Override
-    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
+    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         loss_connect_time = 0;
-        super.channelRead(aioChannel, obj);
+        super.decode(aioChannel, obj, out);
     }
 
 }

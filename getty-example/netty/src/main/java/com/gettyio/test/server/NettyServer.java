@@ -40,7 +40,7 @@ public class NettyServer {
                                             256 * 1024));// 配置水位线
                     // 绑定端口，开始接收进来的连接
                     ChannelFuture f = b.bind(3333).sync();
-                    System.out.println("[gim已启动，等待连接]");
+                    System.out.println("[netty已启动，等待连接]");
 
                     // 等待服务器 socket 关闭 ,这不会发生，可以优雅地关闭服务器。
                     f.channel().closeFuture().sync();

@@ -19,6 +19,7 @@ import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.Map;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 
@@ -65,10 +66,15 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     @Override
     public void run(Timeout timeout) throws Exception {
 
-        AioConfig aioClientConfig = aioChannel.getConfig();
-        ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+        final AioConfig aioClientConfig = aioChannel.getConfig();
+        final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
 
-        AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, Thread::new));
+        AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable target) {
+                return new Thread(target);
+            }
+        }));
         if (aioClientConfig.getSocketOptions() != null) {
             for (Map.Entry<SocketOption<Object>, Object> entry : aioClientConfig.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
@@ -78,7 +84,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
         /**
          * 非阻塞连接
          */
-        AsynchronousSocketChannel finalSocketChannel = socketChannel;
+        final AsynchronousSocketChannel finalSocketChannel = socketChannel;
         socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
             @Override
             public void completed(Void result, AsynchronousSocketChannel attachment) {

@@ -145,6 +145,11 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
     /**
      * 移除监听
      */
-    private final ChannelFutureListener remover = aioChannel -> remove(aioChannel);
+    private final ChannelFutureListener remover = new ChannelFutureListener() {
+        @Override
+        public void operationComplete(AioChannel aioChannel) {
+            DefaultChannelGroup.this.remove(aioChannel);
+        }
+    };
 
 }

@@ -1,19 +1,17 @@
 package com.gettyio.string.tcp;
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
-import org.springframework.util.ResourceUtils;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -44,7 +42,7 @@ public class TcpClient {
 
 
         AioClientStarter client = new AioClientStarter(aioConfig);
-        client.socketChannel(SocketChannel.TCP).channelInitializer(new ChannelInitializer() {
+        client.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
             @Override
             public void initChannel(AioChannel channel) throws Exception {
                 //责任链
@@ -52,7 +50,7 @@ public class TcpClient {
 
 
                 //获取证书
-                String pkPath = ResourceUtils.getURL("classpath:clientStore.jks")
+                String pkPath =  getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();

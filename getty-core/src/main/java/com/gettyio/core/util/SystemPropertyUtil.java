@@ -1,8 +1,9 @@
 
 package com.gettyio.core.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -14,7 +15,7 @@ import java.util.regex.Pattern;
 public final class SystemPropertyUtil {
 
     private static boolean initializedLogger;
-    private final static Logger logger = LoggerFactory.getLogger(SystemPropertyUtil.class);
+    private final static InternalLogger logger = InternalLoggerFactory.getInstance(SystemPropertyUtil.class);
 
     private static boolean loggedException;
 

@@ -5,7 +5,7 @@
     <parent>
         <artifactId>getty</artifactId>
         <groupId>com.gettyio</groupId>
-        <version>1.2.1</version>
+        <version>1.2.5</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>getty-core</artifactId>
@@ -52,8 +52,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.5.1</version>
                 <configuration>
-                    <source>8</source>
-                    <target>8</target>
+                    <source>7</source>
+                    <target>7</target>
                 </configuration>
             </plugin>
             <plugin>

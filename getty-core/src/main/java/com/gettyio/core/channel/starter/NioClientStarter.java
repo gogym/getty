@@ -9,10 +9,7 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
-import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.channel.UdpChannel;
+import com.gettyio.core.channel.*;
 import com.gettyio.core.channel.config.AioClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -25,6 +22,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
 import java.nio.channels.*;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
@@ -34,9 +32,10 @@ import java.util.concurrent.ThreadFactory;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class AioClientStarter {
+public class NioClientStarter {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AioClientStarter.class);
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioClientStarter.class);
 
     //开启的socket模式 TCP/UDP ,默认tcp
     protected SocketMode socketChannel = SocketMode.TCP;
@@ -59,7 +58,7 @@ public class AioClientStarter {
      * @param host 服务器地址
      * @param port 服务器端口号
      */
-    public AioClientStarter(String host, int port) {
+    public NioClientStarter(String host, int port) {
         aioClientConfig.setHost(host);
         aioClientConfig.setPort(port);
     }
@@ -70,7 +69,7 @@ public class AioClientStarter {
      *
      * @param aioClientConfig 配置
      */
-    public AioClientStarter(AioClientConfig aioClientConfig) {
+    public NioClientStarter(AioClientConfig aioClientConfig) {
         if (null == aioClientConfig.getHost() || "".equals(aioClientConfig.getHost())) {
             throw new NullPointerException("The connection host is null.");
         }
@@ -87,13 +86,13 @@ public class AioClientStarter {
      * @param channelPipeline 责任链
      * @return AioClientStarter
      */
-    public AioClientStarter channelInitializer(ChannelPipeline channelPipeline) {
+    public NioClientStarter channelInitializer(ChannelPipeline channelPipeline) {
         this.channelPipeline = channelPipeline;
         return this;
     }
 
 
-    public AioClientStarter socketChannel(SocketMode socketChannel) {
+    public NioClientStarter socketChannel(SocketMode socketChannel) {
         this.socketChannel = socketChannel;
         return this;
     }
@@ -137,29 +136,42 @@ public class AioClientStarter {
      */
     private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
 
-        final AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
+        final SocketChannel socketChannel = SocketChannel.open();
         if (aioClientConfig.getSocketOptions() != null) {
             for (Map.Entry<SocketOption<Object>, Object> entry : aioClientConfig.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
-        /**
-         * 非阻塞连接
-         */
-        socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
-            @Override
-            public void completed(Void result, AsynchronousSocketChannel attachment) {
-                logger.info("connect tcp server success");
-                //连接成功则构造AIOSession对象
-                aioChannel = new TcpChannel(socketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelPipeline);
-                aioChannel.starRead();
-            }
 
-            @Override
-            public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                logger.error("connect tcp server  error", exc);
+        socketChannel.configureBlocking(false);
+        /*
+         * 连接到指定的服务地址
+         */
+        socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()));
+
+        /*
+         * 创建一个事件选择器Selector
+         */
+        Selector selector = Selector.open();
+
+        /*
+         * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
+         */
+        socketChannel.register(selector, SelectionKey.OP_CONNECT);
+
+        NioChannel nioChannel = null;
+        try {
+            nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, channelPipeline);
+            //创建成功立即开始读
+            nioChannel.starRead();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            if (nioChannel != null) {
+                closeChannel(socketChannel);
             }
-        });
+        }
+
+
     }
 
 
@@ -194,6 +206,28 @@ public class AioClientStarter {
         }
     }
 
+    /**
+     * 关闭客户端连接通道
+     *
+     * @param channel 通道
+     */
+    private void closeChannel(SocketChannel channel) {
+        try {
+            channel.shutdownInput();
+        } catch (IOException e) {
+            logger.debug(e.getMessage(), e);
+        }
+        try {
+            channel.shutdownOutput();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            channel.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * 获取AioChannel

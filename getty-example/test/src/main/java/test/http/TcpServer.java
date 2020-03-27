@@ -2,21 +2,14 @@ package test.http;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.http.HttpDecoder;
 import com.gettyio.core.handler.codec.http.HttpRequestDecoder;
 import com.gettyio.core.handler.codec.http.HttpResponseEncoder;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.core.handler.codec.string.StringDecoder;
-import com.gettyio.core.handler.ssl.ClientAuth;
-import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import org.springframework.util.ResourceUtils;
 
 import java.net.StandardSocketOptions;
 
@@ -44,7 +37,7 @@ public class TcpServer {
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(8888);
-            server.socketChannel(SocketChannel.TCP).channelInitializer(new ChannelInitializer() {
+            server.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(AioChannel channel) throws Exception {
                     //获取责任链对象

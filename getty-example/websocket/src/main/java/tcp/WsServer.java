@@ -2,7 +2,7 @@ package tcp;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.StringDecoder;
@@ -14,7 +14,6 @@ import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import org.springframework.util.ResourceUtils;
 
 import java.net.StandardSocketOptions;
 
@@ -43,14 +42,14 @@ public class WsServer {
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(aioServerConfig);
-            server.socketChannel(SocketChannel.TCP).channelInitializer(new ChannelInitializer() {
+            server.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(AioChannel channel) throws Exception {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                     //获取证书
-                    String pkPath = ResourceUtils.getURL("classpath:serverStore.jks")
+                    String pkPath = getClass().getClassLoader().getResource("serverStore.jks")
                             .getPath();
                     //ssl配置
                     SslConfig sSLConfig = new SslConfig();

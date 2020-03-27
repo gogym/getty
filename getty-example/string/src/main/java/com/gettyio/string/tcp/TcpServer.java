@@ -2,20 +2,16 @@ package com.gettyio.string.tcp;
 
 
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.AioServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.handler.timeout.HeartBeatTimeOutHandler;
-import com.gettyio.core.handler.timeout.IdleStateHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import org.springframework.util.ResourceUtils;
 
 import java.net.StandardSocketOptions;
 
@@ -43,14 +39,14 @@ public class TcpServer {
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(8888);
-            server.socketChannel(SocketChannel.TCP).channelInitializer(new ChannelInitializer() {
+            server.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(AioChannel channel) throws Exception {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                     //获取证书
-                    String pkPath = ResourceUtils.getURL("classpath:serverStore.jks")
+                    String pkPath = getClass().getClassLoader().getResource("serverStore.jks")
                             .getPath();
                     //ssl配置
                     SslConfig sSLConfig = new SslConfig();
@@ -68,7 +64,7 @@ public class TcpServer {
                     //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                     //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
-                   // defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
+                    // defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
                     defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
                     //添加字符串解码器

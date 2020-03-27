@@ -92,7 +92,7 @@ public class TcpChannel extends AioChannel implements Function<BufferWriter, Voi
         try {
             invokePipeline(ChannelState.NEW_CHANNEL);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 

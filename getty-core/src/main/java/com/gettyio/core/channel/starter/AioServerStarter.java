@@ -9,7 +9,7 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.TcpChannel;
 import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.AioServerConfig;
@@ -38,7 +38,7 @@ public class AioServerStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioServerStarter.class);
 
     //开启的socket模式 TCP/UDP ,默认tcp
-    protected SocketChannel socketChannel = SocketChannel.TCP;
+    protected SocketMode socketChannel = SocketMode.TCP;
     //Server端服务配置
     protected AioServerConfig config = new AioServerConfig();
     //内存池
@@ -123,7 +123,7 @@ public class AioServerStarter {
         return this;
     }
 
-    public AioServerStarter socketChannel(SocketChannel socketChannel) {
+    public AioServerStarter socketChannel(SocketMode socketChannel) {
         this.socketChannel = socketChannel;
         return this;
     }
@@ -150,7 +150,7 @@ public class AioServerStarter {
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
 
-        if (socketChannel == SocketChannel.TCP) {
+        if (socketChannel == SocketMode.TCP) {
             startTCP();
         } else {
             startUDP();
@@ -170,7 +170,12 @@ public class AioServerStarter {
             aioWriteCompletionHandler = new WriteCompletionHandler();
 
             //IO线程分组
-            asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, Thread::new);
+            asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable target) {
+                    return new Thread(target);
+                }
+            });
 
             //打开服务通道
             this.serverSocketChannel = AsynchronousServerSocketChannel.open(asynchronousChannelGroup);
@@ -192,22 +197,28 @@ public class AioServerStarter {
             }
 
             //开启线程，开始接收客户端的连接
-            new Thread(() -> {
-                //循环监听客户端的连接
-                while (running) {
-                    //调用该方法返回的Future对象的get()方法
-                    Future<AsynchronousSocketChannel> future = serverSocketChannel.accept();
-                    try {
-                        //get方法会阻塞该线程，直到有客户端连接过来，有点类似MQ，所以这种方式是阻塞式的异步IO
-                        final AsynchronousSocketChannel channel = future.get();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    //循环监听客户端的连接
+                    while (running) {
+                        //调用该方法返回的Future对象的get()方法
+                        Future<AsynchronousSocketChannel> future = serverSocketChannel.accept();
+                        try {
+                            //get方法会阻塞该线程，直到有客户端连接过来，有点类似MQ，所以这种方式是阻塞式的异步IO
+                            final AsynchronousSocketChannel channel = future.get();
 
-                        //通过线程池创建客户端连接通道
-                        workerThreadPool.execute(() -> {
-                            //开始创建客户端会话
-                            createTcpChannel(channel);
-                        });
-                    } catch (Exception e) {
-                        LOGGER.error("AsynchronousSocketChannel accept Exception", e);
+                            //通过线程池创建客户端连接通道
+                            workerThreadPool.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    //开始创建客户端会话
+                                    AioServerStarter.this.createTcpChannel(channel);
+                                }
+                            });
+                        } catch (Exception e) {
+                            LOGGER.error("AsynchronousSocketChannel accept Exception", e);
+                        }
                     }
                 }
             }).start();

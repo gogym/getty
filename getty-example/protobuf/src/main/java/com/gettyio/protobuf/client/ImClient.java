@@ -13,7 +13,6 @@ import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 import com.gettyio.protobuf.packet.MessageClass;
-import org.springframework.util.ResourceUtils;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -47,7 +46,7 @@ public class ImClient {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
                 //获取证书
-                String pkPath = ResourceUtils.getURL("classpath:clientStore.jks")
+                String pkPath =  getClass().getClassLoader().getResource("classpath:clientStore.jks")
                         .getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
@@ -60,7 +59,7 @@ public class ImClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 defaultChannelPipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
                 defaultChannelPipeline.addLast(new ProtobufEncoder());
@@ -81,21 +80,21 @@ public class ImClient {
         }
 
         try {
-            Thread.sleep(3000);
+            Thread.sleep(2000);
             AioChannel aioChannel = client.getAioChannel();
 
 
             MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
             builder.setId("123");
 
-            for (int i = 0; i < 2; i++) {
-                aioChannel.writeAndFlush(builder.build());
-            }
-
-//            while (true){
-//                Thread.sleep(500);
+//            for (int i = 0; i < 2; i++) {
 //                aioChannel.writeAndFlush(builder.build());
 //            }
+
+            while (true){
+                Thread.sleep(1000);
+                aioChannel.writeAndFlush(builder.build());
+            }
 
 
         } catch (Exception e) {

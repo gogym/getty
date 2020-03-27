@@ -1,22 +1,10 @@
 package tcp;
 
-import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.config.AioClientConfig;
-import com.gettyio.core.channel.starter.AioClientStarter;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.core.handler.codec.string.StringDecoder;
-import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.enums.ReadyState;
 import org.java_websocket.handshake.ServerHandshake;
-import org.springframework.util.ResourceUtils;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -37,7 +25,7 @@ public class WsClient {
         WebSocketClientInst chatclient = new WebSocketClientInst(new URI("ws://localhost:8888/echo"));
 
         //获取证书
-        String pkPath = ResourceUtils.getURL("classpath:clientStore.jks")
+        String pkPath = WsClient.class.getClassLoader().getResource("clientStore.jks")
                 .getPath();
         //ssl配置
         SslConfig sSLConfig = new SslConfig();

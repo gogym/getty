@@ -6,7 +6,7 @@ package com.gettyio.core.channel;/*
  * 时间：2019/12/17
  */
 
-public enum SocketChannel {
+public enum SocketMode {
     TCP,
     UDP
 }

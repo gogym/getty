@@ -34,31 +34,37 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
         this(aioChannel, readerIdleTimeSeconds, writerIdleTimeSeconds, TimeUnit.SECONDS);
     }
 
-    public IdleStateHandler(AioChannel aioChannel, long readerIdleTime, long writerIdleTime, TimeUnit unit) {
+    public IdleStateHandler(final AioChannel aioChannel, long readerIdleTime, long writerIdleTime, TimeUnit unit) {
         pool = new ThreadPool(ThreadPool.FixedThread, 3);
         if (readerIdleTime > 0) {
-            pool.scheduleWithFixedRate(() -> {
-                if (readerIdle) {
-                    try {
-                        userEventTriggered(aioChannel, IdleState.READER_IDLE);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+            pool.scheduleWithFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    if (readerIdle) {
+                        try {
+                            IdleStateHandler.this.userEventTriggered(aioChannel, IdleState.READER_IDLE);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
+                    readerIdle = true;
                 }
-                readerIdle = true;
             }, 0, readerIdleTime, unit);
         }
 
         if (writerIdleTime > 0) {
-            pool.scheduleWithFixedRate(() -> {
-                if (writerIdle) {
-                    try {
-                        userEventTriggered(aioChannel, IdleState.WRITER_IDLE);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+            pool.scheduleWithFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    if (writerIdle) {
+                        try {
+                            IdleStateHandler.this.userEventTriggered(aioChannel, IdleState.WRITER_IDLE);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
+                    writerIdle = true;
                 }
-                writerIdle = true;
             }, 0, writerIdleTime, unit);
         }
     }
