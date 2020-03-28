@@ -84,14 +84,14 @@ public class NioClient {
 
         try {
             Thread.sleep(3000);
-            SocketChannel aioChannel = client.getAioChannel();
+            SocketChannel aioChannel = client.getNioChannel();
             aioChannel.getChannelAttribute().put("key", "value");
             String s = "12\r\n";
             byte[] msgBody = s.getBytes("utf-8");
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 10; i++) {
+            for (; i < 1000000; i++) {
 //                String s = i + "me\r\n";
                 // byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);

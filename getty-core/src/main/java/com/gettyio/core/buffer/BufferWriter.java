@@ -9,6 +9,7 @@ package com.gettyio.core.buffer;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.io.IOException;
@@ -31,9 +32,9 @@ public final class BufferWriter extends OutputStream {
     //当前是否已关闭
     private boolean closed = false;
     //阻塞队列
-    private final LinkedNonBlockQueue<ByteBuffer> queue;
+    private final LinkedBlockQueue<ByteBuffer> queue;
 
-    public LinkedNonBlockQueue<ByteBuffer> getQueue() {
+    public LinkedBlockQueue<ByteBuffer> getQueue() {
         return queue;
     }
 
@@ -41,7 +42,7 @@ public final class BufferWriter extends OutputStream {
         this.chunkPool = chunkPool;
         this.chunkPoolBlockTime = chunkPoolBlockTime;
         this.function = flushFunction;
-        queue = new LinkedNonBlockQueue<>(bufferWriterQueueSize);
+        queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
     }
 
     @Deprecated

@@ -38,24 +38,23 @@ public class NettyClient {
                         } else {
                             System.out.println("连接成功");
                             Channel c = f.channel();
+                           // MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
+                            //builder.setId("123");
 
-                            MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
-                            builder.setId("123");
-
-                            for (int i = 0; i < 100; i++) {
-                                c.writeAndFlush(builder.build());
-                            }
-
-
-//                            String s = "me\r\n";
-//                            byte[] msgBody = s.getBytes("utf-8");
-//                            long ct = System.currentTimeMillis();
-//                            for (int i = 0; i < 1000000; i++) {
+//                            for (int i = 0; i < 100; i++) {
 //                                c.writeAndFlush(msgBody);
 //                            }
-//
-//                            long lt = System.currentTimeMillis();
-//                            System.out.println("耗时：" + (lt - ct));
+
+
+                            String s = "12\r\n";
+                            byte[] msgBody = s.getBytes("utf-8");
+                            long ct = System.currentTimeMillis();
+                            for (int i = 0; i < 1000000; i++) {
+                                c.writeAndFlush(msgBody);
+                            }
+
+                            long lt = System.currentTimeMillis();
+                            System.out.println("耗时：" + (lt - ct));
 
 
                         }

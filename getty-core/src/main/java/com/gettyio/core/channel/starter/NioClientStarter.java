@@ -49,6 +49,13 @@ public class NioClientStarter {
     //责任链对象
     protected ChannelPipeline channelPipeline;
 
+    //Boss线程数，获取cpu核心,核心小于4设置线程为3，大于4设置和cpu核心数一致
+    private int bossThreadNum = Runtime.getRuntime().availableProcessors() < 4 ? 3 : Runtime.getRuntime().availableProcessors();
+    // Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
+    private int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
+    // Worker线程数
+    private int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
+
     /**
      * 简单启动
      *
@@ -94,6 +101,17 @@ public class NioClientStarter {
         return this;
     }
 
+
+    /**
+     * 设置Boss线程数
+     *
+     * @param threadNum 线程数
+     * @return AioServerStarter
+     */
+    public NioClientStarter bossThreadNum(int threadNum) {
+        this.bossThreadNum = threadNum;
+        return this;
+    }
 
     /**
      * 启动客户端。
@@ -159,7 +177,7 @@ public class NioClientStarter {
                     if (channel.isConnectionPending()) {
                         channel.finishConnect();
                         try {
-                            nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, channelPipeline);
+                            nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, workerThreadNum, channelPipeline);
                             //创建成功立即开始读
                             nioChannel.starRead();
                         } catch (Exception e) {
@@ -232,7 +250,7 @@ public class NioClientStarter {
      *
      * @return AioChannel
      */
-    public SocketChannel getAioChannel() {
+    public SocketChannel getNioChannel() {
         if (nioChannel != null) {
             if ((nioChannel.getSslHandler()) != null && socketMode != SocketMode.UDP) {
                 //如果开启了ssl,要先判断是否已经完成握手

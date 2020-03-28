@@ -37,7 +37,7 @@ public class TcpServer {
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(8888);
-            server.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
+            server.channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象

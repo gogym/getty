@@ -260,7 +260,7 @@ public class NioServerStater extends NioStarter {
     private void createTcpChannel(java.nio.channels.SocketChannel channel) {
         SocketChannel socketChannel = null;
         try {
-            socketChannel = new NioChannel(channel, serverConfig, chunkPool, channelPipeline);
+            socketChannel = new NioChannel(channel, serverConfig, chunkPool,workerThreadNum, channelPipeline);
             //创建成功立即开始读
             socketChannel.starRead();
         } catch (Exception e) {

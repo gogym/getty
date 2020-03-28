@@ -40,12 +40,14 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     private Semaphore semaphore = new Semaphore(1);
 
     //线程池
-    private int workerThreadNum = 3;
+    private int workerThreadNum;
+    ThreadPool workerThreadPool;
 
-    public NioChannel(java.nio.channels.SocketChannel channel, BaseConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
+    public NioChannel(java.nio.channels.SocketChannel channel, BaseConfig config, ChunkPool chunkPool, Integer workerThreadNum, ChannelPipeline channelPipeline) {
         this.channel = channel;
         this.aioConfig = config;
         this.chunkPool = chunkPool;
+        this.workerThreadNum = workerThreadNum;
         try {
             this.selector = Selector.open();
             channel.register(selector, SelectionKey.OP_READ);
@@ -59,20 +61,26 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
 
         //初始化数据输出类
         bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
-
+        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         //触发责任链
         try {
             invokePipeline(ChannelState.NEW_CHANNEL);
         } catch (Exception e) {
             logger.error(e);
         }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                NioChannel.this.continueWrite();
+            }
+        }).start();
+
     }
 
 
     @Override
     public void starRead() {
-        ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-
         //多线程处理，提高效率
         for (int i = 0; i < workerThreadNum; i++) {
             workerThreadPool.execute(new Runnable() {
@@ -96,7 +104,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
 
                                     //读取缓冲区数据到管道
                                     if (null != readBuffer) {
-
                                         readBuffer.flip();
                                         //读取缓冲区数据，输送到责任链
                                         while (readBuffer.hasRemaining()) {
@@ -109,9 +116,9 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                                                 close();
                                             }
                                         }
-                                        //触发读取完成，清理缓冲区
-                                        chunkPool.deallocate(readBuffer);
                                     }
+                                    //触发读取完成，清理缓冲区
+                                    chunkPool.deallocate(readBuffer);
                                 }
                             }
                             it.remove();
@@ -184,7 +191,9 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public void writeToChannel(Object obj) {
         try {
-            bufferWriter.writeAndFlush((byte[]) obj);
+            //bufferWriter.writeAndFlush((byte[]) obj);
+            byte[] bytes = (byte[]) obj;
+            bufferWriter.write(bytes, 0, bytes.length);
         } catch (IOException e) {
             logger.error(e);
         }
@@ -213,45 +222,35 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     private void continueWrite() {
 
-        if (writeByteBuffer == null) {
-            writeByteBuffer = bufferWriter.poll();
-        } else if (!writeByteBuffer.hasRemaining()) {
-            //写完及时释放
-            chunkPool.deallocate(writeByteBuffer);
-            writeByteBuffer = bufferWriter.poll();
-        }
-
-        if (writeByteBuffer != null) {
-            //再次写
-            try {
-                channel.write(writeByteBuffer);
-            } catch (IOException e) {
-                logger.error("write error", e);
+        while (true) {
+            if (writeByteBuffer == null) {
+                writeByteBuffer = bufferWriter.poll();
+            } else if (!writeByteBuffer.hasRemaining()) {
+                //写完及时释放
+                chunkPool.deallocate(writeByteBuffer);
+                writeByteBuffer = bufferWriter.poll();
             }
-            //这里为了确保这个线程可以完全写完需要输出的数据。因此循环输出，直至输出完毕
-            continueWrite();
-        }
-        //完全写完释放信息量
-        semaphore.release();
 
-        if (!keepAlive) {
-            this.close();
+            if (writeByteBuffer != null) {
+                //再次写
+                try {
+                    channel.write(writeByteBuffer);
+                } catch (IOException e) {
+                    NioChannel.this.close();
+                    logger.error("write error", e);
+                    break;
+                }
+            }
+            if (!keepAlive) {
+                NioChannel.this.close();
+                break;
+            }
         }
     }
 
 
     @Override
     public Void apply(BufferWriter input) {
-        //获取信息量
-        if (!semaphore.tryAcquire()) {
-            return null;
-        }
-        NioChannel.this.writeByteBuffer = input.poll();
-        if (null == writeByteBuffer) {
-            semaphore.release();
-        } else {
-            NioChannel.this.continueWrite();
-        }
         return null;
     }
 

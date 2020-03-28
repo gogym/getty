@@ -65,7 +65,7 @@ public class AioClient {
                 SslService sSLService = new SslService(sSLConfig);
                // defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
 
-                defaultChannelPipeline.addLast(new ReConnectHandler(channel));
+                //defaultChannelPipeline.addLast(new ReConnectHandler(channel));
 
                 //指定结束符解码器
                 defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
@@ -92,7 +92,7 @@ public class AioClient {
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 10; i++) {
+            for (; i < 1000000; i++) {
 //                String s = i + "me\r\n";
                 // byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);

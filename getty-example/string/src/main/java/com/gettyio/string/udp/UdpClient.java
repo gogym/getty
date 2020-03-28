@@ -64,7 +64,7 @@ public class UdpClient {
 
         try {
             Thread.sleep(2000);
-            final SocketChannel aioChannel = client.getAioChannel();
+            final SocketChannel aioChannel = client.getNioChannel();
             String s = "12";
             byte[] msgBody = s.getBytes("utf-8");
             final DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
