@@ -69,6 +69,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             logger.error(e);
         }
 
+        //开启线程写出消息
         new Thread(new Runnable() {
             @Override
             public void run() {

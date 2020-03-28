@@ -65,7 +65,7 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.2.4</version>
+            <version>1.3.0</version>
         </dependency>
 ```
 
@@ -73,7 +73,7 @@
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.2.4'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.3.0'
 ```
 
 
@@ -82,6 +82,24 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.2.4'
 可直接到中央仓库下载jar包导入到工程中
 
 链接：https://mvnrepository.com/artifact/com.gettyio/getty-core [点击跳转到中央仓库](https://mvnrepository.com/artifact/com.gettyio/getty-core)
+
+
+### 新版本特征
+
+部分朋友希望对1.7版本兼容，特别是低Android版本，比如Android 5.0的兼容，因此新版本做了这块的更新
+ 
+ 1、添加 nio 1支持
+ 
+ 2、去除必须jdk1.8的特征，对JDK1.7做了版本兼容
+ 
+ 3、对openjdk7版本兼容
+ 
+ 4、对Android5.0版本兼容
+ 
+ 优化
+ 
+ 优化了部分代码，提高了稳定性
+
 
 
 
