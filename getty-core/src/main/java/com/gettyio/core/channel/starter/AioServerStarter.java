@@ -9,12 +9,10 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
-import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.channel.UdpChannel;
-import com.gettyio.core.channel.config.AioServerConfig;
-import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.config.ServerConfig;
+import com.gettyio.core.channel.internal.WriteCompletionHandler;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -37,16 +35,14 @@ import java.util.concurrent.*;
 public class AioServerStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioServerStarter.class);
 
-    //开启的socket模式 TCP/UDP ,默认tcp
-    protected SocketMode socketChannel = SocketMode.TCP;
     //Server端服务配置
-    protected AioServerConfig config = new AioServerConfig();
+    protected ServerConfig config = new ServerConfig();
     //内存池
     protected ChunkPool chunkPool;
     //读回调事件处理
-    protected ReadCompletionHandler aioReadCompletionHandler;
+    protected ReadCompletionHandler readCompletionHandler;
     //写回调事件处理
-    protected WriteCompletionHandler aioWriteCompletionHandler;
+    protected WriteCompletionHandler writeCompletionHandler;
     // 责任链对象
     protected ChannelPipeline channelPipeline;
     //线程池
@@ -89,7 +85,7 @@ public class AioServerStarter {
      *
      * @param config 配置
      */
-    public AioServerStarter(AioServerConfig config) {
+    public AioServerStarter(ServerConfig config) {
         if (config == null) {
             throw new NullPointerException("AioServerConfig can't null");
         }
@@ -123,11 +119,6 @@ public class AioServerStarter {
         return this;
     }
 
-    public AioServerStarter socketChannel(SocketMode socketChannel) {
-        this.socketChannel = socketChannel;
-        return this;
-    }
-
 
     /**
      * 启动AIO服务
@@ -136,7 +127,7 @@ public class AioServerStarter {
      */
     public void start() throws Exception {
         //打印框架信息
-        LOGGER.info("\r\n" + AioServerConfig.BANNER + "\r\n  getty version:(" + AioServerConfig.VERSION + ")");
+        LOGGER.info("\r\n" + ServerConfig.BANNER + "\r\n  getty version:(" + ServerConfig.VERSION + ")");
 
         if (channelPipeline == null) {
             throw new RuntimeException("ChannelPipeline can't be null");
@@ -149,12 +140,8 @@ public class AioServerStarter {
 
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-
-        if (socketChannel == SocketMode.TCP) {
-            startTCP();
-        } else {
-            startUDP();
-        }
+        //启动
+        startTCP();
     }
 
     /**
@@ -166,8 +153,8 @@ public class AioServerStarter {
         try {
 
             //实例化读写回调
-            aioReadCompletionHandler = new ReadCompletionHandler(workerThreadPool);
-            aioWriteCompletionHandler = new WriteCompletionHandler();
+            readCompletionHandler = new ReadCompletionHandler(workerThreadPool);
+            writeCompletionHandler = new WriteCompletionHandler();
 
             //IO线程分组
             asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, new ThreadFactory() {
@@ -233,39 +220,14 @@ public class AioServerStarter {
 
 
     /**
-     * 启动UDP
-     *
-     * @throws IOException 异常
-     */
-    private final void startUDP() throws IOException {
-
-        DatagramChannel datagramChannel = DatagramChannel.open();
-        datagramChannel.configureBlocking(false);
-        datagramChannel.bind(new InetSocketAddress(config.getPort()));
-        //设置socket参数
-        if (config.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
-                datagramChannel.setOption(entry.getKey(), entry.getValue());
-            }
-        }
-        Selector selector = Selector.open();
-        datagramChannel.register(selector, SelectionKey.OP_READ);
-        createUdpChannel(datagramChannel, selector);
-
-        LOGGER.info("getty server started UDP on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
-        LOGGER.info("getty server config is {}", config.toString());
-    }
-
-
-    /**
      * 为每个新连接创建AioChannel对象
      *
      * @param channel 通道
      */
     private void createTcpChannel(AsynchronousSocketChannel channel) {
-        AioChannel aioChannel = null;
+        SocketChannel aioChannel = null;
         try {
-            aioChannel = new TcpChannel(channel, config, aioReadCompletionHandler, aioWriteCompletionHandler, chunkPool, channelPipeline);
+            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, chunkPool, channelPipeline);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {
@@ -276,17 +238,6 @@ public class AioServerStarter {
         }
     }
 
-
-    /**
-     * 创建Udp通道
-     *
-     * @return void
-     * @params [datagramChannel, selector]
-     */
-    private void createUdpChannel(DatagramChannel datagramChannel, Selector selector) {
-        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, config, chunkPool, channelPipeline, workerThreadNum);
-        udpChannel.starRead();
-    }
 
     /**
      * 关闭客户端连接通道

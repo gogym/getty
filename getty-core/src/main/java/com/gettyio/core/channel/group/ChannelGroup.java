@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.channel.group;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 
 import java.util.Set;
 
@@ -17,8 +17,8 @@ import java.util.Set;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public interface ChannelGroup extends Set<AioChannel>, Comparable<ChannelGroup> {
+public interface ChannelGroup extends Set<SocketChannel>, Comparable<ChannelGroup> {
 
     String name();
-    AioChannel find(String id);
+    SocketChannel find(String id);
 }

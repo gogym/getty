@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.handler.ssl;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISSLListener;
 import com.gettyio.core.handler.ssl.sslfacade.ISessionClosedListener;
@@ -29,13 +29,13 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(SslHandler.class);
 
     private SslService sslService;
-    private AioChannel aioChannel;
+    private SocketChannel socketChannel;
     LinkedNonBlockQueue<Object> out;
 
-    public SslHandler(AioChannel aioChannel, SslService sslService) {
-        this.aioChannel = aioChannel;
+    public SslHandler(SocketChannel socketChannel, SslService sslService) {
+        this.socketChannel = socketChannel;
         this.sslService = sslService;
-        this.aioChannel.setSslHandler(this);
+        this.socketChannel.setSslHandler(this);
         sslService.createSSLFacade(new handshakeCompletedListener(), new SSLListener(), new sessionClosedListener());
     }
 
@@ -45,7 +45,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
     }
 
     @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
         byte[] bytes = (byte[]) obj;
         if (!sslService.getSsl().isHandshakeCompleted() && obj != null) {
             //握手
@@ -57,7 +57,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
 
                 byte[] b = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bytes, 0, b.length);
-                aioChannel.writeToChannel(b);
+                socketChannel.writeToChannel(b);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
                 sslService.getSsl().close();
@@ -72,7 +72,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         this.out = out;
         byte[] bytes = (byte[]) obj;
         if (!sslService.getSsl().isHandshakeCompleted() && obj != null) {
@@ -84,7 +84,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
                 sslService.getSsl().decrypt(byteBuffer);
                 byte[] b = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bytes, 0, b.length);
-                aioChannel.writeToChannel(b);
+                socketChannel.writeToChannel(b);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
                 sslService.getSsl().close();
@@ -120,7 +120,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
         public void onSessionClosed() {
             logger.info("Handshake failure");
             //当握手失败时，关闭当前客户端连接
-            aioChannel.close();
+            socketChannel.close();
             return;
         }
     }
@@ -140,7 +140,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
                 wrappedBytes.get(b, 0, b.length);
                 //回调父类方法
                 //aioChannel.writeToChannel(b);
-                SslHandler.super.encode(aioChannel, b);
+                SslHandler.super.encode(socketChannel, b);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }
@@ -152,7 +152,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
             byte[] b = new byte[plainBytes.remaining()];
             plainBytes.get(b, 0, b.length);
             try {
-                SslHandler.super.decode(aioChannel, b, out);
+                SslHandler.super.decode(socketChannel, b, out);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             }

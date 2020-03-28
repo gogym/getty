@@ -8,11 +8,8 @@
 package com.gettyio.core.pipeline;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.timeout.IdleState;
-import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 
 /**
@@ -24,81 +21,81 @@ import com.gettyio.core.util.LinkedNonBlockQueue;
 public abstract class ChannelHandlerAdapter implements ChannelboundHandler {
 
     @Override
-    public void channelAdded(AioChannel aioChannel) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
+    public void channelAdded(SocketChannel socketChannel) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;
         }
-        channelHandlerAdapter.channelAdded(aioChannel);
+        channelHandlerAdapter.channelAdded(socketChannel);
     }
 
     @Override
-    public void channelClosed(AioChannel aioChannel) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
+    public void channelClosed(SocketChannel socketChannel) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;
         }
-        channelHandlerAdapter.channelClosed(aioChannel);
+        channelHandlerAdapter.channelClosed(socketChannel);
     }
 
     @Override
-    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
+    public void channelRead(SocketChannel socketChannel, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;
         }
-        channelHandlerAdapter.channelRead(aioChannel, obj);
+        channelHandlerAdapter.channelRead(socketChannel, obj);
     }
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
+    public void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;
         }
-        channelHandlerAdapter.exceptionCaught(aioChannel, cause);
+        channelHandlerAdapter.exceptionCaught(socketChannel, cause);
     }
 
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;
         }
-        channelHandlerAdapter.decode(aioChannel, obj, out);
+        channelHandlerAdapter.decode(socketChannel, obj, out);
     }
 
 
     //------------------------------------------------
 
     @Override
-    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
+    public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextOutPipe(this);
         if (channelHandlerAdapter == null) {
             return;
         }
-        channelHandlerAdapter.channelWrite(aioChannel, obj);
+        channelHandlerAdapter.channelWrite(socketChannel, obj);
     }
 
     @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextOutPipe(this);
+    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextOutPipe(this);
         if (channelHandlerAdapter == null) {
-            aioChannel.writeToChannel(obj);
+            socketChannel.writeToChannel(obj);
             return;
         }
-        channelHandlerAdapter.encode(aioChannel, obj);
+        channelHandlerAdapter.encode(socketChannel, obj);
     }
 
 
     //-------------------------------------------------------------
 
     @Override
-    public void userEventTriggered(AioChannel aioChannel, IdleState evt) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = aioChannel.getDefaultChannelPipeline().nextInPipe(this);
+    public void userEventTriggered(SocketChannel socketChannel, IdleState evt) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter != null) {
-            channelHandlerAdapter.userEventTriggered(aioChannel, evt);
+            channelHandlerAdapter.userEventTriggered(socketChannel, evt);
         }
     }
 

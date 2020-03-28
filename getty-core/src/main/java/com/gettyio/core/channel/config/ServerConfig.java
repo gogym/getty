@@ -13,7 +13,7 @@ package com.gettyio.core.channel.config;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public final class AioServerConfig extends AioConfig {
+public final class ServerConfig extends BaseConfig {
 
     //服务器端内存池大小,默认256m
     private Integer serverChunkSize = 256 * 1024 * 1024;

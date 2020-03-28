@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.handler.codec.string;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 
 /**
@@ -19,8 +19,8 @@ import com.gettyio.core.handler.codec.MessageToByteEncoder;
 public class StringEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
-        super.encode(aioChannel, obj);
+    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
+        super.encode(socketChannel, obj);
     }
 
 

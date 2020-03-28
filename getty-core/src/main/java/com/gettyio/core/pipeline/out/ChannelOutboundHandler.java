@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.pipeline.out;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.ChannelboundHandler;
 
 /**
@@ -22,20 +22,20 @@ public interface ChannelOutboundHandler extends ChannelboundHandler {
     /**
      * 消息写出
      *
-     * @param aioChannel 通道
+     * @param socketChannel 通道
      * @param obj        数据
      * @throws Exception 异常
      */
-    void channelWrite(AioChannel aioChannel, Object obj) throws Exception;
+    void channelWrite(SocketChannel socketChannel, Object obj) throws Exception;
 
 
     /**
      * 消息编码
      *
-     * @param aioChannel 通道
+     * @param socketChannel 通道
      * @param obj        数据
      * @throws Exception 异常
      */
-    void encode(AioChannel aioChannel, Object obj) throws Exception;
+    void encode(SocketChannel socketChannel, Object obj) throws Exception;
 
 }

@@ -7,7 +7,7 @@ package com.gettyio.core.handler.codec.http;/*
  */
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -22,7 +22,7 @@ public class HttpRequestDecoder extends ObjectToMessageDecoder {
     HttpRequest httpRequest;
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         autoByteBuffer.writeBytes((byte[]) obj);
 
@@ -51,7 +51,7 @@ public class HttpRequestDecoder extends ObjectToMessageDecoder {
                 return;
             }
         }
-        super.decode(aioChannel, httpRequest, out);
+        super.decode(socketChannel, httpRequest, out);
         autoByteBuffer.clear();
         httpRequest = null;
     }

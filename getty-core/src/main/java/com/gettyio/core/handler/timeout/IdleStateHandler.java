@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.handler.timeout;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
 
@@ -30,11 +30,11 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
      */
     ThreadPool pool;
 
-    public IdleStateHandler(AioChannel aioChannel, int readerIdleTimeSeconds, int writerIdleTimeSeconds) {
-        this(aioChannel, readerIdleTimeSeconds, writerIdleTimeSeconds, TimeUnit.SECONDS);
+    public IdleStateHandler(SocketChannel socketChannel, int readerIdleTimeSeconds, int writerIdleTimeSeconds) {
+        this(socketChannel, readerIdleTimeSeconds, writerIdleTimeSeconds, TimeUnit.SECONDS);
     }
 
-    public IdleStateHandler(final AioChannel aioChannel, long readerIdleTime, long writerIdleTime, TimeUnit unit) {
+    public IdleStateHandler(final SocketChannel socketChannel, long readerIdleTime, long writerIdleTime, TimeUnit unit) {
         pool = new ThreadPool(ThreadPool.FixedThread, 3);
         if (readerIdleTime > 0) {
             pool.scheduleWithFixedRate(new Runnable() {
@@ -42,7 +42,7 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
                 public void run() {
                     if (readerIdle) {
                         try {
-                            IdleStateHandler.this.userEventTriggered(aioChannel, IdleState.READER_IDLE);
+                            IdleStateHandler.this.userEventTriggered(socketChannel, IdleState.READER_IDLE);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -58,7 +58,7 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
                 public void run() {
                     if (writerIdle) {
                         try {
-                            IdleStateHandler.this.userEventTriggered(aioChannel, IdleState.WRITER_IDLE);
+                            IdleStateHandler.this.userEventTriggered(socketChannel, IdleState.WRITER_IDLE);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -71,21 +71,21 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
 
 
     @Override
-    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
+    public void channelRead(SocketChannel socketChannel, Object obj) throws Exception {
         readerIdle = false;
-        super.channelRead(aioChannel, obj);
+        super.channelRead(socketChannel, obj);
     }
 
     @Override
-    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
+    public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
         writerIdle = false;
-        super.channelWrite(aioChannel, obj);
+        super.channelWrite(socketChannel, obj);
     }
 
     @Override
-    public void channelClosed(AioChannel aioChannel) throws Exception {
+    public void channelClosed(SocketChannel socketChannel) throws Exception {
         pool.shutdown();
-        super.channelClosed(aioChannel);
+        super.channelClosed(socketChannel);
     }
 
 }

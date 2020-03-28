@@ -9,7 +9,7 @@
 package com.gettyio.core.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.util.ObjectUtil;
 
@@ -55,7 +55,7 @@ import com.gettyio.core.util.ObjectUtil;
 public class WebSocketEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+    public void encode(SocketChannel aioChannel, Object obj) throws Exception {
         if (WebSocketDecoder.handShak) {
             byte[] bytes;
             if (obj instanceof String) {

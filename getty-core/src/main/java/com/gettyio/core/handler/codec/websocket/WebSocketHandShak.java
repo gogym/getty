@@ -6,7 +6,7 @@ package com.gettyio.core.handler.codec.websocket;/*
  * 时间：2020/1/2
  */
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.Base64;
@@ -18,7 +18,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class WebSocketHandShak {
 
-    protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
+    protected static final InternalLogger log = InternalLoggerFactory.getInstance(SocketChannel.class);
 
     /**
      * 方法名：parserRequest
@@ -181,7 +181,7 @@ public class WebSocketHandShak {
      * @param aioChannel 通道
      * @return String
      */
-    public static String generateHandshake(WebSocketRequest requestInfo, AioChannel aioChannel) {
+    public static String generateHandshake(WebSocketRequest requestInfo, SocketChannel aioChannel) {
         StringBuilder sb = new StringBuilder();
         if (requestInfo.getSecVersion() < 4) {
             // 版本0--3

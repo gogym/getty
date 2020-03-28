@@ -1,15 +1,13 @@
 package com.gettyio.string.nio;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.AioClientConfig;
-import com.gettyio.core.channel.starter.AioClientStarter;
+import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
@@ -35,7 +33,7 @@ public class NioClient {
 
     private static void test(int port) {
 
-        AioClientConfig aioConfig = new AioClientConfig();
+        ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
         aioConfig.setClientChunkSize(512 * 1024 * 1024);
@@ -43,9 +41,9 @@ public class NioClient {
 
 
         NioClientStarter client = new NioClientStarter(aioConfig);
-        client.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
+        client.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(AioChannel channel) throws Exception {
+            public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
@@ -86,7 +84,7 @@ public class NioClient {
 
         try {
             Thread.sleep(3000);
-            AioChannel aioChannel = client.getAioChannel();
+            SocketChannel aioChannel = client.getAioChannel();
             aioChannel.getChannelAttribute().put("key", "value");
             String s = "12\r\n";
             byte[] msgBody = s.getBytes("utf-8");

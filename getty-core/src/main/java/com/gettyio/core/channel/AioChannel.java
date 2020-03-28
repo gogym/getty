@@ -1,138 +1,325 @@
-/**
- * 包名：org.getty.core.channel
+package com.gettyio.core.channel;/*
+ * 类名：TcpChannel
  * 版权：Copyright by www.getty.com
  * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * 修改人：gogym
+ * 时间：2019/12/17
  */
-package com.gettyio.core.channel;
 
-
+import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.internal.ReadCompletionHandler;
+import com.gettyio.core.channel.internal.WriteCompletionHandler;
+import com.gettyio.core.function.Function;
 import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import com.gettyio.core.channel.group.ChannelFutureListener;
-import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
-import com.gettyio.core.util.ConcurrentSafeMap;
-import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
-/**
- * 类名：AioChannel.java
- * 描述：AIO传输通道
- * 修改人：gogym
- * 时间：2019/9/27
- */
-public abstract class AioChannel {
-    protected static final InternalLogger logger = InternalLoggerFactory.getInstance(AioChannel.class);
-    /**
-     * 已关闭
-     */
-    protected static final byte CHANNEL_STATUS_CLOSED = 1;
-    /**
-     * 正常
-     */
-    protected static final byte CHANNEL_STATUS_ENABLED = 3;
+public class AioChannel extends SocketChannel implements Function<BufferWriter, Void> {
 
     /**
-     * 默认保持长连接
+     * 通信channel对象
      */
-    protected boolean keepAlive = true;
+    protected AsynchronousSocketChannel channel;
 
     /**
-     * 内存池
+     * 读缓冲。
      */
-    protected ChunkPool chunkPool;
+    protected ByteBuffer readByteBuffer;
+    /**
+     * 写缓冲
+     */
+    protected ByteBuffer writeByteBuffer;
+    /**
+     * 输出信号量
+     */
+    private Semaphore semaphore = new Semaphore(1);
+
+    //读写回调
+    private ReadCompletionHandler readCompletionHandler;
+    private WriteCompletionHandler writeCompletionHandler;
 
     /**
-     * 会话当前状态
+     * SSL服务
      */
-    protected byte status = CHANNEL_STATUS_ENABLED;
+    private SslHandler sslHandler;
 
-    //配置
-    protected AioConfig aioConfig;
+    protected BufferWriter bufferWriter;
 
-    /**
-     * 责任链对象
-     */
-    protected DefaultChannelPipeline defaultChannelPipeline;
-    /**
-     * 关闭监听
-     */
-    protected ChannelFutureListener channelFutureListener;
-
-    /**
-     * 用于保存以及decode的消息
-     */
-    private LinkedNonBlockQueue<Object> outList = new LinkedNonBlockQueue<>();
-
-    /**
-     * 用于方便设置随通道传播的属性
-     */
-    protected ConcurrentSafeMap<Object, Object> channelAttribute = new ConcurrentSafeMap<>();
-
-    //-------------------------------------------------------------------------------------
+    private ChannelPipeline channelPipeline;
 
 
     /**
-     * 获取当前aioChannel的唯一标识
-     *
-     * @return String
+     * @param channel                通道
+     * @param config                 配置
+     * @param readCompletionHandler  读回调
+     * @param writeCompletionHandler 写回调
+     * @param chunkPool              内存池
+     * @param channelPipeline        责任链
      */
-    public final String getChannelId() {
-        return "aioChannel-" + System.identityHashCode(this);
-    }
+    public AioChannel(AsynchronousSocketChannel channel, final BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
+        this.channel = channel;
+        this.readCompletionHandler = readCompletionHandler;
+        this.writeCompletionHandler = writeCompletionHandler;
+        this.aioConfig = config;
+        this.chunkPool = chunkPool;
+        this.channelPipeline = channelPipeline;
+        try {
+            //初始化读缓冲区
+            this.readByteBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
+            //注意该方法可能抛异常
+            channelPipeline.initChannel(this);
+        } catch (Exception e) {
+            try {
+                channel.close();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+            throw new RuntimeException("channelPipeline init exception", e);
+        }
 
-    /**
-     * 当前会话是否已失效
-     *
-     * @return boolean
-     */
-    public final boolean isInvalid() {
-        return status != CHANNEL_STATUS_ENABLED;
+        //初始化数据输出类
+        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
+
+        //触发责任链
+        try {
+            invokePipeline(ChannelState.NEW_CHANNEL);
+        } catch (Exception e) {
+            logger.error(e);
+        }
     }
 
 
     /**
      * 开始读取，很重要，只有调用该方法，才会开始监听消息读取
      */
-    public abstract void starRead();
+    public void starRead() {
+        continueRead();
+        if (this.sslHandler != null) {
+            //若开启了SSL，则需要握手
+            this.sslHandler.getSslService().beginHandshake();
+        }
+    }
 
 
     /**
      * 立即关闭会话
      */
-    public abstract void close();
+    public synchronized void close() {
+
+
+        if (status == CHANNEL_STATUS_CLOSED) {
+            logger.warn("Channel:{} is closed:", getChannelId());
+            return;
+        }
+
+
+        if (readByteBuffer != null) {
+            chunkPool.deallocate(readByteBuffer);
+        }
+
+        if (writeByteBuffer != null) {
+            chunkPool.deallocate(writeByteBuffer);
+        }
+
+        if (channelFutureListener != null) {
+            channelFutureListener.operationComplete(this);
+        }
+
+        try {
+            if (!bufferWriter.isClosed()) {
+                bufferWriter.close();
+            }
+            bufferWriter = null;
+        } catch (IOException e) {
+            logger.error(e);
+        }
+
+        try {
+            channel.shutdownInput();
+        } catch (IOException e) {
+            logger.debug(e.getMessage(), e);
+        }
+        try {
+            channel.shutdownOutput();
+        } catch (IOException e) {
+            logger.debug(e.getMessage(), e);
+        }
+        try {
+            channel.close();
+        } catch (IOException e) {
+            logger.error("close channel exception", e);
+        }
+        //更新状态
+        status = CHANNEL_STATUS_CLOSED;
+        //触发责任链通知
+        try {
+            invokePipeline(ChannelState.CHANNEL_CLOSED);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //最后需要清空责任链
+        if (defaultChannelPipeline != null) {
+            defaultChannelPipeline.clean();
+            defaultChannelPipeline = null;
+        }
+
+    }
+
+
+    //--------------------------------------------------------------------------
+
+    /**
+     * 读取socket通道内的数据
+     */
+    protected void continueRead() {
+        if (status == CHANNEL_STATUS_CLOSED) {
+            return;
+        }
+        channel.read(readByteBuffer, this, readCompletionHandler);
+    }
+
+
+    /**
+     * socket通道的读回调操作
+     *
+     * @param eof 状态回调标记
+     */
+    public void readFromChannel(boolean eof) {
+
+        final ByteBuffer readBuffer = this.readByteBuffer;
+        //读取缓冲区数据到管道
+        if (null != readBuffer) {
+
+            readBuffer.flip();
+            //读取缓冲区数据，输送到责任链
+            while (readBuffer.hasRemaining()) {
+                byte[] bytes = new byte[readBuffer.remaining()];
+                readBuffer.get(bytes, 0, bytes.length);
+                try {
+                    readToPipeline(bytes);
+                } catch (Exception e) {
+                    logger.error(e);
+                    close();
+                }
+            }
+            if (eof) {
+                try {
+                    invokePipeline(ChannelState.INPUT_SHUTDOWN);
+                } catch (Exception e) {
+                    logger.error(e);
+                }
+                close();
+                return;
+            }
+            //触发读取完成，处理后续操作
+            readCompleted(readBuffer);
+        }
+    }
+
+    /**
+     * socket读取完成
+     *
+     * @param readBuffer 读取的缓冲区
+     */
+    public void readCompleted(ByteBuffer readBuffer) {
+
+        if (readBuffer == null) {
+            return;
+        }
+        //数据读取完毕
+        if (readBuffer.remaining() == 0) {
+            //position = 0;limit = capacity;mark = -1;  有点初始化的味道，但是并不影响底层byte数组的内容
+            readBuffer.clear();
+        } else if (readBuffer.position() > 0) {
+            //把从position到limit中的内容移到0到limit-position的区域内，position和limit的取值也分别变成limit-position、capacity。如果先将positon设置到limit，再compact，那么相当于clear()
+            readBuffer.compact();
+        } else {
+            readBuffer.position(readBuffer.limit());
+            readBuffer.limit(readBuffer.capacity());
+        }
+        //再次调用读取方法。循环监听socket通道数据的读取
+        continueRead();
+    }
 
 
 //-------------------------------------------------------------------------------------------------
 
-
     /**
-     * 写出数据，经过责任链
+     * 写数据到责任链管道
      *
-     * @param obj 写入的数组
+     * @param obj 写入的数据
      */
-    public abstract void writeAndFlush(Object obj);
+    public void writeAndFlush(Object obj) {
+        try {
+            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        } catch (Exception e) {
+            logger.error(e);
+        }
+    }
 
     /**
      * 写到BufferWriter输出器，不经过责任链
      *
      * @param obj 写入的数组
      */
-    public abstract void writeToChannel(Object obj);
+    public void writeToChannel(Object obj) {
+        try {
+            bufferWriter.writeAndFlush((byte[]) obj);
+        } catch (IOException e) {
+            logger.error(e);
+        }
+    }
 
+    /**
+     * 继续写
+     *
+     * @param writeBuffer 写入的缓冲区
+     */
+    private void continueWrite(ByteBuffer writeBuffer) {
+        channel.write(writeBuffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+    }
+
+
+    /**
+     * 写操作完成回调
+     * 需要同步控制
+     */
+    public void writeCompleted() {
+
+        if (writeByteBuffer == null) {
+            writeByteBuffer = bufferWriter.poll();
+        } else if (!writeByteBuffer.hasRemaining()) {
+            //写完及时释放
+            chunkPool.deallocate(writeByteBuffer);
+            writeByteBuffer = bufferWriter.poll();
+        }
+
+        if (writeByteBuffer != null) {
+            //再次写
+            continueWrite(writeByteBuffer);
+            //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
+            return;
+        }
+        //完全写完释放信息量
+        semaphore.release();
+
+        if (!keepAlive) {
+            this.close();
+        }
+
+    }
 
     //-----------------------------------------------------------------------------------
+
 
     /**
      * 获取本地地址
@@ -140,7 +327,10 @@ public abstract class AioChannel {
      * @return InetSocketAddress
      * @throws IOException 异常
      */
-    public abstract InetSocketAddress getLocalAddress() throws IOException;
+    public final InetSocketAddress getLocalAddress() throws IOException {
+        assertChannel();
+        return (InetSocketAddress) channel.getLocalAddress();
+    }
 
     /**
      * 获取远程地址
@@ -148,122 +338,34 @@ public abstract class AioChannel {
      * @return InetSocketAddress
      * @throws IOException 异常
      */
-    public InetSocketAddress getRemoteAddress() throws IOException {
-        return null;
-    }
-
-
-    //------------------------------------------------------------------------------
-
-    /**
-     * 消息读取到责任链管道
-     *
-     * @param obj 消息对象
-     * @throws Exception 异常
-     */
-    public void readToPipeline(Object obj) throws Exception {
-        invokePipeline(ChannelState.CHANNEL_READ, obj);
-    }
-
-
-    /**
-     * 正向执行管道处理
-     *
-     * @param channelState 数据流向
-     * @throws Exception 异常
-     */
-    protected void invokePipeline(ChannelState channelState) throws Exception {
-        invokePipeline(channelState, null);
+    public final InetSocketAddress getRemoteAddress() throws IOException {
+        assertChannel();
+        return (InetSocketAddress) channel.getRemoteAddress();
     }
 
     /**
-     * 正向执行管道处理
+     * 断言
      *
-     * @param channelState 数据流向
-     * @param obj          消息对象
-     * @throws Exception 异常
+     * @throws IOException 异常
      */
-    protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
-        if (defaultChannelPipeline == null) {
-            return;
+    private void assertChannel() throws IOException {
+        if (status == CHANNEL_STATUS_CLOSED || channel == null) {
+            throw new IOException("channel is closed");
         }
-
-        ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.inPipeFirst();
-        if (channelHandlerAdapter == null) {
-            return;
-        }
-
-        switch (channelState) {
-            case NEW_CHANNEL:
-                channelHandlerAdapter.channelAdded(this);
-                break;
-            case CHANNEL_READ:
-                channelHandlerAdapter.decode(this, obj, outList);
-                break;
-            case CHANNEL_CLOSED:
-                channelHandlerAdapter.channelClosed(this);
-                break;
-            case INPUT_SHUTDOWN:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel is shutdown"));
-                break;
-        }
-
-
     }
 
-
-    /**
-     * 反向执行管道
-     *
-     * @param channelState 数据流向
-     * @param obj          消息对象
-     * @throws Exception 异常
-     */
-    protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.outPipeFirst();
-        if (channelHandlerAdapter == null) {
-            //如果没有对应的处理器，直接输出到wirter
-            writeToChannel(obj);
-            return;
-        }
-
-        if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            channelHandlerAdapter.channelWrite(this, obj);
-            channelHandlerAdapter.encode(this, obj);
-            return;
-        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            channelHandlerAdapter.channelWrite(this, obj);
-            channelHandlerAdapter.encode(this, obj);
-            return;
-        }
-        //如果没有对应的处理器，直接输出到wirter
-        writeToChannel(obj);
-    }
-
-
-    /**
-     * 获取默认的责任链
-     *
-     * @return com.gettyio.core.pipeline.DefaultChannelPipeline
-     */
-    public DefaultChannelPipeline getDefaultChannelPipeline() {
-        return defaultChannelPipeline != null ? defaultChannelPipeline : (defaultChannelPipeline = new DefaultChannelPipeline(this));
-    }
 
 //--------------------------------------------------------------------------------------
 
+
+    @Override
     public AsynchronousSocketChannel getAsynchronousSocketChannel() {
-        return null;
+        return channel;
     }
 
-
-    public ChunkPool getChunkPool() {
-        return chunkPool;
-    }
-
-
+    @Override
     public ChannelPipeline getChannelPipeline() {
-        return null;
+        return channelPipeline;
     }
 
     /**
@@ -272,35 +374,27 @@ public abstract class AioChannel {
      * @return AioChannel
      */
     public void setSslHandler(SslHandler sslHandler) {
+        this.sslHandler = sslHandler;
     }
 
-    /**
-     * 获取ssl服务
-     *
-     * @return com.gettyio.core.handler.ssl.SslService
-     */
     public SslHandler getSslHandler() {
+        return this.sslHandler;
+    }
+
+    @Override
+    public Void apply(BufferWriter input) {
+        //获取信息量
+        if (!semaphore.tryAcquire()) {
+            return null;
+        }
+        AioChannel.this.writeByteBuffer = input.poll();
+        if (null == writeByteBuffer) {
+            semaphore.release();
+        } else {
+            AioChannel.this.continueWrite(writeByteBuffer);
+        }
         return null;
     }
 
-    public AioConfig getConfig() {
-        return this.aioConfig;
-    }
 
-    public void setChannelFutureListener(ChannelFutureListener channelFutureListener) {
-        this.channelFutureListener = channelFutureListener;
-    }
-
-
-    public ConcurrentSafeMap<Object, Object> getChannelAttribute() {
-        return channelAttribute;
-    }
-
-    public void setChannelAttribute(ConcurrentSafeMap<Object, Object> channelAttribute) {
-        this.channelAttribute = channelAttribute;
-    }
-
-    public void setKeepAlive(boolean keepAlive) {
-        this.keepAlive = keepAlive;
-    }
 }

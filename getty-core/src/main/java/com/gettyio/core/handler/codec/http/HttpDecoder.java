@@ -6,18 +6,18 @@ package com.gettyio.core.handler.codec.http;/*
  * 时间：2020/1/16
  */
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 
 public class HttpDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         if (obj instanceof HttpRequest) {
             HttpRequest request = (HttpRequest) obj;
             out.put(request);
         }
-        super.decode(aioChannel, obj, out);
+        super.decode(socketChannel, obj, out);
     }
 }

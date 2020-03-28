@@ -1,9 +1,10 @@
 package com.gettyio.string.udp;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.AioClientConfig;
+import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
+import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketDecoder;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketEncoder;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -33,17 +34,17 @@ public class UdpClient {
 
     private static void test(int port) {
 
-        AioClientConfig aioConfig = new AioClientConfig();
+        ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
         aioConfig.setClientChunkSize(512 * 1024 * 1024);
         aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);
 
 
-        AioClientStarter client = new AioClientStarter(aioConfig);
-        client.socketChannel(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
+        NioClientStarter client = new NioClientStarter(aioConfig);
+        client.socketMode(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(AioChannel channel) throws Exception {
+            public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
@@ -63,7 +64,7 @@ public class UdpClient {
 
         try {
             Thread.sleep(2000);
-            final AioChannel aioChannel = client.getAioChannel();
+            final SocketChannel aioChannel = client.getAioChannel();
             String s = "12";
             byte[] msgBody = s.getBytes("utf-8");
             final DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));

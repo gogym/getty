@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.handler.codec.string;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 
@@ -31,7 +31,7 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         byte[] bytes = (byte[]) obj;
         int index = 0;
@@ -45,7 +45,7 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
                 System.arraycopy(bytes, index, byte2, 0, bytes.length - index);
             }
             //传递到下一个解码器
-            super.decode(aioChannel, obj, out);
+            super.decode(socketChannel, obj, out);
             index += frameLength;
         }
 

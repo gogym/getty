@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.channel.group;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -22,11 +22,11 @@ import java.util.concurrent.ConcurrentMap;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class DefaultChannelGroup extends AbstractSet<AioChannel> implements ChannelGroup {
+public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements ChannelGroup {
 
     private final String name;
     //用于保存连接的map
-    private final ConcurrentMap<String, AioChannel> serverChannels = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SocketChannel> serverChannels = new ConcurrentHashMap<>();
 
 
     public DefaultChannelGroup() {
@@ -47,10 +47,10 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
     }
 
     @Override
-    public AioChannel find(String id) {
-        AioChannel aioChannel = serverChannels.get(id);
-        if (aioChannel != null) {
-            return aioChannel;
+    public SocketChannel find(String id) {
+        SocketChannel socketChannel = serverChannels.get(id);
+        if (socketChannel != null) {
+            return socketChannel;
         }
         return null;
     }
@@ -64,18 +64,18 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
 
     @Override
     public boolean contains(Object o) {
-        if (o instanceof AioChannel) {
+        if (o instanceof SocketChannel) {
             return serverChannels.containsValue(o);
         }
         return false;
     }
 
     @Override
-    public boolean add(AioChannel aioChannel) {
-        boolean added = serverChannels.putIfAbsent(aioChannel.getChannelId(), aioChannel) == null;
+    public boolean add(SocketChannel socketChannel) {
+        boolean added = serverChannels.putIfAbsent(socketChannel.getChannelId(), socketChannel) == null;
         if (added) {
             //这里要添加个关闭监听，当连接关闭时，自动清理
-            aioChannel.setChannelFutureListener(remover);
+            socketChannel.setChannelFutureListener(remover);
         }
         return added;
     }
@@ -83,11 +83,11 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
 
     @Override
     public boolean remove(Object o) {
-        AioChannel c = null;
+        SocketChannel c = null;
         if (o instanceof String) {
             c = serverChannels.remove(o);
-        } else if (o instanceof AioChannel) {
-            c = (AioChannel) o;
+        } else if (o instanceof SocketChannel) {
+            c = (SocketChannel) o;
             c = serverChannels.remove(c.getChannelId());
 
         }
@@ -106,7 +106,7 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
 
     @Override
     public <T> T[] toArray(T[] a) {
-        Collection<AioChannel> channels = new ArrayList<AioChannel>(size());
+        Collection<SocketChannel> channels = new ArrayList<SocketChannel>(size());
         channels.addAll(serverChannels.values());
         return channels.toArray(a);
     }
@@ -127,7 +127,7 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
     }
 
     @Override
-    public Iterator<AioChannel> iterator() {
+    public Iterator<SocketChannel> iterator() {
         return serverChannels.values().iterator();
     }
 
@@ -147,8 +147,8 @@ public class DefaultChannelGroup extends AbstractSet<AioChannel> implements Chan
      */
     private final ChannelFutureListener remover = new ChannelFutureListener() {
         @Override
-        public void operationComplete(AioChannel aioChannel) {
-            DefaultChannelGroup.this.remove(aioChannel);
+        public void operationComplete(SocketChannel socketChannel) {
+            DefaultChannelGroup.this.remove(socketChannel);
         }
     };
 

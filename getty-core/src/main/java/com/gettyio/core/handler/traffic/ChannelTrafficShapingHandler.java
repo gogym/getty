@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.handler.traffic;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.ThreadPool;
 
@@ -54,27 +54,27 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
 
 
     @Override
-    public void channelRead(AioChannel aioChannel, Object obj) throws Exception {
+    public void channelRead(SocketChannel socketChannel, Object obj) throws Exception {
         byte[] bytes = (byte[]) obj;
         totalRead += bytes.length;
         intervalTotalReadTmp += bytes.length;
         totalReadCount++;
-        super.channelRead(aioChannel, obj);
+        super.channelRead(socketChannel, obj);
     }
 
     @Override
-    public void channelWrite(AioChannel aioChannel, Object obj) throws Exception {
+    public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
         byte[] bytes = (byte[]) obj;
         totalWrite += bytes.length;
         intervalTotalWriteTmp += bytes.length;
         totolWriteCount++;
-        super.channelWrite(aioChannel, obj);
+        super.channelWrite(socketChannel, obj);
     }
 
     @Override
-    public void channelClosed(AioChannel aioChannel) throws Exception {
+    public void channelClosed(SocketChannel socketChannel) throws Exception {
         pool.shutdown();
-        super.channelClosed(aioChannel);
+        super.channelClosed(socketChannel);
     }
 
     public long getTotalRead() {

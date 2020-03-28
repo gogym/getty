@@ -7,7 +7,7 @@ package com.gettyio.core.handler.codec.protobuf;/*
  */
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 
 /**
@@ -19,7 +19,7 @@ import com.gettyio.core.handler.codec.MessageToByteEncoder;
 public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
 
     @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
         byte[] bytes = (byte[]) obj;
 
         int bodyLen = bytes.length;
@@ -34,7 +34,7 @@ public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
         } catch (AutoByteBuffer.ByteBufferException e) {
             e.printStackTrace();
         }
-        super.encode(aioChannel, b);
+        super.encode(socketChannel, b);
     }
 
 

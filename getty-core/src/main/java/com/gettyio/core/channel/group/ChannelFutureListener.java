@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.channel.group;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 
 /**
  * 类名：ChannelFutureListener.java
@@ -17,6 +17,6 @@ import com.gettyio.core.channel.AioChannel;
  */
 public interface ChannelFutureListener {
 
-    void operationComplete(AioChannel aioChannel);
+    void operationComplete(SocketChannel socketChannel);
 
 }

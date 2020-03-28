@@ -10,7 +10,7 @@ package com.gettyio.core.handler.ipfilter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 
 /**
  * 类名：IpFilterRuleHandler.java
@@ -31,7 +31,7 @@ public class IpFilterRuleHandler extends AbstractRemoteAddressFilter<InetSocketA
 
 
     @Override
-    protected boolean accept(AioChannel aioChannel, InetSocketAddress remoteAddress) {
+    protected boolean accept(SocketChannel socketChannel, InetSocketAddress remoteAddress) {
 
         if (rules.matches(remoteAddress)) {
             return rules.ruleType() == IpFilterRuleType.ACCEPT;

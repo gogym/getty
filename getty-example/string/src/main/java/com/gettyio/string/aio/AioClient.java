@@ -1,8 +1,8 @@
-package com.gettyio.string.tcp;
+package com.gettyio.string.aio;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.AioClientConfig;
+import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
@@ -16,7 +16,7 @@ import com.gettyio.core.util.ThreadPool;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-public class TcpClient {
+public class AioClient {
 
     static ThreadPool threadPool = new ThreadPool(ThreadPool.FixedThread, 10);
 
@@ -34,7 +34,7 @@ public class TcpClient {
 
     private static void test(int port) {
 
-        AioClientConfig aioConfig = new AioClientConfig();
+        ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
         aioConfig.setClientChunkSize(512 * 1024 * 1024);
@@ -42,9 +42,9 @@ public class TcpClient {
 
 
         AioClientStarter client = new AioClientStarter(aioConfig);
-        client.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
+        client.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(AioChannel channel) throws Exception {
+            public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
@@ -85,7 +85,7 @@ public class TcpClient {
 
         try {
             Thread.sleep(3000);
-            AioChannel aioChannel = client.getAioChannel();
+            SocketChannel aioChannel = client.getAioChannel();
             aioChannel.getChannelAttribute().put("key", "value");
             String s = "12\r\n";
             byte[] msgBody = s.getBytes("utf-8");

@@ -1,7 +1,7 @@
 package com.gettyio.protobuf.server;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufEncoder;
@@ -9,7 +9,6 @@ import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.handler.timeout.HeartBeatTimeOutHandler;
 import com.gettyio.core.handler.timeout.IdleStateHandler;
@@ -25,12 +24,12 @@ public class ImServer {
         AioServerStarter server = new AioServerStarter(9999);
         server.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(AioChannel channel) throws Exception {
+            public void initChannel(SocketChannel channel) throws Exception {
 
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                 //获取证书
-                String pkPath = getClass().getClassLoader().getResource("classpath:serverStore.jks").getPath();
+                String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
                 sSLConfig.setKeyFile(pkPath);

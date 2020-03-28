@@ -8,9 +8,9 @@
 package com.gettyio.core.pipeline;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 
 public interface ChannelPipeline {
 
-    void initChannel(AioChannel aioChannel) throws Exception;
+    void initChannel(SocketChannel socketChannel) throws Exception;
 }

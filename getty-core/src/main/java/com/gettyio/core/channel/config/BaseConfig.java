@@ -17,7 +17,7 @@ import java.util.Map;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class AioConfig {
+public class BaseConfig {
 
     public static final String BANNER =
             "                       tt     yt             \n" +

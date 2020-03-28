@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.channel.internal;
 
-import com.gettyio.core.channel.TcpChannel;
+import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.ThreadPool;
@@ -20,7 +20,7 @@ import java.nio.channels.CompletionHandler;
  * 修改人：gogym
  * 时间：2019/9/27
  */
-public class ReadCompletionHandler implements CompletionHandler<Integer, TcpChannel> {
+public class ReadCompletionHandler implements CompletionHandler<Integer, AioChannel> {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReadCompletionHandler.class);
     //线程池
     private ThreadPool executorService;
@@ -30,20 +30,20 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, TcpChan
     }
 
     @Override
-    public void completed(final Integer result, final TcpChannel tcpChannel) {
+    public void completed(final Integer result, final AioChannel aioChannel) {
         //通过多线程形式读取
         executorService.execute(new Runnable() {
             @Override
             public void run() {
-                tcpChannel.readFromChannel(result == -1);
+                aioChannel.readFromChannel(result == -1);
             }
         });
     }
 
     @Override
-    public void failed(Throwable exc, TcpChannel tcpChannel) {
+    public void failed(Throwable exc, AioChannel aioChannel) {
         try {
-            tcpChannel.close();
+            aioChannel.close();
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
         }

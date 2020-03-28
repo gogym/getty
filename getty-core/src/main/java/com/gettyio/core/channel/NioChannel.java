@@ -8,28 +8,22 @@ package com.gettyio.core.channel;/*
 
 import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-public class NioChannel extends AioChannel implements Function<BufferWriter, Void> {
+public class NioChannel extends SocketChannel implements Function<BufferWriter, Void> {
 
-    private SocketChannel channel;
+    private java.nio.channels.SocketChannel channel;
     //selector
     private Selector selector;
 
@@ -48,7 +42,7 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
     //线程池
     private int workerThreadNum = 3;
 
-    public NioChannel(SocketChannel channel, AioConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
+    public NioChannel(java.nio.channels.SocketChannel channel, BaseConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline) {
         this.channel = channel;
         this.aioConfig = config;
         this.chunkPool = chunkPool;
@@ -79,6 +73,7 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
     public void starRead() {
         ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
 
+        //多线程处理，提高效率
         for (int i = 0; i < workerThreadNum; i++) {
             workerThreadPool.execute(new Runnable() {
                 @Override
@@ -89,7 +84,7 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
                             while (it.hasNext()) {
                                 SelectionKey sk = it.next();
                                 if (sk.isConnectable()) {
-                                    SocketChannel channel = (SocketChannel) sk.channel();
+                                    java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
                                     //during connecting, finish the connect
                                     if (channel.isConnectionPending()) {
                                         channel.finishConnect();
@@ -97,7 +92,7 @@ public class NioChannel extends AioChannel implements Function<BufferWriter, Voi
                                 } else if (sk.isReadable()) {
                                     ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
                                     //接收数据
-                                    ((SocketChannel) sk.channel()).read(readBuffer);
+                                    ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
 
                                     //读取缓冲区数据到管道
                                     if (null != readBuffer) {

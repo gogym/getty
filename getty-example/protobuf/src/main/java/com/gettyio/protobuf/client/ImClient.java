@@ -1,13 +1,12 @@
 package com.gettyio.protobuf.client;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufEncoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
@@ -42,11 +41,11 @@ public class ImClient {
         AioClientStarter client = new AioClientStarter("127.0.0.1", port);
         client.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(AioChannel channel) throws Exception {
+            public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
                 //获取证书
-                String pkPath =  getClass().getClassLoader().getResource("classpath:clientStore.jks")
+                String pkPath =  getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
@@ -81,7 +80,7 @@ public class ImClient {
 
         try {
             Thread.sleep(2000);
-            AioChannel aioChannel = client.getAioChannel();
+            SocketChannel aioChannel = client.getAioChannel();
 
 
             MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();

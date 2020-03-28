@@ -1,9 +1,9 @@
 package tcp;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.AioServerConfig;
+import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.websocket.WebSocketDecoder;
@@ -24,7 +24,7 @@ public class WsServer {
         //System.setProperty("javax.net.debug", "all");
         try {
             //初始化配置对象
-            AioServerConfig aioServerConfig = new AioServerConfig();
+            ServerConfig aioServerConfig = new ServerConfig();
             //设置host,不设置默认localhost
             //aioServerConfig.setHost("127.0.0.1");
             //设置端口号
@@ -42,9 +42,9 @@ public class WsServer {
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(aioServerConfig);
-            server.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
+            server.channelInitializer(new ChannelInitializer() {
                 @Override
-                public void initChannel(AioChannel channel) throws Exception {
+                public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 

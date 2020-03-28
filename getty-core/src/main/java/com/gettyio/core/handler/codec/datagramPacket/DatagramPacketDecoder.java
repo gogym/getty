@@ -6,7 +6,7 @@ package com.gettyio.core.handler.codec.datagrampacket;/*
  * 时间：2019/12/18
  */
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.pipeline.DatagramPacketHandler;
 import com.gettyio.core.util.LinkedNonBlockQueue;
@@ -16,10 +16,10 @@ import java.net.DatagramPacket;
 public class DatagramPacketDecoder extends ObjectToMessageDecoder implements DatagramPacketHandler {
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         DatagramPacket datagramPacket = (DatagramPacket) obj;
         out.put(datagramPacket);
-        super.decode(aioChannel, obj, out);
+        super.decode(socketChannel, obj, out);
     }
 
 }

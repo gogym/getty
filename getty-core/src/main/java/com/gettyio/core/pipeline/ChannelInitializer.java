@@ -8,8 +8,8 @@
 package com.gettyio.core.pipeline;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 
 public abstract class ChannelInitializer implements ChannelPipeline {
-    public abstract void initChannel(AioChannel aioChannel) throws Exception;
+    public abstract void initChannel(SocketChannel socketChannel) throws Exception;
 }

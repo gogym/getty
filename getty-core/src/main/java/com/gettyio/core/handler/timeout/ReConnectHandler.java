@@ -1,8 +1,8 @@
 package com.gettyio.core.handler.timeout;
 
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.TcpChannel;
-import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.logging.InternalLogger;
@@ -31,19 +31,19 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     private long threshold = 1000;//间隔阈值
     private final HashedWheelTimer timer = new HashedWheelTimer();// 创建一个定时器
 
-    private AioChannel aioChannel;
+    private SocketChannel channel;
 
-    public ReConnectHandler(AioChannel aioChannel) {
-        this.aioChannel = aioChannel;
+    public ReConnectHandler(SocketChannel socketChannel) {
+        this.channel = socketChannel;
     }
 
-    public ReConnectHandler(AioChannel aioChannel, int threshold) {
-        this.aioChannel = aioChannel;
+    public ReConnectHandler(SocketChannel socketChannel, int threshold) {
+        this.channel = socketChannel;
         this.threshold = threshold;
     }
 
     @Override
-    public void channelAdded(AioChannel aioChannel) throws Exception {
+    public void channelAdded(SocketChannel aioChannel) throws Exception {
         //重置时间基数
         attempts = 0;
         super.channelAdded(aioChannel);
@@ -51,22 +51,22 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
 
     @Override
-    public void channelClosed(AioChannel aioChannel) throws Exception {
-        reConnect(aioChannel);
-        super.channelClosed(aioChannel);
+    public void channelClosed(SocketChannel socketChannel) throws Exception {
+        reConnect(socketChannel);
+        super.channelClosed(socketChannel);
     }
 
 
     @Override
-    public void exceptionCaught(AioChannel aioChannel, Throwable cause) throws Exception {
-        reConnect(aioChannel);
-        super.exceptionCaught(aioChannel, cause);
+    public void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception {
+        reConnect(socketChannel);
+        super.exceptionCaught(socketChannel, cause);
     }
 
     @Override
     public void run(Timeout timeout) throws Exception {
 
-        final AioConfig aioClientConfig = aioChannel.getConfig();
+        final BaseConfig aioClientConfig = channel.getConfig();
         final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
 
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
@@ -88,16 +88,16 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
         socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
             @Override
             public void completed(Void result, AsynchronousSocketChannel attachment) {
-                logger.info("connect tcp server success");
+                logger.info("connect aio server success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new TcpChannel(finalSocketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), aioChannel.getChunkPool(), aioChannel.getChannelPipeline());
-                aioChannel.starRead();
+                channel = new AioChannel(finalSocketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
+                channel.starRead();
             }
 
             @Override
             public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                logger.error("connect tcp server  error", exc);
-                reConnect(aioChannel);
+                logger.error("connect aio server  error", exc);
+                reConnect(channel);
             }
         });
 
@@ -106,9 +106,9 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
 
     //重连
-    public void reConnect(AioChannel aioChannel) {
+    public void reConnect(SocketChannel socketChannel) {
         //判断是否已经连接
-        if (aioChannel.isInvalid()) {
+        if (socketChannel.isInvalid()) {
             logger.debug("reconnect...");
             // 重连的间隔时间会越来越长
             long timeout = attempts * threshold;

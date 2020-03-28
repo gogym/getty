@@ -1,9 +1,9 @@
 package test.http;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.AioServerConfig;
+import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.http.HttpDecoder;
 import com.gettyio.core.handler.codec.http.HttpRequestDecoder;
@@ -19,7 +19,7 @@ public class TcpServer {
     public static void main(String[] args) {
         try {
             //初始化配置对象
-            AioServerConfig aioServerConfig = new AioServerConfig();
+            ServerConfig aioServerConfig = new ServerConfig();
             //设置host,不设置默认localhost
             aioServerConfig.setHost("127.0.0.1");
             //设置端口号
@@ -39,7 +39,7 @@ public class TcpServer {
             AioServerStarter server = new AioServerStarter(8888);
             server.socketChannel(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
-                public void initChannel(AioChannel channel) throws Exception {
+                public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 

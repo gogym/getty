@@ -7,7 +7,7 @@ package com.gettyio.core.handler.codec.protobuf;/*
  */
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.util.LinkedNonBlockQueue;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
@@ -62,7 +62,7 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
 
         byte[] bytes = (byte[]) obj;
         final byte[] array;
@@ -106,6 +106,6 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
             }
         }
         out.put(messageLite);
-        super.decode(aioChannel, obj, out);
+        super.decode(socketChannel, obj, out);
     }
 }

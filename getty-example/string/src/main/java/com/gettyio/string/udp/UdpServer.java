@@ -1,10 +1,11 @@
 package com.gettyio.string.udp;
 
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.AioServerConfig;
+import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
+import com.gettyio.core.channel.starter.NioServerStater;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketDecoder;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketEncoder;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
@@ -21,7 +22,7 @@ public class UdpServer {
 
         try {
             //初始化配置对象
-            AioServerConfig aioServerConfig = new AioServerConfig();
+            ServerConfig aioServerConfig = new ServerConfig();
             //设置host,不设置默认localhost
             aioServerConfig.setHost("127.0.0.1");
             //设置端口号
@@ -38,10 +39,10 @@ public class UdpServer {
             //设置SocketOptions
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
-            AioServerStarter server = new AioServerStarter(8888);
-            server.socketChannel(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
+            NioServerStater server = new NioServerStater(8888);
+            server.socketMode(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
                 @Override
-                public void initChannel(AioChannel channel) throws Exception {
+                public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 

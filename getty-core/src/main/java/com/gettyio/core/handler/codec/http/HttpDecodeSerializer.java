@@ -7,7 +7,7 @@ package com.gettyio.core.handler.codec.http;/*
  */
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 
@@ -18,7 +18,7 @@ import java.util.Map;
 
 public class HttpDecodeSerializer {
 
-    protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
+    protected static final InternalLogger log = InternalLoggerFactory.getInstance(SocketChannel.class);
     public static final int readLine = 1;
     public static final int readHeaders = 2;
     public static final int readContent = 3;

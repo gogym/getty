@@ -8,7 +8,7 @@ package com.gettyio.core.channel;/*
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.util.LinkedBlockQueue;
-import com.gettyio.core.channel.config.AioConfig;
+import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 
@@ -22,7 +22,7 @@ import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
-public class UdpChannel extends AioChannel {
+public class UdpChannel extends SocketChannel {
 
 
     //udp通道
@@ -34,7 +34,7 @@ public class UdpChannel extends AioChannel {
     //线程池
     private int workerThreadNum;
 
-    public UdpChannel(DatagramChannel datagramChannel, Selector selector, AioConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline, int workerThreadNum) {
+    public UdpChannel(DatagramChannel datagramChannel, Selector selector, BaseConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
         this.aioConfig = config;

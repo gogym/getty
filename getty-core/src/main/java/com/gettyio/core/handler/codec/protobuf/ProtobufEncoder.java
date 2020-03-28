@@ -6,7 +6,7 @@ package com.gettyio.core.handler.codec.protobuf;/*
  * 时间：2019/10/8
  */
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.google.protobuf.MessageLite;
 
@@ -19,7 +19,7 @@ import com.google.protobuf.MessageLite;
 public class ProtobufEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(AioChannel aioChannel, Object obj) throws Exception {
+    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
 
         byte[] bytes = null;
         if (obj instanceof MessageLite) {
@@ -28,6 +28,6 @@ public class ProtobufEncoder extends MessageToByteEncoder {
         if (obj instanceof MessageLite.Builder) {
             bytes = ((MessageLite.Builder) obj).build().toByteArray();
         }
-        super.encode(aioChannel, bytes);
+        super.encode(socketChannel, bytes);
     }
 }

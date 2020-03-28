@@ -7,7 +7,7 @@
  */
 package com.gettyio.core.handler.ipfilter;
 
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 import java.io.IOException;
@@ -23,9 +23,9 @@ public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> exten
 
 
     @Override
-    public void channelAdded(AioChannel aioChannel) throws Exception {
-        super.channelAdded(aioChannel);
-        handleNewChannel(aioChannel);
+    public void channelAdded(SocketChannel socketChannel) throws Exception {
+        super.channelAdded(socketChannel);
+        handleNewChannel(socketChannel);
     }
 
     /**
@@ -34,15 +34,15 @@ public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> exten
      * @return void
      * @params [aioChannel]
      */
-    private void handleNewChannel(AioChannel aioChannel) {
+    private void handleNewChannel(SocketChannel socketChannel) {
         try {
-            T remoteAddress = (T) aioChannel.getRemoteAddress();
+            T remoteAddress = (T) socketChannel.getRemoteAddress();
             if (remoteAddress == null) {
-                aioChannel.close();
+                socketChannel.close();
             }
-            boolean flag = accept(aioChannel, remoteAddress);
+            boolean flag = accept(socketChannel, remoteAddress);
             if (!flag) {
-                aioChannel.close();
+                socketChannel.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -54,7 +54,7 @@ public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> exten
      * @param remoteAddress 远程地址
      * @return Return true if connections from this IP address and port should be accepted. False otherwise.
      */
-    protected abstract boolean accept(AioChannel aioChannel, T remoteAddress);
+    protected abstract boolean accept(SocketChannel aioChannel, T remoteAddress);
 
 
 }

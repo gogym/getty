@@ -7,7 +7,7 @@ package com.gettyio.core.handler.codec.websocket;/*
  */
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -19,7 +19,7 @@ import java.util.Arrays;
 
 public class WebSocketDecoder extends ObjectToMessageDecoder {
 
-    protected static final InternalLogger log = InternalLoggerFactory.getInstance(AioChannel.class);
+    protected static final InternalLogger log = InternalLoggerFactory.getInstance(SocketChannel.class);
     // 是否已经握手
     static boolean handShak = false;
     //协议版本,默认0
@@ -28,7 +28,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
     WebSocketMessage messageFrame;
 
     @Override
-    public void decode(AioChannel aioChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
         if (handShak) {
             // 已经握手处理
             if (Integer.valueOf(protocolVersion) >= WebSocketConstants.SPLITVERSION6) {
@@ -42,23 +42,23 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                     return;
                 }
                 if (bytes != null) {
-                    super.decode(aioChannel, bytes, out);
+                    super.decode(socketChannel, bytes, out);
                 }
             } else {
-                super.decode(aioChannel, obj, out);
+                super.decode(socketChannel, obj, out);
             }
         } else {
             // 进行握手处理
             String msg = new String((byte[]) obj, CharsetUtil.UTF_8);
             WebSocketRequest requestInfo = WebSocketHandShak.parserRequest(msg);
             //写出握手信息到客户端
-            byte[] bytes = WebSocketHandShak.generateHandshake(requestInfo, aioChannel).getBytes();
-            if (aioChannel.getSslHandler() == null) {
-                aioChannel.writeToChannel(bytes);
+            byte[] bytes = WebSocketHandShak.generateHandshake(requestInfo, socketChannel).getBytes();
+            if (socketChannel.getSslHandler() == null) {
+                socketChannel.writeToChannel(bytes);
             } else {
                 //需要注意的是，当开启了ssl，握手信息需要经过ssl encode之后才能输出给客户端。
                 //为了避免握手信息经过其他的encoder，所以直接指定通过sslHandler输出
-                aioChannel.getSslHandler().encode(aioChannel, bytes);
+                socketChannel.getSslHandler().encode(socketChannel, bytes);
             }
             protocolVersion = requestInfo.getSecVersion().toString();
             handShak = true;
@@ -110,7 +110,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void channelClosed(AioChannel aioChannel) throws Exception {
+    public void channelClosed(SocketChannel aioChannel) throws Exception {
         handShak = false;
         protocolVersion = "0";
         super.channelClosed(aioChannel);
