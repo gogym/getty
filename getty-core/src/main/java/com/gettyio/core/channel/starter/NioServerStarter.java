@@ -25,9 +25,9 @@ import java.nio.channels.*;
 import java.util.Iterator;
 import java.util.Map;
 
-public class NioServerStater extends NioStarter {
+public class NioServerStarter extends NioStarter {
 
-    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioServerStater.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioServerStarter.class);
 
     //开启的socket模式 TCP/UDP ,默认tcp
     protected SocketMode socketMode = SocketMode.TCP;
@@ -59,7 +59,7 @@ public class NioServerStater extends NioStarter {
      *
      * @param port 服务端口
      */
-    public NioServerStater(int port) {
+    public NioServerStarter(int port) {
         serverConfig.setPort(port);
     }
 
@@ -69,7 +69,7 @@ public class NioServerStater extends NioStarter {
      * @param host 服务地址
      * @param port 服务端口
      */
-    public NioServerStater(String host, int port) {
+    public NioServerStarter(String host, int port) {
         serverConfig.setHost(host);
         serverConfig.setPort(port);
     }
@@ -79,7 +79,7 @@ public class NioServerStater extends NioStarter {
      *
      * @param config 配置
      */
-    public NioServerStater(ServerConfig config) {
+    public NioServerStarter(ServerConfig config) {
         if (config == null) {
             throw new NullPointerException("serverConfig can't null");
         }
@@ -96,7 +96,7 @@ public class NioServerStater extends NioStarter {
      * @param channelPipeline 责任链
      * @return AioServerStarter
      */
-    public NioServerStater channelInitializer(ChannelPipeline channelPipeline) {
+    public NioServerStarter channelInitializer(ChannelPipeline channelPipeline) {
         this.channelPipeline = channelPipeline;
         return this;
     }
@@ -108,12 +108,12 @@ public class NioServerStater extends NioStarter {
      * @param threadNum 线程数
      * @return AioServerStarter
      */
-    public NioServerStater bossThreadNum(int threadNum) {
+    public NioServerStarter bossThreadNum(int threadNum) {
         this.bossThreadNum = threadNum;
         return this;
     }
 
-    public NioServerStater socketMode(SocketMode socketMode) {
+    public NioServerStarter socketMode(SocketMode socketMode) {
         this.socketMode = socketMode;
         return this;
     }

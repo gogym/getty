@@ -206,6 +206,18 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         return (InetSocketAddress) channel.getLocalAddress();
     }
 
+
+    /**
+     * 获取远程地址
+     *
+     * @return InetSocketAddress
+     * @throws IOException 异常
+     */
+    public final InetSocketAddress getRemoteAddress() throws IOException {
+        assertChannel();
+        return (InetSocketAddress) channel.getRemoteAddress();
+    }
+
     /**
      * 断言
      *
@@ -254,5 +266,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     public Void apply(BufferWriter input) {
         return null;
     }
+
 
 }

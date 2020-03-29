@@ -4,7 +4,7 @@ package com.gettyio.string.nio;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ServerConfig;
-import com.gettyio.core.channel.starter.NioServerStater;
+import com.gettyio.core.channel.starter.NioServerStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
@@ -38,7 +38,7 @@ public class NioServer {
             //设置SocketOptions
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
-            NioServerStater server = new NioServerStater(8888);
+            NioServerStarter server = new NioServerStarter(8888);
             server.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {
