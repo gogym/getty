@@ -83,53 +83,53 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public void starRead() {
         //多线程处理，提高效率
-        for (int i = 0; i < workerThreadNum; i++) {
-            workerThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        while (selector.select() > 0) {
-                            Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                            while (it.hasNext()) {
-                                SelectionKey sk = it.next();
-                                if (sk.isConnectable()) {
-                                    java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
-                                    //during connecting, finish the connect
-                                    if (channel.isConnectionPending()) {
-                                        channel.finishConnect();
-                                    }
-                                } else if (sk.isReadable()) {
-                                    ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
-                                    //接收数据
-                                    ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
+        workerThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (selector.select() > 0) {
+                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                        while (it.hasNext()) {
+                            SelectionKey sk = it.next();
+                            //清理事件，提到这里，提高处理消息效率
+                            it.remove();
+                            if (sk.isConnectable()) {
+                                java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
+                                //during connecting, finish the connect
+                                if (channel.isConnectionPending()) {
+                                    channel.finishConnect();
+                                }
+                            } else if (sk.isReadable()) {
+                                ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
+                                //接收数据
+                                ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
 
-                                    //读取缓冲区数据到管道
-                                    if (null != readBuffer) {
-                                        readBuffer.flip();
-                                        //读取缓冲区数据，输送到责任链
-                                        while (readBuffer.hasRemaining()) {
-                                            byte[] bytes = new byte[readBuffer.remaining()];
-                                            readBuffer.get(bytes, 0, bytes.length);
-                                            try {
-                                                readToPipeline(bytes);
-                                            } catch (Exception e) {
-                                                logger.error(e);
-                                                close();
-                                            }
+                                //读取缓冲区数据到管道
+                                if (null != readBuffer) {
+                                    readBuffer.flip();
+                                    //读取缓冲区数据，输送到责任链
+                                    while (readBuffer.hasRemaining()) {
+                                        byte[] bytes = new byte[readBuffer.remaining()];
+                                        readBuffer.get(bytes, 0, bytes.length);
+                                        try {
+                                            readToPipeline(bytes);
+                                        } catch (Exception e) {
+                                            logger.error(e);
+                                            close();
                                         }
                                     }
-                                    //触发读取完成，清理缓冲区
-                                    chunkPool.deallocate(readBuffer);
                                 }
+                                //触发读取完成，清理缓冲区
+                                chunkPool.deallocate(readBuffer);
                             }
-                            it.remove();
                         }
-                    } catch (Exception e) {
-                        logger.error(e);
+                        //it.remove();
                     }
+                } catch (Exception e) {
+                    logger.error(e);
                 }
-            });
-        }
+            }
+        });
 
     }
 

@@ -4,11 +4,17 @@ package com.gettyio.string.nio;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
+import java.io.IOException;
+
 public class SimpleHandler extends SimpleChannelInboundHandler<String> {
     @Override
     public void channelAdded(SocketChannel aioChannel) {
 
-        System.out.println("连接成功");
+        try {
+            System.out.println("连接成功"+aioChannel.getRemoteAddress().getHostString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -20,7 +26,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void channelRead0(SocketChannel aioChannel, String str) {
-        //System.out.println("读取消息了:" + str);
+        System.out.println("读取消息了:" + str);
     }
 
     @Override

@@ -71,6 +71,7 @@ public class UdpChannel extends SocketChannel {
                             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                             while (it.hasNext()) {
                                 SelectionKey sk = it.next();
+                                it.remove();
                                 if (sk.isReadable()) {
                                     ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
                                     //接收数据
@@ -90,7 +91,7 @@ public class UdpChannel extends SocketChannel {
                                     }
                                 }
                             }
-                            it.remove();
+                            //it.remove();
                         }
                     } catch (IOException e) {
                         logger.error(e);
