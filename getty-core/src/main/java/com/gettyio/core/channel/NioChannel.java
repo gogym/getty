@@ -42,16 +42,18 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     //线程池
     private int workerThreadNum;
     ThreadPool workerThreadPool;
+    private ChannelPipeline channelPipeline;
 
     public NioChannel(java.nio.channels.SocketChannel channel, BaseConfig config, ChunkPool chunkPool, Integer workerThreadNum, ChannelPipeline channelPipeline) {
         this.channel = channel;
         this.aioConfig = config;
         this.chunkPool = chunkPool;
         this.workerThreadNum = workerThreadNum;
+        this.chunkPool = chunkPool;
+        this.channelPipeline = channelPipeline;
         try {
             this.selector = Selector.open();
             channel.register(selector, SelectionKey.OP_READ);
-
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
@@ -102,7 +104,12 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                             } else if (sk.isReadable()) {
                                 ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
                                 //接收数据
-                                ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
+                                int reccount = ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
+                                if (reccount == -1) {
+                                    chunkPool.deallocate(readBuffer);
+                                    close();
+                                    return;
+                                }
 
                                 //读取缓冲区数据到管道
                                 if (null != readBuffer) {
@@ -127,6 +134,13 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                     }
                 } catch (Exception e) {
                     logger.error(e);
+                    try {
+                        invokePipeline(ChannelState.INPUT_SHUTDOWN);
+                    } catch (Exception e1) {
+                        logger.error(e1);
+                    }
+                    close();
+                    return;
                 }
             }
         });
@@ -268,4 +282,8 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     }
 
 
+    @Override
+    public ChannelPipeline getChannelPipeline() {
+        return channelPipeline;
+    }
 }

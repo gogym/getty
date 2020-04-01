@@ -1,10 +1,9 @@
 package com.gettyio.core.handler.timeout;
 
+import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.channel.internal.ReadCompletionHandler;
-import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
@@ -15,12 +14,14 @@ import com.gettyio.core.util.timer.TimerTask;
 
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.AsynchronousChannelGroup;
-import java.nio.channels.AsynchronousSocketChannel;
-import java.nio.channels.CompletionHandler;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 
 public class ReConnectHandler extends ChannelInboundHandlerAdapter implements TimerTask {
@@ -33,14 +34,24 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
     private SocketChannel channel;
 
+    //默认3s
+    private int connectTimeout = 3000;
+
     public ReConnectHandler(SocketChannel socketChannel) {
         this.channel = socketChannel;
     }
+
 
     public ReConnectHandler(SocketChannel socketChannel, int threshold) {
         this.channel = socketChannel;
         this.threshold = threshold;
     }
+
+    public ReConnectHandler(SocketChannel socketChannel, int threshold, int connectTimeout) {
+        this.channel = socketChannel;
+        this.connectTimeout = connectTimeout;
+    }
+
 
     @Override
     public void channelAdded(SocketChannel aioChannel) throws Exception {
@@ -52,7 +63,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
     @Override
     public void channelClosed(SocketChannel socketChannel) throws Exception {
-        reConnect(socketChannel);
+        //reConnect(socketChannel);
         super.channelClosed(socketChannel);
     }
 
@@ -66,40 +77,112 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     @Override
     public void run(Timeout timeout) throws Exception {
 
-        final BaseConfig aioClientConfig = channel.getConfig();
+        final BaseConfig clientConfig = channel.getConfig();
         final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
 
-        AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable target) {
-                return new Thread(target);
+        if (channel instanceof AioChannel) {
+            java.nio.channels.AsynchronousSocketChannel socketChannel = java.nio.channels.AsynchronousSocketChannel.open(java.nio.channels.AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable target) {
+                    return new Thread(target);
+                }
+            }));
+            if (clientConfig.getSocketOptions() != null) {
+                for (Map.Entry<SocketOption<Object>, Object> entry : clientConfig.getSocketOptions().entrySet()) {
+                    socketChannel.setOption(entry.getKey(), entry.getValue());
+                }
             }
-        }));
-        if (aioClientConfig.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : aioClientConfig.getSocketOptions().entrySet()) {
-                socketChannel.setOption(entry.getKey(), entry.getValue());
+
+
+            final java.nio.channels.AsynchronousSocketChannel finalSocketChannel = socketChannel;
+            /**
+             * 阻塞连接
+             */
+//            try {
+//                Future<Void> future = socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
+//                if (connectTimeout > 0) {
+//                    future.get(connectTimeout, TimeUnit.MILLISECONDS);
+//                } else {
+//                    future.get();
+//                }
+//
+//                //连接成功则构造AIOSession对象
+//                channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
+//                channel.starRead();
+//            } catch (TimeoutException e) {
+//                logger.error("connect aio server timeout", e);
+//                reConnect(channel);
+//            }
+
+            /**
+             * 非阻塞连接
+             */
+            socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()), socketChannel, new java.nio.channels.CompletionHandler<Void, java.nio.channels.AsynchronousSocketChannel>() {
+                @Override
+                public void completed(Void result, java.nio.channels.AsynchronousSocketChannel attachment) {
+                    logger.info("connect aio server success");
+                    //连接成功则构造AIOSession对象
+                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
+                    channel.starRead();
+                }
+
+                @Override
+                public void failed(Throwable exc, java.nio.channels.AsynchronousSocketChannel attachment) {
+                    logger.error("connect aio server  error", exc);
+                    reConnect(channel);
+                }
+            });
+        } else if (channel instanceof NioChannel) {
+
+            final java.nio.channels.SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
+
+            if (clientConfig.getSocketOptions() != null) {
+                for (Map.Entry<SocketOption<Object>, Object> entry : clientConfig.getSocketOptions().entrySet()) {
+                    socketChannel.setOption(entry.getKey(), entry.getValue());
+                }
             }
+
+            socketChannel.configureBlocking(false);
+            /*
+             * 连接到指定的服务地址
+             */
+            socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
+
+            /*
+             * 创建一个事件选择器Selector
+             */
+            Selector selector = Selector.open();
+
+            /*
+             * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
+             */
+            socketChannel.register(selector, SelectionKey.OP_CONNECT);
+
+
+            while (selector.select() > 0) {
+                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey sk = it.next();
+                    if (sk.isConnectable()) {
+                        java.nio.channels.SocketChannel channels = (java.nio.channels.SocketChannel) sk.channel();
+                        //during connecting, finish the connect
+                        if (channels.isConnectionPending()) {
+                            channels.finishConnect();
+                            try {
+                                channel = new NioChannel(socketChannel, clientConfig, channel.getChunkPool(), 1, channel.getChannelPipeline());
+                                //创建成功立即开始读
+                                channel.starRead();
+                            } catch (Exception e) {
+                                logger.error(e.getMessage(), e);
+                                reConnect(channel);
+                            }
+                        }
+                    }
+                }
+                it.remove();
+            }
+
         }
-
-        /**
-         * 非阻塞连接
-         */
-        final AsynchronousSocketChannel finalSocketChannel = socketChannel;
-        socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
-            @Override
-            public void completed(Void result, AsynchronousSocketChannel attachment) {
-                logger.info("connect aio server success");
-                //连接成功则构造AIOSession对象
-                channel = new AioChannel(finalSocketChannel, aioClientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
-                channel.starRead();
-            }
-
-            @Override
-            public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                logger.error("connect aio server  error", exc);
-                reConnect(channel);
-            }
-        });
 
 
     }

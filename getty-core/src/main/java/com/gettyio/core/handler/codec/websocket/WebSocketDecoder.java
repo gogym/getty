@@ -110,9 +110,9 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void channelClosed(SocketChannel aioChannel) throws Exception {
+    public void channelClosed(SocketChannel socketChannel) throws Exception {
         handShak = false;
         protocolVersion = "0";
-        super.channelClosed(aioChannel);
+        super.channelClosed(socketChannel);
     }
 }

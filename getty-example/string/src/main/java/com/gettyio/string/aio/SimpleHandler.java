@@ -13,7 +13,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
     }
 
     @Override
-    public void channelClosed(SocketChannel aioChannel) {
+    public void channelClosed(SocketChannel socketChannel) {
         System.out.println("连接关闭了");
     }
 

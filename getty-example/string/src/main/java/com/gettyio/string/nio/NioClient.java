@@ -8,6 +8,7 @@ import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
@@ -49,7 +50,7 @@ public class NioClient {
 
 
                 //获取证书
-                String pkPath =  getClass().getClassLoader().getResource("clientStore.jks")
+                String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
@@ -62,9 +63,9 @@ public class NioClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-               // defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
+                // defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
 
-                //defaultChannelPipeline.addLast(new ReConnectHandler(channel));
+                defaultChannelPipeline.addLast(new ReConnectHandler(channel));
 
                 //指定结束符解码器
                 defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
@@ -91,7 +92,7 @@ public class NioClient {
             long ct = System.currentTimeMillis();
 
             int i = 0;
-            for (; i < 100; i++) {
+            for (; i < 1; i++) {
 //                String s = i + "me\r\n";
                 // byte[] msgBody = s.getBytes("utf-8");
                 aioChannel.writeAndFlush(msgBody);
@@ -103,7 +104,6 @@ public class NioClient {
             long lt = System.currentTimeMillis();
             System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
             System.out.printf("发送消息数量：" + i + "条\r\n");
-
 
 //            for (int j = 0; j < 1; j++) {
 //               threadPool.execute(new Runnable() {
