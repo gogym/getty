@@ -14,28 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gettyio.core.channel.config;
+package com.gettyio.core.channel.starter;
+
+import com.gettyio.core.channel.SocketChannel;
 
 /**
- * ClientConfig.java
+ * ConnectHandler.java
  *
- * @description:客户端配置
+ * @description: 启动连接回调
  * @author:gogym
  * @date:2020/4/8
  * @copyright: Copyright by gettyio.com
  */
-public final class ClientConfig extends BaseConfig {
+public interface ConnectHandler {
 
     /**
-     * 客户端最大可用内存池大小上限,默认1G
+     * 连接成功回调
+     *
+     * @param channel
      */
-    public Integer clientChunkSize = 1024 * 1024 * 1024;
+    void onCompleted(SocketChannel channel);
 
-    public Integer getClientChunkSize() {
-        return clientChunkSize;
-    }
+    /**
+     * 连接失败回调
+     *
+     * @param exc
+     */
+    void onFailed(Throwable exc);
 
-    public void setClientChunkSize(Integer clientChunkSize) {
-        this.clientChunkSize = clientChunkSize;
-    }
 }

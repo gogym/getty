@@ -1,22 +1,35 @@
 /**
- * 包名：org.getty.core.channel.server
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.channel.config;
 
 /**
- * 类名：AioServerConfig.java
- * 描述：服务器端配置
- * 修改人：gogym
- * 时间：2019/9/27
+ * ServerConfig.java
+ *
+ * @description:服务器端配置
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
 public final class ServerConfig extends BaseConfig {
 
-    //服务器端内存池大小,默认256m
-    private Integer serverChunkSize = 256 * 1024 * 1024;
+    /**
+     * 服务器端最大可用内存池大小上限,默认1G
+     */
+    private Integer serverChunkSize = 1024 * 1024 * 1024;
 
     public Integer getServerChunkSize() {
         return serverChunkSize;

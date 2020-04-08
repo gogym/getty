@@ -1,8 +1,18 @@
 /**
- * 包名：org.getty.core.buffer
- * 版权：Copyright by www.getty.com
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.buffer;
 
@@ -10,7 +20,6 @@ import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.LinkedBlockQueue;
-import com.gettyio.core.util.LinkedNonBlockQueue;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -18,25 +27,32 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 类名：BufferWriter.java
- * 描述：数据输出器
- * 修改人：gogym
- * 时间：2019/9/27
+ * BufferWriter.java
+ *
+ * @description:用于控制数据输出
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
 public final class BufferWriter extends OutputStream {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(ByteBuffer.class);
-    //缓冲池
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BufferWriter.class);
+    /**
+     * 缓冲池
+     */
     private final ChunkPool chunkPool;
+    /**
+     * 内存申请最大阻塞时间
+     */
     private int chunkPoolBlockTime;
     private final Function<BufferWriter, Void> function;
-    //当前是否已关闭
+    /**
+     * 当前是否已关闭
+     */
     private boolean closed = false;
-    //阻塞队列
+    /**
+     * 阻塞队列
+     */
     private final LinkedBlockQueue<ByteBuffer> queue;
-
-    public LinkedBlockQueue<ByteBuffer> getQueue() {
-        return queue;
-    }
 
     public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
@@ -60,7 +76,7 @@ public final class BufferWriter extends OutputStream {
     public void write(byte[] b, int off, int len) throws IOException {
         if (closed) {
             IOException ioException = new IOException("OutputStream has closed");
-            logger.error(ioException.getMessage(), ioException);
+            LOGGER.error(ioException.getMessage(), ioException);
             throw ioException;
         }
         if (len <= 0 || b.length == 0) {
@@ -84,9 +100,9 @@ public final class BufferWriter extends OutputStream {
             // }
 
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            LOGGER.error(e);
         } catch (TimeoutException e) {
-            e.printStackTrace();
+            LOGGER.error(e);
         }
     }
 
@@ -147,7 +163,7 @@ public final class BufferWriter extends OutputStream {
         try {
             return queue.poll();
         } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
+            LOGGER.error(e.getMessage(), e);
         }
         return null;
     }

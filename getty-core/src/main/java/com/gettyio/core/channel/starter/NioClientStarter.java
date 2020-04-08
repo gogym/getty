@@ -1,9 +1,18 @@
 /**
- * 包名：org.getty.core.channel.client
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.channel.starter;
 
@@ -25,36 +34,25 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * 类名：AioClientStarter.java
- * 描述：Aio客户端
- * 修改人：gogym
- * 时间：2019/9/27
+ * NioClientStarter.java
+ *
+ * @description:nio客户端
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
-public class NioClientStarter {
+public class NioClientStarter extends NioStarter {
 
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioClientStarter.class);
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioClientStarter.class);
-
-    //开启的socket模式 TCP/UDP ,默认tcp
-    protected SocketMode socketMode = SocketMode.TCP;
-    //客户端服务配置。
+    /**
+     * 客户端配置
+     */
     private ClientConfig aioClientConfig = new ClientConfig();
-    //aio通道
+    /**
+     * channel通道
+     */
     private SocketChannel nioChannel;
-    //内存池
-    private ChunkPool chunkPool;
-    //线程池
-    private ThreadPool workerThreadPool;
-
-    //责任链对象
-    protected ChannelPipeline channelPipeline;
-
-    //Boss线程数，获取cpu核心,核心小于4设置线程为3，大于4设置和cpu核心数一致
-    private int bossThreadNum = Runtime.getRuntime().availableProcessors() < 4 ? 3 : Runtime.getRuntime().availableProcessors();
-    // Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
-    private int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
-    // Worker线程数
-    private int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
 
     /**
      * 简单启动
@@ -118,8 +116,35 @@ public class NioClientStarter {
      *
      * @throws Exception 异常
      */
-    public final void start() throws Exception {
+    public final void start() {
+        try {
+            start0(null);
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            return;
+        }
+    }
 
+    /**
+     * 启动客户端,并且回调
+     *
+     * @throws Exception 异常
+     */
+    public final void start(ConnectHandler connectHandler) {
+        try {
+            start0(connectHandler);
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            return;
+        }
+    }
+
+    /**
+     * 内部启动
+     *
+     * @throws Exception
+     */
+    private void start0(ConnectHandler connectHandler) throws Exception {
         if (this.channelPipeline == null) {
             throw new NullPointerException("The ChannelPipeline is null.");
         }
@@ -130,18 +155,17 @@ public class NioClientStarter {
         //调用内部启动
 
         if (socketMode == SocketMode.TCP) {
-            startTcp();
+            startTcp(connectHandler);
         } else {
-            startUDP();
+            startUdp();
         }
-
     }
 
 
     /**
      * 该方法为非阻塞连接。连接成功与否，会回调
      */
-    private void startTcp() throws Exception {
+    private void startTcp(ConnectHandler connectHandler) throws Exception {
 
         final java.nio.channels.SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
         if (aioClientConfig.getSocketOptions() != null) {
@@ -166,7 +190,6 @@ public class NioClientStarter {
          */
         socketChannel.register(selector, SelectionKey.OP_CONNECT);
 
-
         while (selector.select() > 0) {
             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
             while (it.hasNext()) {
@@ -178,12 +201,18 @@ public class NioClientStarter {
                         channel.finishConnect();
                         try {
                             nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, workerThreadNum, channelPipeline);
+                            if (null != connectHandler) {
+                                connectHandler.onCompleted(nioChannel);
+                            }
                             //创建成功立即开始读
                             nioChannel.starRead();
                         } catch (Exception e) {
-                            logger.error(e.getMessage(), e);
+                            LOGGER.error(e.getMessage(), e);
                             if (nioChannel != null) {
                                 closeChannel(socketChannel);
+                            }
+                            if (null != connectHandler) {
+                                connectHandler.onFailed(e);
                             }
                         }
                     }
@@ -196,7 +225,7 @@ public class NioClientStarter {
     }
 
 
-    private final void startUDP() throws IOException {
+    private final void startUdp() throws IOException {
 
         DatagramChannel datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
@@ -231,17 +260,17 @@ public class NioClientStarter {
         try {
             channel.shutdownInput();
         } catch (IOException e) {
-            logger.debug(e.getMessage(), e);
+            LOGGER.debug(e.getMessage(), e);
         }
         try {
             channel.shutdownOutput();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
         try {
             channel.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
     }
 
@@ -249,7 +278,10 @@ public class NioClientStarter {
      * 获取AioChannel
      *
      * @return AioChannel
+     * @since 1.3.5
+     * @deprecated 该方法已过时，请使用ConnectHandler回调获取channel
      */
+    @Deprecated
     public SocketChannel getNioChannel() {
         if (nioChannel != null) {
             if ((nioChannel.getSslHandler()) != null && socketMode != SocketMode.UDP) {

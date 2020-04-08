@@ -1,18 +1,25 @@
 /**
- * 包名：org.getty.core.channel.client
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -21,35 +28,34 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
 import java.nio.channels.*;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
+
 /**
- * 类名：AioClientStarter.java
- * 描述：Aio客户端
- * 修改人：gogym
- * 时间：2019/9/27
+ * AioClientStarter.java
+ *
+ * @description:aio客户端
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
-public class AioClientStarter {
+public class AioClientStarter extends AioStarter {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AioClientStarter.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioClientStarter.class);
 
-    //客户端服务配置。
+    /**
+     * 客户端服务配置
+     */
     private ClientConfig clientConfig = new ClientConfig();
-    //aio通道
+    /**
+     * aio通道
+     */
     private SocketChannel aioChannel;
-    //内存池
-    private ChunkPool chunkPool;
-    //线程池
-    private ThreadPool workerThreadPool;
-    //IO线程组。
-    private AsynchronousChannelGroup asynchronousChannelGroup;
-    //责任链对象
-    protected ChannelPipeline channelPipeline;
+
 
     /**
      * 简单启动
@@ -92,12 +98,42 @@ public class AioClientStarter {
 
 
     /**
-     * 启动客户端。
+     * 启动客户端
      *
      * @throws Exception 异常
      */
-    public final void start() throws Exception {
+    public final void start() {
+        try {
+            start0(null);
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            return;
+        }
+    }
 
+
+    /**
+     * 启动客户端,连接成功回调
+     *
+     * @param connectHandler
+     * @throws Exception
+     */
+    public final void start(ConnectHandler connectHandler) {
+        try {
+            start0(connectHandler);
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            return;
+        }
+    }
+
+
+    /**
+     * 内部启动
+     *
+     * @param connectHandler
+     */
+    private void start0(ConnectHandler connectHandler) throws Exception {
         if (this.channelPipeline == null) {
             throw new NullPointerException("The ChannelPipeline is null.");
         }
@@ -105,6 +141,9 @@ public class AioClientStarter {
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
         //初始化内存池
         chunkPool = new ChunkPool(clientConfig.getClientChunkSize(), new Time(), clientConfig.isDirect());
+
+
+
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
             public Thread newThread(Runnable target) {
@@ -112,8 +151,7 @@ public class AioClientStarter {
             }
         });
         //调用内部启动
-        startTcp(asynchronousChannelGroup);
-
+        startTcp(asynchronousChannelGroup, connectHandler);
     }
 
 
@@ -121,8 +159,9 @@ public class AioClientStarter {
      * 该方法为非阻塞连接。连接成功与否，会回调
      *
      * @param asynchronousChannelGroup 线程组
+     * @param connectHandler           回调
      */
-    private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup) throws Exception {
+    private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup, final ConnectHandler connectHandler) throws Exception {
 
         final AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
         if (clientConfig.getSocketOptions() != null) {
@@ -136,15 +175,21 @@ public class AioClientStarter {
         socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
             @Override
             public void completed(Void result, AsynchronousSocketChannel attachment) {
-                logger.info("connect aio server success");
+                LOGGER.info("connect aio server success");
                 //连接成功则构造AIOSession对象
                 aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelPipeline);
+                if (null != connectHandler) {
+                    connectHandler.onCompleted(aioChannel);
+                }
                 aioChannel.starRead();
             }
 
             @Override
             public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                logger.error("connect aio server  error", exc);
+                LOGGER.error("connect server error", exc);
+                if (null != connectHandler) {
+                    connectHandler.onFailed(exc);
+                }
             }
         });
     }
@@ -175,7 +220,10 @@ public class AioClientStarter {
      * 获取AioChannel
      *
      * @return AioChannel
+     * @since 1.3.5
+     * @deprecated 该方法已过期，请使用ConnectHandler回调来获取channel
      */
+    @Deprecated
     public SocketChannel getAioChannel() {
         if (aioChannel != null) {
             if (aioChannel.getSslHandler() != null) {

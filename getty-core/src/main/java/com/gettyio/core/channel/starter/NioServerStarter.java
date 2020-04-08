@@ -1,10 +1,20 @@
-package com.gettyio.core.channel.starter;/*
- * 类名：NioServerStater
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2020/3/27
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.buffer.Time;
@@ -25,32 +35,37 @@ import java.nio.channels.*;
 import java.util.Iterator;
 import java.util.Map;
 
+
+/**
+ * NioServerStarter.java
+ *
+ * @description:nio服务端
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
+ */
 public class NioServerStarter extends NioStarter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioServerStarter.class);
 
-    //开启的socket模式 TCP/UDP ,默认tcp
-    protected SocketMode socketMode = SocketMode.TCP;
-    //Server端服务配置
+    /**
+     * 服务端配置
+     */
     protected ServerConfig serverConfig = new ServerConfig();
-    //内存池
-    protected ChunkPool chunkPool;
-    // 责任链对象
-    protected ChannelPipeline channelPipeline;
-    //线程池
-    private ThreadPool workerThreadPool;
-    //服务线程运行标志
+
+    /**
+     * 服务线程运行标志
+     */
     private volatile boolean running = true;
-    //Boss线程数，获取cpu核心,核心小于4设置线程为3，大于4设置和cpu核心数一致
-    private int bossThreadNum = Runtime.getRuntime().availableProcessors() < 4 ? 3 : Runtime.getRuntime().availableProcessors();
-    // Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
-    private int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
-    // Worker线程数
-    private int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
-    //socket对象
+
+    /**
+     * socket对象
+     */
     private ServerSocketChannel serverSocketChannel;
 
-    //UDP
+    /**
+     * udp通道对象
+     */
     private DatagramChannel datagramChannel;
     private Selector selector;
 
@@ -141,9 +156,9 @@ public class NioServerStarter extends NioStarter {
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
 
         if (socketMode == SocketMode.TCP) {
-            startTCP();
+            startTcp();
         } else {
-            startUDP();
+            startUdp();
         }
     }
 
@@ -152,7 +167,7 @@ public class NioServerStarter extends NioStarter {
      *
      * @throws IOException 异常
      */
-    private final void startTCP() throws IOException {
+    private final void startTcp() throws IOException {
 
         /*
          *开启一个服务channel，
@@ -181,7 +196,7 @@ public class NioServerStarter extends NioStarter {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         //开启线程，开始接收客户端的连接
-        new Thread(new Runnable() {
+        workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
                 //循环监听客户端的连接
@@ -195,7 +210,6 @@ public class NioServerStarter extends NioStarter {
                         if (readyChannels <= 0) {
                             continue;
                         }
-
                         /*
                          * 从selector上获取到了IO事件，可能是accept，也有可能是read，这里只关注可能是accept
                          */
@@ -222,9 +236,7 @@ public class NioServerStarter extends NioStarter {
                     }
                 }
             }
-        }).start();
-
-
+        });
     }
 
 
@@ -233,7 +245,7 @@ public class NioServerStarter extends NioStarter {
      *
      * @throws IOException 异常
      */
-    private final void startUDP() throws IOException {
+    private final void startUdp() throws IOException {
 
         datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
@@ -260,7 +272,7 @@ public class NioServerStarter extends NioStarter {
     private void createTcpChannel(java.nio.channels.SocketChannel channel) {
         SocketChannel socketChannel = null;
         try {
-            socketChannel = new NioChannel(channel, serverConfig, chunkPool,workerThreadNum, channelPipeline);
+            socketChannel = new NioChannel(channel, serverConfig, chunkPool, workerThreadNum, channelPipeline);
             //创建成功立即开始读
             socketChannel.starRead();
         } catch (Exception e) {
@@ -298,12 +310,12 @@ public class NioServerStarter extends NioStarter {
         try {
             channel.shutdownOutput();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
         try {
             channel.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
     }
 

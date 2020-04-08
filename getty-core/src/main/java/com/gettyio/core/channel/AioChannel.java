@@ -1,10 +1,20 @@
-package com.gettyio.core.channel;/*
- * 类名：TcpChannel
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2019/12/17
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.ChunkPool;
@@ -22,6 +32,14 @@ import java.nio.channels.AsynchronousSocketChannel;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * AioChannel.java
+ *
+ * @description: aio通道
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
+ */
 public class AioChannel extends SocketChannel implements Function<BufferWriter, Void> {
 
     /**
@@ -42,7 +60,9 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     private Semaphore semaphore = new Semaphore(1);
 
-    //读写回调
+    /**
+     * 读写回调
+     */
     private ReadCompletionHandler readCompletionHandler;
     private WriteCompletionHandler writeCompletionHandler;
 
@@ -68,7 +88,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
-        this.aioConfig = config;
+        this.config = config;
         this.chunkPool = chunkPool;
         this.channelPipeline = channelPipeline;
         try {
@@ -100,6 +120,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     /**
      * 开始读取，很重要，只有调用该方法，才会开始监听消息读取
      */
+    @Override
     public void starRead() {
         continueRead();
         if (this.sslHandler != null) {
@@ -112,6 +133,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     /**
      * 立即关闭会话
      */
+    @Override
     public synchronized void close() {
 
 
@@ -258,6 +280,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      *
      * @param obj 写入的数据
      */
+    @Override
     public void writeAndFlush(Object obj) {
         try {
             reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
@@ -271,6 +294,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      *
      * @param obj 写入的数组
      */
+    @Override
     public void writeToChannel(Object obj) {
         try {
             bufferWriter.writeAndFlush((byte[]) obj);
@@ -327,6 +351,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * @return InetSocketAddress
      * @throws IOException 异常
      */
+    @Override
     public final InetSocketAddress getLocalAddress() throws IOException {
         assertChannel();
         return (InetSocketAddress) channel.getLocalAddress();
@@ -338,6 +363,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * @return InetSocketAddress
      * @throws IOException 异常
      */
+    @Override
     public final InetSocketAddress getRemoteAddress() throws IOException {
         assertChannel();
         return (InetSocketAddress) channel.getRemoteAddress();
@@ -373,10 +399,12 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      *
      * @return AioChannel
      */
+    @Override
     public void setSslHandler(SslHandler sslHandler) {
         this.sslHandler = sslHandler;
     }
 
+    @Override
     public SslHandler getSslHandler() {
         return this.sslHandler;
     }

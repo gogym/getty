@@ -1,9 +1,18 @@
 /**
- * 包名：org.getty.core.channel
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.channel.config;
 
@@ -12,10 +21,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 类名：AioConfig.java
- * 描述：配置项
- * 修改人：gogym
- * 时间：2019/9/27
+ * BaseConfig.java
+ *
+ * @description:配置项
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
 public class BaseConfig {
 
@@ -33,24 +44,37 @@ public class BaseConfig {
                     " ttttty                              yttt    \n" +
                     "   yy                                yyy     \n";
 
-    //版本
-    public static final String VERSION = "1.0";
-
-    //服务器IP
+    /**
+     * 版本
+     */
+    public static final String VERSION = "1.3.4";
+    /**
+     * 服务器地址
+     */
     private String host;
-    //服务器端口号
+    /**
+     * 服务器端口号
+     */
     private int port;
-
-    //消息读取缓存大小，默认2048
+    /**
+     * 消息读取缓存大小，默认2048
+     */
     private int readBufferSize = 2048;
-    //内存池最大阻塞时间。默认1s
+    /**
+     * 内存池最大阻塞时间。默认1s
+     */
     private int chunkPoolBlockTime = 1000;
-    //输出类队列大小，默认10*1024*1024
+    /**
+     * 输出类队列大小，默认10*1024*1024
+     */
     private int bufferWriterQueueSize = 10 * 1024 * 1024;
-
-    //流控阈值
+    /**
+     * 流控阈值
+     */
     private final int flowControlSize = 20;
-    //释放流控阈值
+    /**
+     * 释放流控阈值
+     */
     private final int releaseFlowControlSize = 10;
 
     /**
@@ -71,7 +95,10 @@ public class BaseConfig {
      * 4. StandardSocketOptions.SO_REUSEADDR
      */
     private Map<SocketOption<Object>, Object> socketOptions;
-    //是否开启零拷贝
+
+    /**
+     * 是否开启零拷贝
+     */
     private final Boolean isDirect = true;
 
     //------------------------------------------------------------------------------------------------
@@ -114,7 +141,7 @@ public class BaseConfig {
 
     public void setOption(SocketOption socketOption, Object f) {
         if (socketOptions == null) {
-            socketOptions = new HashMap<>();
+            socketOptions = new HashMap<>(64);
         }
         socketOptions.put(socketOption, f);
     }
@@ -133,7 +160,7 @@ public class BaseConfig {
 
     @Override
     public String toString() {
-        return "AioConfig{readBufferSize=" + readBufferSize +
+        return "Config{readBufferSize=" + readBufferSize +
                 ", host='" + host == null ? "localhost" : host + '\'' +
                 ", port=" + port +
                 ", socketOptions=" + socketOptions +

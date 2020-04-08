@@ -1,9 +1,18 @@
 /**
- * 包名：org.getty.core.channel
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.channel;
 
@@ -26,11 +35,14 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.AsynchronousSocketChannel;
 
+
 /**
- * 类名：AioChannel.java
- * 描述：AIO传输通道
- * 修改人：gogym
- * 时间：2019/9/27
+ * SocketChannel.java
+ *
+ * @description:io通道
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
 public abstract class SocketChannel {
     protected static final InternalLogger logger = InternalLoggerFactory.getInstance(SocketChannel.class);
@@ -58,11 +70,13 @@ public abstract class SocketChannel {
      */
     protected byte status = CHANNEL_STATUS_ENABLED;
 
-    //配置
-    protected BaseConfig aioConfig;
+    /**
+     * 配置
+     */
+    protected BaseConfig config;
 
     /**
-     * 责任链对象
+     * 默认责任链对象
      */
     protected DefaultChannelPipeline defaultChannelPipeline;
     /**
@@ -81,7 +95,6 @@ public abstract class SocketChannel {
     protected ConcurrentSafeMap<Object, Object> channelAttribute = new ConcurrentSafeMap<>();
 
     //-------------------------------------------------------------------------------------
-
 
     /**
      * 获取当前aioChannel的唯一标识
@@ -165,6 +178,7 @@ public abstract class SocketChannel {
         invokePipeline(ChannelState.CHANNEL_READ, obj);
     }
 
+    //------------------------------------------------------------------------------
 
     /**
      * 正向执行管道处理
@@ -205,6 +219,8 @@ public abstract class SocketChannel {
                 break;
             case INPUT_SHUTDOWN:
                 channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel is shutdown"));
+                break;
+            default:
                 break;
         }
 
@@ -284,7 +300,7 @@ public abstract class SocketChannel {
     }
 
     public BaseConfig getConfig() {
-        return this.aioConfig;
+        return this.config;
     }
 
     public void setChannelFutureListener(ChannelFutureListener channelFutureListener) {

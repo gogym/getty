@@ -25,46 +25,57 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * A pool of ByteBuffers kept under a given memory limit. This class is fairly specific to the needs of the producer. In
- * particular it has the following properties:
- * <ol>
- * <li>There is a special "poolable size" and buffers of this size are kept in a free list and recycled
- * <li>It is fair. That is all memory is given to the longest waiting thread until it has sufficient memory. This
- * prevents starvation or deadlock when a thread asks for a large chunk of memory and needs to block until multiple
- * buffers are deallocated.
- * </ol>
- */
-
-/**
- * 内存池
- * 对于申请内存的线程来说是公平的，最先给等待时间最长的线程分配内存
- * 参考kafka结合netty内存池模式改造
+ * ChunkPool.java
+ *
+ * @description:借鉴kafka与netty内存池设计思想,对于申请内存的线程来说是公平的，最先给等待时间最长的线程分配内存
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
 public final class ChunkPool {
 
-    //内存池总内存空间大小
+    /**
+     * 内存池总内存空间大小
+     */
     private final long totalMemory;
     private final ReentrantLock lock;
-    //空闲内存池，不会实际分配内存，只是做个标记
-    //极小的
+    /**
+     * 空闲内存池，不会实际分配内存，只是做个标记
+     */
+
+    /**
+     * 极小的
+     */
     private final int tinySize = 128;
     private final Deque<ByteBuffer> tinyFree;
-    //小的
+    /**
+     * 小的
+     */
     private final int smallSize = 512;
     private final Deque<ByteBuffer> smallFree;
-    //中等的
+    /**
+     * 中等的
+     */
     private final int mediumSize = 1024;
     private final Deque<ByteBuffer> mediumFree;
-    //大的
+    /**
+     * 大的
+     */
     private final int largeSize = 2048;
     private final Deque<ByteBuffer> largeFree;
 
 
-    //等待队列标记
+    /**
+     * 等待队列标记
+     */
     private final Deque<Condition> waiters;
-    //可用内存大小
+    /**
+     * 可用内存大小
+     */
     private long availableMemory;
-    //时间控制
+    /**
+     * 时间控制
+     */
     private final Time time;
     /**
      * 是否堆内存
@@ -105,9 +116,7 @@ public final class ChunkPool {
         if (size > this.totalMemory) {
             //分配内存大于总内存，抛出异常
             throw new IllegalArgumentException("Attempt to allocate " + size
-                    + " bytes, but there is a hard limit of "
-                    + this.totalMemory
-                    + " on memory allocations.");
+                    + " bytes, but there is a hard limit of " + this.totalMemory + " on memory allocations.");
         }
 
         this.lock.lock();
@@ -139,9 +148,6 @@ public final class ChunkPool {
                 }
             }
 
-//            if (size == poolableSize && !this.mediumFree.isEmpty()) {
-//                return this.mediumFree.pollFirst();
-//            }
 
             //检查总空闲内存是否满足分配需要
             int freeListSize = (this.tinySize * this.tinyFree.size()) + (this.smallSize * this.smallFree.size()) + (this.mediumSize * this.mediumFree.size()) + (this.largeSize * this.largeFree.size());
@@ -243,89 +249,88 @@ public final class ChunkPool {
      * @throws InterruptedException 异常
      * @throws TimeoutException     异常
      */
-    public ByteBuffer allocateBySize(int size, long maxTimeToBlockMs) throws InterruptedException, TimeoutException {
-        if (size > this.totalMemory) {
-            //分配内存大于总内存，抛出异常
-            throw new IllegalArgumentException("Attempt to allocate " + size
-                    + " bytes, but there is a hard limit of "
-                    + this.totalMemory
-                    + " on memory allocations.");
-        }
-
-        this.lock.lock();
-        try {
-            //检查总空闲内存是否满足分配需要
-            int freeListSize = (this.tinySize * this.tinyFree.size()) + (this.smallSize * this.smallFree.size()) + (this.mediumSize * this.mediumFree.size()) + (this.largeSize * this.largeFree.size());
-            if (this.availableMemory + freeListSize >= size) {
-                //尝试释放空闲池
-                freeUp(size);
-                this.availableMemory -= size;
-                lock.unlock();
-                return direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
-            } else {
-                // 我们的内存不足，将不得不阻塞
-                int accumulated = 0;
-                ByteBuffer buffer = null;
-                Condition moreMemory = this.lock.newCondition();
-                long remainingTimeToBlockNs = TimeUnit.MILLISECONDS.toNanos(maxTimeToBlockMs);
-                // 循环，直到我们有一个缓冲区有足够的内存来分配
-                this.waiters.addLast(moreMemory);
-                while (accumulated < size) {
-                    long startWaitNs = time.nanoseconds();
-                    long timeNs;
-                    boolean waitingTimeElapsed;
-                    try {
-                        waitingTimeElapsed = !moreMemory.await(remainingTimeToBlockNs, TimeUnit.NANOSECONDS);
-                    } catch (InterruptedException e) {
-                        this.waiters.remove(moreMemory);
-                        throw e;
-                    } finally {
-                        long endWaitNs = time.nanoseconds();
-                        timeNs = Math.max(0L, endWaitNs - startWaitNs);
-                    }
-                    //如果等待时长超时，则抛出一个异常
-                    if (waitingTimeElapsed) {
-                        this.waiters.remove(moreMemory);
-                        throw new TimeoutException("Failed to allocate memory within the configured max blocking time " + maxTimeToBlockMs + " ms.");
-                    }
-
-                    remainingTimeToBlockNs -= timeNs;
-
-                    // 没有刚好合适的缓冲池，尝试释放
-                    freeUp(size - accumulated);
-                    int got = (int) Math.min(size - accumulated, this.availableMemory);
-                    this.availableMemory -= got;
-                    accumulated += got;
-
-                }
-
-                // 删除此线程让下一个线程通过，开始获取内存
-                Condition removed = this.waiters.removeFirst();
-                if (removed != moreMemory) {
-                    throw new IllegalStateException("Wrong condition: this shouldn't happen.");
-                }
-
-                // 如果内存不够，就通知其他等待者,避免一直阻塞
-                if (this.availableMemory > 0 || !this.mediumFree.isEmpty()) {
-                    if (!this.waiters.isEmpty()) {
-                        this.waiters.peekFirst().signal();
-                    }
-                }
-
-                // 解锁并返回缓冲区
-                lock.unlock();
-                if (buffer == null) {
-                    return direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
-                } else {
-                    return buffer;
-                }
-            }
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
-        }
-    }
+//    @Deprecated
+//    public ByteBuffer allocateBySize(int size, long maxTimeToBlockMs) throws InterruptedException, TimeoutException {
+//        if (size > this.totalMemory) {
+//            //分配内存大于总内存，抛出异常
+//            throw new IllegalArgumentException("Attempt to allocate " + size
+//                    + " bytes, but there is a hard limit of " + this.totalMemory + " on memory allocations.");
+//        }
+//
+//        this.lock.lock();
+//        try {
+//            //检查总空闲内存是否满足分配需要
+//            int freeListSize = (this.tinySize * this.tinyFree.size()) + (this.smallSize * this.smallFree.size()) + (this.mediumSize * this.mediumFree.size()) + (this.largeSize * this.largeFree.size());
+//            if (this.availableMemory + freeListSize >= size) {
+//                //尝试释放空闲池
+//                freeUp(size);
+//                this.availableMemory -= size;
+//                lock.unlock();
+//                return direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
+//            } else {
+//                // 我们的内存不足，将不得不阻塞
+//                int accumulated = 0;
+//                ByteBuffer buffer = null;
+//                Condition moreMemory = this.lock.newCondition();
+//                long remainingTimeToBlockNs = TimeUnit.MILLISECONDS.toNanos(maxTimeToBlockMs);
+//                // 循环，直到我们有一个缓冲区有足够的内存来分配
+//                this.waiters.addLast(moreMemory);
+//                while (accumulated < size) {
+//                    long startWaitNs = time.nanoseconds();
+//                    long timeNs;
+//                    boolean waitingTimeElapsed;
+//                    try {
+//                        waitingTimeElapsed = !moreMemory.await(remainingTimeToBlockNs, TimeUnit.NANOSECONDS);
+//                    } catch (InterruptedException e) {
+//                        this.waiters.remove(moreMemory);
+//                        throw e;
+//                    } finally {
+//                        long endWaitNs = time.nanoseconds();
+//                        timeNs = Math.max(0L, endWaitNs - startWaitNs);
+//                    }
+//                    //如果等待时长超时，则抛出一个异常
+//                    if (waitingTimeElapsed) {
+//                        this.waiters.remove(moreMemory);
+//                        throw new TimeoutException("Failed to allocate memory within the configured max blocking time " + maxTimeToBlockMs + " ms.");
+//                    }
+//
+//                    remainingTimeToBlockNs -= timeNs;
+//
+//                    // 没有刚好合适的缓冲池，尝试释放
+//                    freeUp(size - accumulated);
+//                    int got = (int) Math.min(size - accumulated, this.availableMemory);
+//                    this.availableMemory -= got;
+//                    accumulated += got;
+//
+//                }
+//
+//                // 删除此线程让下一个线程通过，开始获取内存
+//                Condition removed = this.waiters.removeFirst();
+//                if (removed != moreMemory) {
+//                    throw new IllegalStateException("Wrong condition: this shouldn't happen.");
+//                }
+//
+//                // 如果内存不够，就通知其他等待者,避免一直阻塞
+//                if (this.availableMemory > 0 || !this.mediumFree.isEmpty()) {
+//                    if (!this.waiters.isEmpty()) {
+//                        this.waiters.peekFirst().signal();
+//                    }
+//                }
+//
+//                // 解锁并返回缓冲区
+//                lock.unlock();
+//                if (buffer == null) {
+//                    return direct ? ByteBuffer.allocateDirect(size) : ByteBuffer.allocate(size);
+//                } else {
+//                    return buffer;
+//                }
+//            }
+//        } finally {
+//            if (lock.isHeldByCurrentThread()) {
+//                lock.unlock();
+//            }
+//        }
+//    }
 
     /**
      * 尝试通过释放池确保至少有被请求的内存字节数

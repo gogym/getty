@@ -1,19 +1,30 @@
 /**
- * 包名：org.getty.core.buffer
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.buffer;
 
 import java.io.IOException;
 
 /**
- * 类名：AutoByteBuffer.java
- * 描述：数组缓存处理类，用于解决需要写入一个未知长度的byte[]，如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
- * 修改人：gogym
- * 时间：2019/9/27
+ * AutoByteBuffer.java
+ *
+ * @description:数组缓存处理类，用于解决需要写入一个未知长度的byte[]，如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
+ * @author:gogym
+ * @date:2019/9/27
+ * @copyright: Copyright by gettyio.com
  */
 public class AutoByteBuffer {
     public static final int BUFFER_SIZE = 256;
@@ -275,7 +286,7 @@ public class AutoByteBuffer {
     /**
      * 读取数据到bytes，写入从offset到offset+length的区域
      *
-     * @param bytes 数组
+     * @param bytes  数组
      * @param offset 下标
      * @param length 长度
      * @return int
@@ -453,7 +464,7 @@ public class AutoByteBuffer {
      * @param position 下标
      * @param src      源数组
      * @param result   目标数组
-     * @param offst    目标数组起始下标位置
+     * @param offset   目标数组起始下标位置
      * @return int
      */
     private int readBytesFromBytes(byte[] src, byte[] result, int position, int offset, int length) {

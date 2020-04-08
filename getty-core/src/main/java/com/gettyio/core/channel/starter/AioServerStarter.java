@@ -1,9 +1,18 @@
 /**
- * 包名：org.getty.core.channel.server
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.channel.starter;
 
@@ -26,39 +35,41 @@ import java.nio.channels.*;
 import java.util.Map;
 import java.util.concurrent.*;
 
+
 /**
- * 类名：AioServerStarter.java
- * 描述：aio服务器端
- * 修改人：gogym
- * 时间：2019/9/27
+ * AioServerStarter.java
+ *
+ * @description:aio服务器端
+ * @author:gogym
+ * @date:2020/4/8
+ * @copyright: Copyright by gettyio.com
  */
-public class AioServerStarter {
+public class AioServerStarter extends AioStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioServerStarter.class);
 
-    //Server端服务配置
+    /**
+     * 服务端配置
+     */
     protected ServerConfig config = new ServerConfig();
-    //内存池
-    protected ChunkPool chunkPool;
-    //读回调事件处理
+    /**
+     * 读回调
+     */
     protected ReadCompletionHandler readCompletionHandler;
-    //写回调事件处理
+    /**
+     * 写回调
+     */
     protected WriteCompletionHandler writeCompletionHandler;
-    // 责任链对象
-    protected ChannelPipeline channelPipeline;
-    //线程池
-    private ThreadPool workerThreadPool;
-    //io服务端
+
+    /**
+     * aio服务端通道
+     */
     private AsynchronousServerSocketChannel serverSocketChannel = null;
-    //io线程池
-    private AsynchronousChannelGroup asynchronousChannelGroup;
-    //服务线程运行标志
+
+    /**
+     * 服务线程运行标志
+     */
     private volatile boolean running = true;
-    //Boss线程数，获取cpu核心,核心小于4设置线程为3，大于4设置和cpu核心数一致
-    private int bossThreadNum = Runtime.getRuntime().availableProcessors() < 4 ? 3 : Runtime.getRuntime().availableProcessors();
-    // Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
-    private int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
-    // Worker线程数
-    private int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
+
 
     /**
      * 简单启动
@@ -141,7 +152,7 @@ public class AioServerStarter {
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         //启动
-        startTCP();
+        startTcp();
     }
 
     /**
@@ -149,7 +160,7 @@ public class AioServerStarter {
      *
      * @throws IOException 异常
      */
-    private final void startTCP() throws IOException {
+    private final void startTcp() throws IOException {
         try {
 
             //实例化读写回调
@@ -184,7 +195,7 @@ public class AioServerStarter {
             }
 
             //开启线程，开始接收客户端的连接
-            new Thread(new Runnable() {
+            workerThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
                     //循环监听客户端的连接
@@ -208,7 +219,7 @@ public class AioServerStarter {
                         }
                     }
                 }
-            }).start();
+            });
 
         } catch (IOException e) {
             shutdown();
