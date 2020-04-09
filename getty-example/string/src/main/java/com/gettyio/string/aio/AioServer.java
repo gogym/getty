@@ -2,13 +2,13 @@ package com.gettyio.string.aio;
 
 
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
+import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;

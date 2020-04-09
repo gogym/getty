@@ -27,9 +27,9 @@ package com.gettyio.core.channel.config;
 public final class ClientConfig extends BaseConfig {
 
     /**
-     * 客户端最大可用内存池大小上限,默认1G
+     * 客户端最大可用内存池大小上限,默认256M
      */
-    public Integer clientChunkSize = 1024 * 1024 * 1024;
+    public Integer clientChunkSize = 256 * 1024 * 1024;
 
     public Integer getClientChunkSize() {
         return clientChunkSize;

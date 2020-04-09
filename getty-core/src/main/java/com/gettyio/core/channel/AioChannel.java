@@ -23,6 +23,7 @@ import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.handler.ssl.SslHandler;
+import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.pipeline.ChannelPipeline;
 
 import java.io.IOException;
@@ -70,6 +71,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * SSL服务
      */
     private SslHandler sslHandler;
+    private IHandshakeCompletedListener handshakeCompletedListener;
+
 
     protected BufferWriter bufferWriter;
 
@@ -106,7 +109,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         }
 
         //初始化数据输出类
-        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
+        bufferWriter = new BufferWriter(BufferWriter.NOBLOCK, chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
 
         //触发责任链
         try {
@@ -125,7 +128,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         continueRead();
         if (this.sslHandler != null) {
             //若开启了SSL，则需要握手
-            this.sslHandler.getSslService().beginHandshake();
+            this.sslHandler.getSslService().beginHandshake(handshakeCompletedListener);
         }
     }
 
@@ -407,6 +410,12 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public SslHandler getSslHandler() {
         return this.sslHandler;
+    }
+
+
+    @Override
+    public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
+        this.handshakeCompletedListener = handshakeCompletedListener;
     }
 
     @Override

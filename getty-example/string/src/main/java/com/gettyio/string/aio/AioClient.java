@@ -1,31 +1,28 @@
 package com.gettyio.string.aio;
 
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
+import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.ssl.SslConfig;
+import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 public class AioClient {
 
-    static ThreadPool threadPool = new ThreadPool(ThreadPool.FixedThread, 10);
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
-
         int i = 0;
         while (i < 1) {
-
             test(8888);
             i++;
         }
@@ -37,8 +34,8 @@ public class AioClient {
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-        aioConfig.setClientChunkSize(512 * 1024 * 1024);
-        aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);
+        aioConfig.setClientChunkSize(256 * 1024 * 1024);
+        aioConfig.setBufferWriterQueueSize(10 * 1024 * 1024);
 
 
         AioClientStarter client = new AioClientStarter(aioConfig);
@@ -50,7 +47,7 @@ public class AioClient {
 
 
                 //获取证书
-                String pkPath =  getClass().getClassLoader().getResource("clientStore.jks")
+                String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
@@ -63,7 +60,7 @@ public class AioClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-               // defaultChannelPipeline.addFirst(new SslHandler(channel,sSLService));
+                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 //defaultChannelPipeline.addLast(new ReConnectHandler(channel));
 
@@ -76,61 +73,37 @@ public class AioClient {
             }
         });
 
-        try {
-            client.start();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(SocketChannel channel) {
+
+                try {
+                    String s = "12\r\n";
+                    byte[] msgBody = s.getBytes("utf-8");
+                    long ct = System.currentTimeMillis();
+
+                    int i = 0;
+                    for (; i < 1000000; i++) {
+                        // byte[] msgBody = s.getBytes("utf-8");
+                        channel.writeAndFlush(msgBody);
+
+                    }
+
+                    long lt = System.currentTimeMillis();
+                    System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+                    System.out.printf("发送消息数量：" + i + "条\r\n");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
 
-        try {
-            Thread.sleep(3000);
-            SocketChannel aioChannel = client.getAioChannel();
-            aioChannel.getChannelAttribute().put("key", "value");
-            String s = "12\r\n";
-            byte[] msgBody = s.getBytes("utf-8");
-            long ct = System.currentTimeMillis();
-
-            int i = 0;
-            for (; i < 1000000; i++) {
-//                String s = i + "me\r\n";
-                // byte[] msgBody = s.getBytes("utf-8");
-                aioChannel.writeAndFlush(msgBody);
-                //aioChannel.writeAndFlush(msgBody);
-                //aioChannel.writeAndFlush(msgBody);
-                //aioChannel.writeAndFlush(msgBody);
             }
 
-            long lt = System.currentTimeMillis();
-            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-            System.out.printf("发送消息数量：" + i + "条\r\n");
+            @Override
+            public void onFailed(Throwable exc) {
 
-
-//            for (int j = 0; j < 1; j++) {
-//               threadPool.execute(new Runnable() {
-//                   @Override
-//                   public void run() {
-//                       int i = 0;
-//                       for (; i < 10; i++) {
-////                String s = i + "me\r\n";
-////                byte[] msgBody = s.getBytes("utf-8");
-//                           aioChannel.writeAndFlush(msgBody);
-//                           //aioChannel.writeAndFlush(msgBody);
-//                           //aioChannel.writeAndFlush(msgBody);
-//                           //aioChannel.writeAndFlush(msgBody);
-//                       }
-//
-//                       long lt = System.currentTimeMillis();
-//                       System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-//                       System.out.printf("发送消息数量：" + i + "条\r\n");
-//                   }
-//               });
-//            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+            }
+        });
 
     }
 

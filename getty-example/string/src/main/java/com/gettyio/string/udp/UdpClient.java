@@ -4,6 +4,7 @@ import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
+import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketDecoder;
 import com.gettyio.core.handler.codec.datagrampacket.DatagramPacketEncoder;
@@ -55,69 +56,40 @@ public class UdpClient {
             }
         });
 
-        try {
-            client.start();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(final SocketChannel channel) {
+                try {
+                    String s = "12";
+                    byte[] msgBody = s.getBytes("utf-8");
+                    final DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
+                    final long ct = System.currentTimeMillis();
 
-        try {
-            Thread.sleep(2000);
-            final SocketChannel aioChannel = client.getNioChannel();
-            String s = "12";
-            byte[] msgBody = s.getBytes("utf-8");
-            final DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
-            final long ct = System.currentTimeMillis();
-
-            for(int j=0;j<1;j++){
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        int i = 0;
-                        for (; i < 100; i++) {
-//                String s = i + "me\r\n";
-//                byte[] msgBody = s.getBytes("utf-8");
-                            aioChannel.writeAndFlush(datagramPacket);
-                            //aioChannel.writeAndFlush(msgBody);
-                            //aioChannel.writeAndFlush(msgBody);
-                            //aioChannel.writeAndFlush(msgBody);
-                        }
-
-                        long lt = System.currentTimeMillis();
-                        System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                        System.out.printf("发送消息数量：" + i + "条\r\n");
+                    for (int j = 0; j < 1; j++) {
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                int i = 0;
+                                for (; i < 100; i++) {
+                                    channel.writeAndFlush(datagramPacket);
+                                }
+                                long lt = System.currentTimeMillis();
+                                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+                                System.out.printf("发送消息数量：" + i + "条\r\n");
+                            }
+                        }).start();
                     }
-                }).start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
 
+            @Override
+            public void onFailed(Throwable exc) {
 
-
-
-//            for (int j = 0; j < 1; j++) {
-//               threadPool.execute(new Runnable() {
-//                   @Override
-//                   public void run() {
-//                       int i = 0;
-//                       for (; i < 10; i++) {
-////                String s = i + "me\r\n";
-////                byte[] msgBody = s.getBytes("utf-8");
-//                           aioChannel.writeAndFlush(msgBody);
-//                           //aioChannel.writeAndFlush(msgBody);
-//                           //aioChannel.writeAndFlush(msgBody);
-//                           //aioChannel.writeAndFlush(msgBody);
-//                       }
-//
-//                       long lt = System.currentTimeMillis();
-//                       System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-//                       System.out.printf("发送消息数量：" + i + "条\r\n");
-//                   }
-//               });
-//            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            }
+        });
 
 
     }

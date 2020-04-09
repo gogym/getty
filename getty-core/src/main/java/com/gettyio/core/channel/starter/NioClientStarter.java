@@ -21,6 +21,7 @@ import com.gettyio.core.buffer.Time;
 import com.gettyio.core.channel.*;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -157,7 +158,7 @@ public class NioClientStarter extends NioStarter {
         if (socketMode == SocketMode.TCP) {
             startTcp(connectHandler);
         } else {
-            startUdp();
+            startUdp(connectHandler);
         }
     }
 
@@ -165,7 +166,7 @@ public class NioClientStarter extends NioStarter {
     /**
      * 该方法为非阻塞连接。连接成功与否，会回调
      */
-    private void startTcp(ConnectHandler connectHandler) throws Exception {
+    private void startTcp(final ConnectHandler connectHandler) throws Exception {
 
         final java.nio.channels.SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
         if (aioClientConfig.getSocketOptions() != null) {
@@ -201,8 +202,19 @@ public class NioClientStarter extends NioStarter {
                         channel.finishConnect();
                         try {
                             nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, workerThreadNum, channelPipeline);
+
                             if (null != connectHandler) {
-                                connectHandler.onCompleted(nioChannel);
+                                if (null != nioChannel.getSslHandler()) {
+                                    nioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                                        @Override
+                                        public void onComplete() {
+                                            LOGGER.info("Ssl Handshake Completed");
+                                            connectHandler.onCompleted(nioChannel);
+                                        }
+                                    });
+                                } else {
+                                    connectHandler.onCompleted(nioChannel);
+                                }
                             }
                             //创建成功立即开始读
                             nioChannel.starRead();
@@ -225,7 +237,7 @@ public class NioClientStarter extends NioStarter {
     }
 
 
-    private final void startUdp() throws IOException {
+    private final void startUdp(ConnectHandler connectHandler) throws IOException {
 
         DatagramChannel datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
@@ -233,6 +245,10 @@ public class NioClientStarter extends NioStarter {
         datagramChannel.register(selector, SelectionKey.OP_READ);
         nioChannel = new UdpChannel(datagramChannel, selector, aioClientConfig, chunkPool, channelPipeline, 2);
         nioChannel.starRead();
+        if (null != connectHandler) {
+            connectHandler.onCompleted(nioChannel);
+        }
+
     }
 
 

@@ -2,6 +2,7 @@ package com.gettyio.protobuf.client;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
+import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufEncoder;
 import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
@@ -45,7 +46,7 @@ public class ImClient {
                 //责任链
                 DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
                 //获取证书
-                String pkPath =  getClass().getClassLoader().getResource("clientStore.jks")
+                String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
@@ -72,33 +73,35 @@ public class ImClient {
             }
         });
 
-        try {
-            client.start();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
-        try {
-            Thread.sleep(2000);
-            SocketChannel aioChannel = client.getAioChannel();
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(SocketChannel channel) {
+                try {
 
 
-            MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
-            builder.setId("123");
+                    MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
+                    builder.setId("123");
+//                    while (true) {
+//                        Thread.sleep(100);
+//                        channel.writeAndFlush(builder.build());
+//                    }
 
-//            for (int i = 0; i < 2; i++) {
-//                aioChannel.writeAndFlush(builder.build());
-//            }
+                    int i = 0;
+                    for (; i < 100; i++) {
+                        channel.writeAndFlush(builder.build());
+                    }
 
-            while (true){
-                Thread.sleep(1000);
-                aioChannel.writeAndFlush(builder.build());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
 
+            @Override
+            public void onFailed(Throwable exc) {
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            }
+        });
 
 
     }

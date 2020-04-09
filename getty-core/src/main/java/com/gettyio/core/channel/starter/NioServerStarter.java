@@ -275,6 +275,7 @@ public class NioServerStarter extends NioStarter {
             socketChannel = new NioChannel(channel, serverConfig, chunkPool, workerThreadNum, channelPipeline);
             //创建成功立即开始读
             socketChannel.starRead();
+
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
             if (socketChannel != null) {

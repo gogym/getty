@@ -1,15 +1,27 @@
-package com.gettyio.core.channel;/*
- * 类名：UdpChannel
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2019/12/17
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.function.Function;
+import com.gettyio.core.handler.ssl.SslHandler;
+import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 
@@ -21,10 +33,17 @@ import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.concurrent.Semaphore;
 
+/**
+ * NioChannel.java
+ *
+ * @description:NIO通道
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
+ */
 public class NioChannel extends SocketChannel implements Function<BufferWriter, Void> {
 
     private java.nio.channels.SocketChannel channel;
-    //selector
     private Selector selector;
 
     protected BufferWriter bufferWriter;
@@ -34,21 +53,26 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     protected ByteBuffer writeByteBuffer;
 
+
+    /**
+     * SSL服务
+     */
+    private SslHandler sslHandler;
+    private IHandshakeCompletedListener handshakeCompletedListener;
+
+
     /**
      * 输出信号量
      */
     private Semaphore semaphore = new Semaphore(1);
 
-    //线程池
-    private int workerThreadNum;
     ThreadPool workerThreadPool;
     private ChannelPipeline channelPipeline;
 
     public NioChannel(java.nio.channels.SocketChannel channel, BaseConfig config, ChunkPool chunkPool, Integer workerThreadNum, ChannelPipeline channelPipeline) {
         this.channel = channel;
-        this.aioConfig = config;
+        this.config = config;
         this.chunkPool = chunkPool;
-        this.workerThreadNum = workerThreadNum;
         this.chunkPool = chunkPool;
         this.channelPipeline = channelPipeline;
         try {
@@ -62,7 +86,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         }
 
         //初始化数据输出类
-        bufferWriter = new BufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
+        bufferWriter = new BufferWriter(BufferWriter.BLOCK, chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         //触发责任链
         try {
@@ -72,18 +96,23 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         }
 
         //开启线程写出消息
-        new Thread(new Runnable() {
+        workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
                 NioChannel.this.continueWrite();
             }
-        }).start();
+        });
 
     }
 
 
     @Override
     public void starRead() {
+
+        if (NioChannel.this.sslHandler != null) {
+            //若开启了SSL，则需要握手
+            NioChannel.this.sslHandler.getSslService().beginHandshake(handshakeCompletedListener);
+        }
         //多线程处理，提高效率
         workerThreadPool.execute(new Runnable() {
             @Override
@@ -101,8 +130,9 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                                 if (channel.isConnectionPending()) {
                                     channel.finishConnect();
                                 }
+
                             } else if (sk.isReadable()) {
-                                ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
+                                ByteBuffer readBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
                                 //接收数据
                                 int reccount = ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
                                 if (reccount == -1) {
@@ -206,7 +236,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public void writeToChannel(Object obj) {
         try {
-            //bufferWriter.writeAndFlush((byte[]) obj);
             byte[] bytes = (byte[]) obj;
             bufferWriter.write(bytes, 0, bytes.length);
         } catch (IOException e) {
@@ -227,6 +256,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
      * @return InetSocketAddress
      * @throws IOException 异常
      */
+    @Override
     public final InetSocketAddress getRemoteAddress() throws IOException {
         assertChannel();
         return (InetSocketAddress) channel.getRemoteAddress();
@@ -285,5 +315,25 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public ChannelPipeline getChannelPipeline() {
         return channelPipeline;
+    }
+
+    /**
+     * 设置SSLHandler
+     *
+     * @return AioChannel
+     */
+    @Override
+    public void setSslHandler(SslHandler sslHandler) {
+        this.sslHandler = sslHandler;
+    }
+
+    @Override
+    public SslHandler getSslHandler() {
+        return this.sslHandler;
+    }
+
+    @Override
+    public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
+        this.handshakeCompletedListener = handshakeCompletedListener;
     }
 }

@@ -1,3 +1,19 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.gettyio.core.util.detector;
 
 
@@ -24,10 +40,27 @@ import static com.gettyio.core.util.StringUtil.*;
 
 /**
  * 类名：ResourceLeakDetector.java
- * 描述：内存泄露检测工具
+ * 描述：
  * 修改人：gogym
  * 时间：2020/3/17
  * 参考：netty 4.3
+ * 使用示例：
+ * private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = new ResourceLeakDetector(HashedWheelTimer.class, 1);
+ * private final ResourceLeakTracker<HashedWheelTimer> leak= leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;
+ * if (leak != null) {
+ * boolean closed = leak.close(this);
+ * assert closed;
+ * }
+ */
+
+
+/**
+ * ResourceLeakDetector.java
+ *
+ * @description:内存泄露检测工具,netty 4.3
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  * 使用示例：
  * private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = new ResourceLeakDetector(HashedWheelTimer.class, 1);
  * private final ResourceLeakTracker<HashedWheelTimer> leak= leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;

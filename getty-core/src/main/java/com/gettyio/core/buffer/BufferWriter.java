@@ -20,6 +20,8 @@ import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedQueue;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -36,6 +38,11 @@ import java.util.concurrent.TimeoutException;
  */
 public final class BufferWriter extends OutputStream {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BufferWriter.class);
+
+
+    public static final Integer BLOCK = 0;
+    public static final Integer NOBLOCK = 1;
+
     /**
      * 缓冲池
      */
@@ -52,13 +59,17 @@ public final class BufferWriter extends OutputStream {
     /**
      * 阻塞队列
      */
-    private final LinkedBlockQueue<ByteBuffer> queue;
+    private final LinkedQueue<ByteBuffer> queue;
 
-    public BufferWriter(ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
+    public BufferWriter(Integer blockType, ChunkPool chunkPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
         this.chunkPoolBlockTime = chunkPoolBlockTime;
         this.function = flushFunction;
-        queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
+        if (blockType == BLOCK) {
+            queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
+        } else {
+            queue = new LinkedNonReadBlockQueue<>(bufferWriterQueueSize);
+        }
     }
 
     @Deprecated

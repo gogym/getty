@@ -1,10 +1,20 @@
-package com.gettyio.core.handler.codec.websocket;/*
- * 类名：WebSocketHandShak
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2020/1/2
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.handler.codec.websocket;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.logging.InternalLogger;
@@ -16,9 +26,17 @@ import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+/**
+ * WebSocketHandShak.java
+ *
+ * @description:握手
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
+ */
 public class WebSocketHandShak {
 
-    protected static final InternalLogger log = InternalLoggerFactory.getInstance(SocketChannel.class);
+    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(SocketChannel.class);
 
     /**
      * 方法名：parserRequest
@@ -40,7 +58,7 @@ public class WebSocketHandShak {
         String line = requestDatas[0];
         String[] requestLine = line.split(" ");
         if (requestLine.length < 2) {
-            log.info("Wrong Request-Line format: " + line);
+            LOGGER.info("Wrong Request-Line format: " + line);
             return null;
         }
         requestInfo.setRequestUri(requestLine[1]);
@@ -62,35 +80,36 @@ public class WebSocketHandShak {
 
             String[] parts = line.split(": ", 2);
             if (parts.length != 2) {
-                log.info("Wrong field format: " + line);
+                LOGGER.info("Wrong field format: " + line);
                 return null;
             }
 
             String name = parts[0].toLowerCase();
             String value = parts[1].toLowerCase();
 
-            if (name.equals("upgrade")) {
-                if (!value.equals("websocket")) {
-                    log.info("Wrong value of upgrade field: " + line);
+            if ("upgrade".equals(name)) {
+                if (!"websocket".equals(value)) {
+                    LOGGER.info("Wrong value of upgrade field: " + line);
                     return null;
                 }
                 requestInfo.setUpgrade(true);
-            } else if (name.equals("connection")) {
-                if (!value.equals("upgrade")) {
-                    log.info("Wrong value of connection field: " + line);
+            } else if ("connection".equals(name)) {
+                if (!"upgrade".equals(value)) {
+                    LOGGER.info("Wrong value of connection field: " + line);
                 }
                 requestInfo.setConnection(true);
-            } else if (name.equals("host")) {
+            } else if ("host".equals(name)) {
                 requestInfo.setHost(value);
-            } else if (name.equals("origin")) {
+            } else if ("origin".equals(name)) {
                 requestInfo.setOrigin(value);
-            } else if ((name.equals("sec-websocket-key1")) || (name.equals("sec-websocket-key2"))) {
-                log.info(name + ":" + value);
+            } else if (("sec-websocket-key1".equals(name)) || ("sec-websocket-key2".equals(name))) {
+                LOGGER.info(name + ":" + value);
                 Integer spaces = new Integer(0);
                 Long number = new Long(0);
                 for (Character c : parts[1].toCharArray()) {
-                    if (c.equals(' '))
+                    if (c.equals(' ')) {
                         ++spaces;
+                    }
                     if (Character.isDigit(c)) {
                         number *= 10;
                         number += Character.digit(c, 10);
@@ -98,25 +117,25 @@ public class WebSocketHandShak {
                 }
                 number /= spaces;
 
-                if (name.endsWith("key1")) {
+                if ("key1".endsWith(name)) {
                     requestInfo.setKey1(number);
                 } else {
                     requestInfo.setKey2(number);
                 }
-            } else if (name.equals("cookie")) {
+            } else if ("cookie".equals(name)) {
                 requestInfo.setCookie(value);
-            } else if (name.equals("sec-websocket-key")) {
+            } else if ("sec-websocket-key".equals(name)) {
                 // 版本4以及以上放到sec key中
                 // 设置签名
                 requestInfo.setDigest(getKey(parts[1]));
-            } else if (name.equals("sec-websocket-version")) {
+            } else if ("sec-websocket-version".equals(name)) {
                 //获取安全控制版本
                 // 设置版本
                 requestInfo.setSecVersion(Integer.valueOf(value));
-            } else if (name.equals("sec-websocket-extensions")) {
-                log.info(value);
+            } else if ("sec-websocket-extensions".equals(name)) {
+                LOGGER.info(value);
             } else {
-                log.info("Unexpected header field: " + line);
+                LOGGER.info("Unexpected header field: " + line);
             }
         }
         return requestInfo;
@@ -125,8 +144,9 @@ public class WebSocketHandShak {
 
     /**
      * 方法名：makeResponseToken
+     *
      * @param requestInfo 请求字符串
-     * @param token token
+     * @param token       token
      * @return String
      */
     protected static String makeResponseToken(WebSocketRequest requestInfo, byte[] token) {
@@ -147,6 +167,7 @@ public class WebSocketHandShak {
 
     /**
      * 方法名：getKey
+     *
      * @param key key
      * @return String
      */
@@ -154,7 +175,7 @@ public class WebSocketHandShak {
         // CHROME WEBSOCKET VERSION 8中定义的GUID
         String guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         key += guid;
-        log.info(key);
+        LOGGER.info(key);
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
             md.update(key.getBytes("iso-8859-1"), 0, key.length());
@@ -178,7 +199,7 @@ public class WebSocketHandShak {
      * 方法名：generateHandshake
      *
      * @param requestInfo 请求字符串
-     * @param aioChannel 通道
+     * @param aioChannel  通道
      * @return String
      */
     public static String generateHandshake(WebSocketRequest requestInfo, SocketChannel aioChannel) {
@@ -217,7 +238,7 @@ public class WebSocketHandShak {
             // 写入换行
             sb.append("\r\n");
         }
-        log.info("the response: " + sb.toString());
+        LOGGER.info("the response: " + sb.toString());
         return sb.toString();
     }
 }

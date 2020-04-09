@@ -14,28 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gettyio.core.handler.codec.string;
-
-import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
-
+package com.gettyio.core.util;
 
 /**
- * StringDecoder.java
+ * LinkedQueue.java
  *
- * @description:string解码器
+ * @description:
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class StringDecoder extends ObjectToMessageDecoder {
+public interface LinkedQueue<T> {
 
-    @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
 
-        String str = new String((byte[]) obj, "utf-8");
-        out.put(str);
-        super.decode(socketChannel, obj, out);
-    }
+    <T> T[] getArray(Class<T> componentType, int length);
+
+    void put(T t) throws InterruptedException;
+
+    T poll() throws InterruptedException;
+
+    int getCount();
+
+    int getCapacity();
 }

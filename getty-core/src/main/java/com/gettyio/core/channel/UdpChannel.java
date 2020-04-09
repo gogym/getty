@@ -1,10 +1,20 @@
-package com.gettyio.core.channel;/*
- * 类名：UdpChannel
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2019/12/17
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.util.LinkedBlockQueue;
@@ -22,24 +32,34 @@ import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * UdpChannel.java
+ *
+ * @description:udp通道
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
+ */
 public class UdpChannel extends SocketChannel {
 
 
-    //udp通道
+    /**
+     * udp通道
+     */
     private DatagramChannel datagramChannel;
-    //selector
     private Selector selector;
-    //阻塞队列
+    /**
+     * 阻塞队列
+     */
     private LinkedBlockQueue<Object> queue;
-    //线程池
-    private int workerThreadNum;
+    private ThreadPool workerThreadPool;
 
     public UdpChannel(DatagramChannel datagramChannel, Selector selector, BaseConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
-        this.aioConfig = config;
+        this.config = config;
         this.chunkPool = chunkPool;
-        this.workerThreadNum = workerThreadNum;
+        this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         queue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
         try {
             //注意该方法可能抛异常
@@ -61,50 +81,47 @@ public class UdpChannel extends SocketChannel {
 
     @Override
     public void starRead() {
-        ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-        for (int i = 0; i < workerThreadNum; i++) {
-            workerThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        while (selector.select() > 0) {
-                            Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                            while (it.hasNext()) {
-                                SelectionKey sk = it.next();
-                                it.remove();
-                                if (sk.isReadable()) {
-                                    ByteBuffer readBuffer = chunkPool.allocate(aioConfig.getReadBufferSize(), aioConfig.getChunkPoolBlockTime());
-                                    //接收数据
-                                    InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer);
-                                    if (null != readBuffer) {
-                                        readBuffer.flip();
-                                        //读取缓冲区数据，输送到责任链
-                                        while (readBuffer.hasRemaining()) {
-                                            byte[] bytes = new byte[readBuffer.remaining()];
-                                            readBuffer.get(bytes, 0, bytes.length);
-                                            //读取的数据封装成DatagramPacket
-                                            DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
-                                            //输出到链条
-                                            UdpChannel.this.readToPipeline(datagramPacket);
-                                        }
-                                        chunkPool.deallocate(readBuffer);
+        workerThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (selector.select() > 0) {
+                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                        while (it.hasNext()) {
+                            SelectionKey sk = it.next();
+                            it.remove();
+                            if (sk.isReadable()) {
+                                ByteBuffer readBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
+                                //接收数据
+                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer);
+                                if (null != readBuffer) {
+                                    readBuffer.flip();
+                                    //读取缓冲区数据，输送到责任链
+                                    while (readBuffer.hasRemaining()) {
+                                        byte[] bytes = new byte[readBuffer.remaining()];
+                                        readBuffer.get(bytes, 0, bytes.length);
+                                        //读取的数据封装成DatagramPacket
+                                        DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
+                                        //输出到链条
+                                        UdpChannel.this.readToPipeline(datagramPacket);
                                     }
+                                    chunkPool.deallocate(readBuffer);
                                 }
                             }
-                            //it.remove();
                         }
-                    } catch (IOException e) {
-                        logger.error(e);
-                    } catch (InterruptedException e) {
-                        logger.error(e);
-                    } catch (TimeoutException e) {
-                        logger.error(e);
-                    } catch (Exception e) {
-                        logger.error(e);
+                        //it.remove();
                     }
+                } catch (IOException e) {
+                    logger.error(e);
+                } catch (InterruptedException e) {
+                    logger.error(e);
+                } catch (TimeoutException e) {
+                    logger.error(e);
+                } catch (Exception e) {
+                    logger.error(e);
                 }
-            });
-        }
+            }
+        });
     }
 
 
@@ -112,22 +129,19 @@ public class UdpChannel extends SocketChannel {
      * 多线程持续写出
      */
     private void loopWrite() {
-        ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-        for (int i = 0; i < workerThreadNum; i++) {
-            workerThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Object obj;
-                        while ((obj = queue.poll()) != null) {
-                            UdpChannel.this.send(obj);
-                        }
-                    } catch (InterruptedException e) {
-                        logger.error(e.getMessage(), e);
+        workerThreadPool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Object obj;
+                    while ((obj = queue.poll()) != null) {
+                        UdpChannel.this.send(obj);
                     }
+                } catch (InterruptedException e) {
+                    logger.error(e.getMessage(), e);
                 }
-            });
-        }
+            }
+        });
     }
 
 
@@ -203,7 +217,7 @@ public class UdpChannel extends SocketChannel {
         try {
             //转换成udp数据包
             DatagramPacket datagramPacket = (DatagramPacket) obj;
-            ByteBuffer byteBuffer = chunkPool.allocate(datagramPacket.getLength(), aioConfig.getChunkPoolBlockTime());
+            ByteBuffer byteBuffer = chunkPool.allocate(datagramPacket.getLength(), config.getChunkPoolBlockTime());
             byteBuffer.put(datagramPacket.getData());
             byteBuffer.flip();
             //写出到目标地址

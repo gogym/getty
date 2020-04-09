@@ -1,9 +1,18 @@
 /**
- * 包名：org.getty.core.pipeline
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.pipeline;
 
@@ -17,16 +26,23 @@ import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+
 /**
- * 类名：DefaultChannelPipeline.java
- * 描述：责任链对象
- * 修改人：gogym
- * 时间：2019/9/27
+ * DefaultChannelPipeline.java
+ *
+ * @description:默认责任链对象
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  */
 public class DefaultChannelPipeline {
-    //入站链
+    /**
+     * 入栈链
+     */
     LinkedList<ChannelHandlerAdapter> inPipeList;
-    //出站链
+    /**
+     * 出栈链
+     */
     LinkedList<ChannelHandlerAdapter> outPipeList;
 
     SocketChannel socketChannel;
@@ -42,19 +58,33 @@ public class DefaultChannelPipeline {
     }
 
 
-    //获取入站责任链
+    /**
+     * 获取入栈责任链
+     *
+     * @return
+     */
     public Iterator<ChannelHandlerAdapter> getInPipeList() {
         return inPipeList.iterator();
     }
 
-    //获取责任链
+
+    /**
+     * 获取出栈责任链
+     *
+     * @return
+     */
     public Iterator<ChannelHandlerAdapter> getOutPipeList() {
         LinkedList<ChannelHandlerAdapter> newList = reverseLinkedList(outPipeList);
         return newList.iterator();
     }
 
 
-    //翻转集合
+    /**
+     * 翻转集合
+     *
+     * @param list
+     * @return
+     */
     private LinkedList<ChannelHandlerAdapter> reverseLinkedList(LinkedList<ChannelHandlerAdapter> list) {
         LinkedList<ChannelHandlerAdapter> newLinkedList = new LinkedList<>();
         for (ChannelHandlerAdapter object : list) {
@@ -64,7 +94,7 @@ public class DefaultChannelPipeline {
     }
 
     /**
-     * 获取第一个入站处理器
+     * 获取第一个入栈处理器
      *
      * @return ChannelHandlerAdapter
      */
@@ -76,7 +106,7 @@ public class DefaultChannelPipeline {
     }
 
     /**
-     * 获取第一个出站处理器
+     * 获取第一个出栈处理器
      *
      * @return ChannelHandlerAdapter
      */
@@ -89,7 +119,7 @@ public class DefaultChannelPipeline {
 
 
     /**
-     * 获取下一个入站处理器
+     * 获取下一个入栈处理器
      *
      * @param channelHandlerAdapter 当前处理器
      * @return ChannelHandlerAdapter
@@ -105,7 +135,7 @@ public class DefaultChannelPipeline {
 
 
     /**
-     * 获取下一个出站处理器
+     * 获取下一个出栈处理器
      *
      * @param channelHandlerAdapter 当前处理器
      * @return ChannelHandlerAdapter

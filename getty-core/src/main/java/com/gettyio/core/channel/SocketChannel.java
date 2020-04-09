@@ -20,6 +20,7 @@ package com.gettyio.core.channel;
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
+import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
@@ -29,7 +30,7 @@ import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import com.gettyio.core.util.ConcurrentSafeMap;
-import com.gettyio.core.util.LinkedNonBlockQueue;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -87,7 +88,7 @@ public abstract class SocketChannel {
     /**
      * 用于保存以及decode的消息
      */
-    private LinkedNonBlockQueue<Object> outList = new LinkedNonBlockQueue<>();
+    private LinkedNonReadBlockQueue<Object> outList = new LinkedNonReadBlockQueue<>();
 
     /**
      * 用于方便设置随通道传播的属性
@@ -298,6 +299,11 @@ public abstract class SocketChannel {
     public SslHandler getSslHandler() {
         return null;
     }
+
+
+    public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
+    }
+
 
     public BaseConfig getConfig() {
         return this.config;

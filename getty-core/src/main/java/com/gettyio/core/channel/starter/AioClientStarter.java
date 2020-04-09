@@ -23,6 +23,7 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
+import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -143,7 +144,6 @@ public class AioClientStarter extends AioStarter {
         chunkPool = new ChunkPool(clientConfig.getClientChunkSize(), new Time(), clientConfig.isDirect());
 
 
-
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
             public Thread newThread(Runnable target) {
@@ -178,8 +178,19 @@ public class AioClientStarter extends AioStarter {
                 LOGGER.info("connect aio server success");
                 //连接成功则构造AIOSession对象
                 aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelPipeline);
+
                 if (null != connectHandler) {
-                    connectHandler.onCompleted(aioChannel);
+                    if (null != aioChannel.getSslHandler()) {
+                        aioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                            @Override
+                            public void onComplete() {
+                                LOGGER.info("Ssl Handshake Completed");
+                                connectHandler.onCompleted(aioChannel);
+                            }
+                        });
+                    } else {
+                        connectHandler.onCompleted(aioChannel);
+                    }
                 }
                 aioChannel.starRead();
             }

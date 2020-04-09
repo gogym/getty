@@ -1,8 +1,24 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.gettyio.core.util.timer;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.LinkedNonBlockQueue;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
 import com.gettyio.core.util.PlatformDependent;
 import com.gettyio.core.util.detector.ResourceLeakDetector;
 import com.gettyio.core.util.detector.ResourceLeakTracker;
@@ -20,8 +36,12 @@ import static com.gettyio.core.util.StringUtil.simpleClassName;
 
 
 /**
- * 时间轮
- * 参考自netty 4.3
+ * HashedWheelTimer.java
+ *
+ * @description:时间轮,参考自netty 4.3
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  */
 public class HashedWheelTimer implements Timer {
 
@@ -30,52 +50,90 @@ public class HashedWheelTimer implements Timer {
 
     /*****************************************************************/
 
-    //--动态配置提前执行
+    /**
+     * 动态配置提前执行
+     */
     private volatile boolean dynamicOpen;
-    //存放纳秒--worker 初始化 startTime
+    /**
+     * 存放纳秒--worker 初始化 startTime
+     */
     private volatile long startTime;
-    //存放纳秒--tick的时长，即指针多久转一格
+    /**
+     * 存放纳秒--tick的时长，即指针多久转一格
+     */
     private final long tickDuration;
-    //轮子基本结构
+    /**
+     * 轮子基本结构
+     */
     private final HashedWheelBucket[] wheel;
-    //用来快速计算任务应该放的格子--位运算
+    /**
+     * 用来快速计算任务应该放的格子--位运算
+     */
     private final int mask;
-    //用来阻塞 start()的线程
+    /**
+     * 用来阻塞 start()的线程
+     */
     private final CountDownLatch startTimeInitialized = new CountDownLatch(1);
-    //待执行任务队列
-    private final LinkedNonBlockQueue<HashedWheelTimeout> timeouts = new LinkedNonBlockQueue<>();
-    //待取消任务队列
-    private final LinkedNonBlockQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedNonBlockQueue<>();
-    //等待处理计数器
+    /**
+     * 待执行任务队列
+     */
+    private final LinkedNonReadBlockQueue<HashedWheelTimeout> timeouts = new LinkedNonReadBlockQueue<>();
+    /**
+     * 待取消任务队列
+     */
+    private final LinkedNonReadBlockQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedNonReadBlockQueue<>();
+    /**
+     * 等待处理计数器
+     */
     private final AtomicLong pendingTimeouts = new AtomicLong(0);
-    //最大等待处理次数
+    /**
+     * 最大等待处理次数
+     */
     private final long maxPendingTimeouts;
 
     /*****************************************************************/
-    //AtomicIntegerFieldUpdater是JUC里面的类，原理是利用反射进行原子操作。有比AtomicInteger更好的性能和更低得内存占用
+    /**
+     * AtomicIntegerFieldUpdater是JUC里面的类，原理是利用反射进行原子操作。有比AtomicInteger更好的性能和更低得内存占用
+     */
     private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
-    //声明 worker
+    /**
+     * 声明 worker
+     */
     private final Worker worker = new Worker();
-    //worker 线程
+    /**
+     * worker 线程
+     */
     private final Thread workerThread;
-    //定义worker的3个状态：初始化、启动、关闭
+    /**
+     * 定义worker的3个状态：初始化、启动、关闭
+     */
     public static final int WORKER_STATE_INIT = 0;
     public static final int WORKER_STATE_STARTED = 1;
     public static final int WORKER_STATE_SHUTDOWN = 2;
-    //当前时间轮的状态
+    /**
+     * 当前时间轮的状态
+     */
     public volatile int workerState = WORKER_STATE_INIT;
 
 
     /*****************************************************************/
-    //实例计数器
+    /**
+     * 实例计数器
+     */
     private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
-    //警告太多的实例
+    /**
+     * 警告太多的实例
+     */
     private static final AtomicBoolean WARNED_TOO_MANY_INSTANCES = new AtomicBoolean();
-    //实例数限制
+    /**
+     * 实例数限制
+     */
     private static final int INSTANCE_COUNT_LIMIT = 64;
 
     /*****************************************************************/
-    //内存泄露检测器
+    /**
+     * 内存泄露检测器
+     */
     private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = new ResourceLeakDetector(HashedWheelTimer.class, 1);
     private final ResourceLeakTracker<HashedWheelTimer> leak;
 
@@ -243,9 +301,11 @@ public class HashedWheelTimer implements Timer {
         return timeout;
     }
 
-    // 启动时间轮。
-    // 这个方法其实不需要显示的主动调用，因为在添加定时任务（newTimeout()方法）的时候会自动调用此方法。
-    // 这个是合理的设计，因为如果时间轮里根本没有定时任务，启动时间轮也是空耗资源
+    /**
+     * 启动时间轮。
+     * 这个方法其实不需要显示的主动调用，因为在添加定时任务（newTimeout()方法）的时候会自动调用此方法。
+     * 这个是合理的设计，因为如果时间轮里根本没有定时任务，启动时间轮也是空耗资源
+     */
     public void start() {
         // 判断当前时间轮的状态
         // 如果是初始化，则启动worker线程，启动整个时间轮；
@@ -277,7 +337,11 @@ public class HashedWheelTimer implements Timer {
     }
 
 
-    //停止时间轮的方法
+    /**
+     * 停止时间轮的方法
+     *
+     * @return
+     */
     @Override
     public Set<Timeout> stop() {
         // worker线程不能停止时间轮，也就是加入的定时任务，不能调用这个方法。
@@ -351,7 +415,12 @@ public class HashedWheelTimer implements Timer {
     }
 
 
-    //初始化时间轮
+    /**
+     * 初始化时间轮
+     *
+     * @param ticksPerWheel
+     * @return
+     */
     private static HashedWheelBucket[] createWheel(int ticksPerWheel) {
         //参数校验
         if (ticksPerWheel <= 0) {
@@ -374,8 +443,13 @@ public class HashedWheelTimer implements Timer {
     }
 
 
-    // 初始化 ticksPerWheel 的值为 不小于 ticksPerWheel 的最小2的n次方
-    //这里其实不建议使用这种方式，因为当ticksPerWheel的值很大的时候，这个方法会循环很多次，方法执行时间不稳定，效率也不够。
+    /**
+     * 初始化 ticksPerWheel 的值为 不小于 ticksPerWheel 的最小2的n次方
+     * 这里其实不建议使用这种方式，因为当ticksPerWheel的值很大的时候，这个方法会循环很多次，方法执行时间不稳定，效率也不够。
+     *
+     * @param ticksPerWheel
+     * @return
+     */
     private static int normalizeTicksPerWheelOld(int ticksPerWheel) {
         int normalizedTicksPerWheel = 1;
         while (normalizedTicksPerWheel < ticksPerWheel) {
@@ -385,7 +459,13 @@ public class HashedWheelTimer implements Timer {
         return normalizedTicksPerWheel;
     }
 
-    //推荐使用java8 HashMap的做法：
+
+    /**
+     * 推荐使用java8 HashMap的做法：
+     *
+     * @param ticksPerWheel
+     * @return
+     */
     private static int normalizeTicksPerWheel(int ticksPerWheel) {
         //这里参考java8 hashmap的算法，使推算的过程固定
         int n = ticksPerWheel - 1;
@@ -412,7 +492,9 @@ public class HashedWheelTimer implements Timer {
         }
     }
 
-    //警告太多的实例
+    /**
+     * 警告太多的实例
+     */
     private static void reportTooManyInstances() {
         String resourceType = simpleClassName(HashedWheelTimer.class);
         logger.error("You are creating too many " + resourceType + " instances. " + resourceType + " is a shared resource that must be reused across the JVM," + "so that only a few instances are created.");
@@ -424,7 +506,9 @@ public class HashedWheelTimer implements Timer {
     /*=====================================================*/
 
 
-    //worker 是时间轮的核心线程类。 tick 的转动，过期任务的处理都是在这个线程中处理的
+    /**
+     * worker 是时间轮的核心线程类。 tick 的转动，过期任务的处理都是在这个线程中处理的
+     */
     private final class Worker implements Runnable {
         //未处理任务列表
         private final Set<Timeout> unprocessedTimeouts = new HashSet<Timeout>();

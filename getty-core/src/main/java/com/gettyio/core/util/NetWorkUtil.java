@@ -1,9 +1,18 @@
 /**
- * 包名：org.getty.core.util
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.util;
 
@@ -14,15 +23,23 @@ import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
 /**
- * 类名：NetWorkUtil.java
- * 描述：
- * 修改人：gogym
- * 时间：2019/9/27
+ * NetWorkUtil.java
+ *
+ * @description:
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  */
 public class NetWorkUtil {
 
-    //检查IP是否合法
+    /**
+     * 检查IP是否合法
+     *
+     * @param ip
+     * @return
+     */
     public static boolean ipValid(String ip) {
         String regex0 = "(2[0-4]\\d)" + "|(25[0-5])";
         String regex1 = "1\\d{2}";
@@ -37,7 +54,12 @@ public class NetWorkUtil {
         return m.matches();
     }
 
-    // 获取本地ip 适合windows与linux
+
+    /**
+     * 获取本地ip 适合windows与linux
+     *
+     * @return
+     */
     public static String getLocalIP() {
         String localIP = "127.0.0.1";
         try {
@@ -64,7 +86,12 @@ public class NetWorkUtil {
     }
 
 
-    //把ip转化为整数
+    /**
+     * 把ip转化为整数
+     *
+     * @param strIp
+     * @return
+     */
     public static long ipToLong(String strIp) {
         String[] ip = strIp.split("\\.");
         return (Long.parseLong(ip[0]) << 24) + (Long.parseLong(ip[1]) << 16)
@@ -77,6 +104,7 @@ public class NetWorkUtil {
      * 2、通过与操作符 将整数值的高8位设为0，再右移16位，得到的数字即为第二段IP。
      * 3、通过与操作符吧整数值的高16位设为0，再右移8位，得到的数字即为第三段IP。
      * 4、通过与操作符吧整数值的高24位设为0，得到的数字即为第四段IP。
+     *
      * @param longIp ip
      * @return String
      */
@@ -141,7 +169,8 @@ public class NetWorkUtil {
 
     /**
      * 判断某个ip是否在一个网段内 isInRange("192.168.1.127", "192.168.1.64/26")
-     * @param ip ip
+     *
+     * @param ip   ip
      * @param cidr ip网段
      * @return boolean
      */

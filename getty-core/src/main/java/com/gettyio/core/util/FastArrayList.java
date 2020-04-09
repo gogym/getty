@@ -1,24 +1,49 @@
-package com.gettyio.core.util;/*
- * 类名：ArrayList
- * 版权：Copyright by www.getty.com
- * 描述：自定义高性能的数组集合
- * 修改人：gogym
- * 时间：2019/12/26
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.util;
 
+/**
+ * FastArrayList.java
+ *
+ * @description:自定义高性能的数组集合
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
+ */
 public class FastArrayList<T> {
 
-    //用于存储数据
-    //关键字transient，序列化对象的时候，这个属性就不会被序列化。
+
+    /**
+     * 用于存储数据,关键字transient，序列化对象的时候，这个属性就不会被序列化。
+     */
     private transient T[] data = null;
-    //集合的元素个数
+    /**
+     * 集合的元素个数
+     */
     private int size = 0;
-    //定义一个常量为 10.(后面用于定义默认的集合大小)
+    /**
+     * 定义一个常量为 10.(后面用于定义默认的集合大小)
+     */
     private static final int DEFAULT_CAPACITY = 10;
 
-    /***
+    /**
      * 有参构造函数
      * 指定数组的大小
+     *
      * @param initialCapacity 长度
      */
     public FastArrayList(int initialCapacity) {
@@ -31,7 +56,7 @@ public class FastArrayList<T> {
         }
     }
 
-    /***
+    /**
      * 无参构造函数
      * 指定数组的初始大小为 10
      */
@@ -39,11 +64,12 @@ public class FastArrayList<T> {
         this(DEFAULT_CAPACITY);
     }
 
-    /***
+    /**
      * 1、复制原数组，并扩容一倍
      * 2、复制原数组，并扩容一倍，并在指定位置插入对象
+     *
      * @param index 下标
-     * @param obj obj
+     * @param obj   obj
      */
     public void checkIncrease(int index, T obj) {
         if (size >= data.length) {
@@ -63,34 +89,41 @@ public class FastArrayList<T> {
         }
     }
 
-    /***
+    /**
      * 获取数组的大小
+     *
      * @return int
      */
     public int getSize() {
         return this.size;
     }
 
-    /***
+    /**
      * 根据元素获得在集合中的索引
+     *
      * @param o o
      * @return int
      */
     public int indexOf(T o) {
         if (o == null) {
-            for (int i = 0; i < data.length; i++)
-                if (data[i] == null)
+            for (int i = 0; i < data.length; i++) {
+                if (data[i] == null) {
                     return i;
+                }
+            }
         } else {
-            for (int i = 0; i < data.length; i++)
-                if (o.equals(data[i]))
+            for (int i = 0; i < data.length; i++) {
+                if (o.equals(data[i])) {
                     return i;
+                }
+            }
         }
         return -1;
     }
 
-    /***
+    /**
      * 在尾部添加元素
+     *
      * @param obj obj
      * @return boolean
      */
@@ -135,8 +168,9 @@ public class FastArrayList<T> {
         return true;
     }
 
-    /***
+    /**
      * 根据索引获得元素
+     *
      * @param index index
      * @return T
      */
@@ -146,7 +180,7 @@ public class FastArrayList<T> {
 
     }
 
-    /***
+    /**
      * 删除所有元素
      */
     public void removeAll() {
@@ -155,8 +189,9 @@ public class FastArrayList<T> {
         }
     }
 
-    /***
+    /**
      * 根据索引删除元素
+     *
      * @param index index
      * @return T
      */
@@ -179,8 +214,9 @@ public class FastArrayList<T> {
         return null;
     }
 
-    /***
+    /**
      * 删除指定的元素，删除成功返回 true，失败返回 false
+     *
      * @param obj obj
      * @return boolean
      */
@@ -194,10 +230,11 @@ public class FastArrayList<T> {
         return false;
     }
 
-    /***
+    /**
      * 在指定位置修改元素，通过索引，修改完成后返回原数据
+     *
      * @param index index
-     * @param obj obj
+     * @param obj   obj
      * @return T
      */
     public T change(int index, T obj) {
@@ -207,8 +244,9 @@ public class FastArrayList<T> {
         return oldObj;
     }
 
-    /***
+    /**
      * 查看集合中是否包含某个元素，如果有，返回 true，没有返回 false
+     *
      * @param obj obj
      * @return boolean
      */

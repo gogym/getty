@@ -1,41 +1,63 @@
 /**
- * 包名：org.getty.core.handler.traffic
- * 版权：Copyright by www.getty.com
- * 描述：
- * 邮箱：189155278@qq.com
- * 时间：2019/9/27
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.gettyio.core.handler.traffic;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
 import com.gettyio.core.util.ThreadPool;
 
 import java.util.concurrent.TimeUnit;
 
 /**
- * 类名：ChannelTrafficShapingHandler.java
- * 描述：通道级别统计
- * 修改人：gogym
- * 时间：2019/9/27
+ * ChannelTrafficShapingHandler.java
+ *
+ * @description:通道级别流量统计
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  */
 public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter {
 
-    //总读取字节
+    /**
+     * 总读取字节
+     */
     private long totalRead;
-    //总写出字节
+    /**
+     * 总写出字节
+     */
     private long totalWrite;
-    //时间间隔内的吞吐量
+    /**
+     * 时间间隔内的吞吐量
+     */
     private long intervalTotalRead;
     private long intervalTotalWrite;
     long intervalTotalReadTmp = 0;
     long intervalTotalWriteTmp = 0;
 
-    //读写次数
+    /**
+     * 读写次数
+     */
     private long totalReadCount;
     private long totolWriteCount;
 
-    //线程池
+    /**
+     * 线程池
+     */
     ThreadPool pool;
 
     public ChannelTrafficShapingHandler(int checkInterval) {
@@ -54,12 +76,12 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
 
 
     @Override
-    public void channelRead(SocketChannel socketChannel, Object obj) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
         byte[] bytes = (byte[]) obj;
         totalRead += bytes.length;
         intervalTotalReadTmp += bytes.length;
         totalReadCount++;
-        super.channelRead(socketChannel, obj);
+        super.decode(socketChannel, obj, out);
     }
 
     @Override

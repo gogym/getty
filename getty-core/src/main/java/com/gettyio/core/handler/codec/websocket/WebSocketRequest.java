@@ -1,21 +1,65 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.gettyio.core.handler.codec.websocket;
 
 
 /**
- * ParamterWrap
- * 请求信息bean，用于解析握手信息
+ * WebSocketRequest.java
+ *
+ * @description:请求信息bean
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  */
 class WebSocketRequest {
-    private String requestUri;// 请求地址
-    private String host;// 机器地址 
-    private String origin;// 源地址
-    private String cookie;// cookie
-    private Boolean upgrade = false;// 是否更新
-    private Boolean connection = false;// 是否保存链接
-    private Long key1;// key1
-    private Long key2;// key2
-    private String digest;// 签名
-    private Integer secVersion = 0;//版本，默认为0
+    /**
+     * 请求地址
+     */
+    private String requestUri;
+    /**
+     * 机器地址
+     */
+    private String host;
+    /**
+     * 源地址
+     */
+    private String origin;
+    /**
+     * cookie
+     */
+    private String cookie;
+    /**
+     * 是否更新
+     */
+    private Boolean upgrade = false;
+    /**
+     * 是否保存链接
+     */
+    private Boolean connection = false;
+    private Long key1;
+    private Long key2;
+    /**
+     * 签名
+     */
+    private String digest;
+    /**
+     * 版本，默认为0
+     */
+    private Integer secVersion = 0;
 
     public Boolean getConnection() {
         return connection;

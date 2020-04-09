@@ -1,10 +1,20 @@
-package com.gettyio.core.handler.codec.websocket;/*
- * 类名：WebSocketDecoder
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2019/12/30
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+package com.gettyio.core.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
@@ -12,23 +22,35 @@ import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.CharsetUtil;
-import com.gettyio.core.util.LinkedNonBlockQueue;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
 import com.gettyio.core.util.ObjectUtil;
 
 import java.util.Arrays;
 
+/**
+ * WebSocketDecoder.java
+ *
+ * @description:websocket解码器
+ * @author:gogym
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
+ */
 public class WebSocketDecoder extends ObjectToMessageDecoder {
 
-    protected static final InternalLogger log = InternalLoggerFactory.getInstance(SocketChannel.class);
-    // 是否已经握手
+    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(WebSocketDecoder.class);
+    /**
+     * 是否已经握手
+     */
     static boolean handShak = false;
-    //协议版本,默认0
+    /**
+     * 协议版本,默认0
+     */
     static String protocolVersion = "0";
 
     WebSocketMessage messageFrame;
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
         if (handShak) {
             // 已经握手处理
             if (Integer.valueOf(protocolVersion) >= WebSocketConstants.SPLITVERSION6) {
