@@ -65,7 +65,7 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.3.1</version>
+            <version>1.3.3</version>
         </dependency>
 ```
 
@@ -73,7 +73,7 @@
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.3.1'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.3.3'
 ```
 
 
@@ -86,21 +86,15 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.3.1'
 
 ### 新版本特征
 
-部分朋友希望对1.7版本兼容，特别是低Android版本，比如Android 5.0的兼容，因此新版本做了这块的更新
+1.3.3是比较用心的一个版本，建议使用
  
- 1、添加 nio 1支持
+ 1、添加 nio1 的ssl支持
  
- 2、去除必须jdk1.8的特征，对JDK1.7做了版本兼容
+ 2、添加启动后回调，方便获取channel
  
- 3、对openjdk7版本兼容
+ 3、优化了代码和注释
  
- 4、对Android5.0版本兼容
- 
- 优化
- 
- 优化了部分代码，提高了稳定性
-
-
+ 4、提高了稳定性和性能
 
 
 ### 更多详情与文档
