@@ -54,13 +54,13 @@ public class AioClient {
                 sSLConfig.setKeyFile(pkPath);
                 sSLConfig.setKeyPassword("123456");
                 sSLConfig.setKeystorePassword("123456");
-                sSLConfig.setTrustFile(pkPath);
-                sSLConfig.setTrustPassword("123456");
+                //sSLConfig.setTrustFile(pkPath);
+                //sSLConfig.setTrustPassword("123456");
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 //defaultChannelPipeline.addLast(new ReConnectHandler(channel));
 

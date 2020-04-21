@@ -53,15 +53,15 @@ public class AioServer {
                     sSLConfig.setKeyFile(pkPath);
                     sSLConfig.setKeyPassword("123456");
                     sSLConfig.setKeystorePassword("123456");
-                    sSLConfig.setTrustFile(pkPath);
-                    sSLConfig.setTrustPassword("123456");
+                    //sSLConfig.setTrustFile(pkPath);
+                    //sSLConfig.setTrustPassword("123456");
                     //设置服务器模式
                     sSLConfig.setClientMode(false);
                     //设置单向验证或双向验证
                     sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                     //初始化ssl服务
                     SslService sSLService = new SslService(sSLConfig);
-                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                    defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                     //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
                     // defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());

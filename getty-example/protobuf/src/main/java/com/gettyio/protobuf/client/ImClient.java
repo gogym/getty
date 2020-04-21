@@ -81,14 +81,14 @@ public class ImClient {
 
 
                     MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
-                    builder.setId("123");
+                    builder.setBody("12");
 //                    while (true) {
 //                        Thread.sleep(100);
 //                        channel.writeAndFlush(builder.build());
 //                    }
 
                     int i = 0;
-                    for (; i < 100; i++) {
+                    for (; i < 1; i++) {
                         channel.writeAndFlush(builder.build());
                     }
 

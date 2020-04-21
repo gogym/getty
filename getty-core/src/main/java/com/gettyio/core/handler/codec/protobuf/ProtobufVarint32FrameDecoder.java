@@ -35,7 +35,6 @@ import java.io.IOException;
 public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
 
     AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-
     @Override
     public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
 
@@ -52,7 +51,8 @@ public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
                 throw new RuntimeException("negative length: " + length);
             }
             if (autoByteBuffer.readableBytes() < length) {
-                autoByteBuffer.reset();
+                autoByteBuffer.readerIndex(0);
+                break;
             } else {
                 byte[] b = new byte[length];
                 autoByteBuffer.readBytes(b);

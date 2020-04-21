@@ -29,7 +29,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
 
     @Override
     public void channelRead0(SocketChannel aioChannel, MessageClass.Message str) {
-        System.out.println("读取消息:" + str.getId());
+        System.out.println("读取消息:" + str.getBody());
     }
 
     @Override
