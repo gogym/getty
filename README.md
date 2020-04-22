@@ -65,7 +65,7 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.3.3</version>
+            <version>1.3.4</version>
         </dependency>
 ```
 
@@ -73,7 +73,7 @@
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.3.3'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.3.4'
 ```
 
 
@@ -86,16 +86,8 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.3.3'
 
 ### 新版本特征
 
-1.3.3是比较用心的一个版本，建议使用
+ 1、修复protocol解码器解析超大消息时出现失败的问题
  
- 1、添加 nio1 的ssl支持
- 
- 2、添加启动后回调，方便获取channel
- 
- 3、优化了代码和注释
- 
- 4、提高了稳定性和性能
-
 
 ### 更多详情与文档
 
