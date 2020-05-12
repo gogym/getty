@@ -56,11 +56,11 @@ public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
             } else {
                 byte[] b = new byte[length];
                 autoByteBuffer.readBytes(b);
+                autoByteBuffer.clear();
                 //解码
                 super.decode(socketChannel, b, out);
             }
         }
-
     }
 
 

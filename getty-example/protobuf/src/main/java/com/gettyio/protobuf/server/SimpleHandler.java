@@ -11,6 +11,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
     //实例化一个group保存客户端连接
     DefaultChannelGroup defaultChannelGroup = new DefaultChannelGroup();
 
+    int count = 0;
+
     @Override
     public void channelAdded(SocketChannel aioChannel) {
         System.out.println("连接过来了");
@@ -29,6 +31,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
 
     @Override
     public void channelRead0(SocketChannel aioChannel, MessageClass.Message str) {
+        count++;
         System.out.println("读取消息:" + str.getBody());
     }
 
