@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>1.3.4</version>
+    <version>1.3.5</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
@@ -238,16 +238,7 @@
                     <id>ossrh</id>
                     <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
                 </repository>
-                <!--
-                               <repository>
-                                   <id>maven-repository-releases</id>
-                                   <url>http://192.168.167.114:8081/repository/maven-releases/</url>
-                               </repository>
-                               <snapshotRepository>
-                                   <id>maven-repository-snapshots</id>
-                                   <url>http://192.168.167.114:8081/repository/maven-snapshots/</url>
-                               </snapshotRepository>
-               -->
+
             </distributionManagement>
         </profile>
     </profiles>
