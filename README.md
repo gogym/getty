@@ -104,7 +104,8 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.3.5'
 
  **email:189155278@qq.com** 
  
- ### getty交流群1 ：708758323
+ ### getty交流群1 ：708758323       
+ 进群希望能star一下哦
 
 
 
