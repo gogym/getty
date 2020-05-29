@@ -82,36 +82,37 @@ public class ImClient {
 
 
                     final MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            System.out.println("请输入需要发送的消息：");
-                            Scanner sc = new Scanner(System.in);
-                            while (sc.hasNext()) {
-                                String s = sc.nextLine();
-                                if (!s.equals("")) {
-                                    // gimContext.messagEmitter.sendSingleChatText(senderId, senderName, senderHeadImg, receiverId, receiverName, receiverHeadImg, s);
-
-                                    builder.setBody(s);
-                                    channel.writeAndFlush(builder.build());
-
-
-                                    //gimContext.messagEmitter.sendGroupChatText(senderId, senderName, senderHeadImg, groupId, groupName, groupHeadImg, s, null);
-                                    //解绑用户
-                                    //gimContext.gimBind.unbindUser(senderId);
-                                }
-                            }
-                        }
-                    }).start();
+                    builder.setBody("123");
+//                    new Thread(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            System.out.println("请输入需要发送的消息：");
+//                            Scanner sc = new Scanner(System.in);
+//                            while (sc.hasNext()) {
+//                                String s = sc.nextLine();
+//                                if (!s.equals("")) {
+//                                    // gimContext.messagEmitter.sendSingleChatText(senderId, senderName, senderHeadImg, receiverId, receiverName, receiverHeadImg, s);
+//
+//                                    builder.setBody(s);
+//                                    channel.writeAndFlush(builder.build());
+//
+//
+//                                    //gimContext.messagEmitter.sendGroupChatText(senderId, senderName, senderHeadImg, groupId, groupName, groupHeadImg, s, null);
+//                                    //解绑用户
+//                                    //gimContext.gimBind.unbindUser(senderId);
+//                                }
+//                            }
+//                        }
+//                    }).start();
 //                    while (true) {
 //                        Thread.sleep(100);
 //                        channel.writeAndFlush(builder.build());
 //                    }
 
-//                    int i = 0;
-//                    for (; i < 1; i++) {
-//                        channel.writeAndFlush(builder.build());
-//                    }
+                    int i = 0;
+                    for (; i < 1000000; i++) {
+                        channel.writeAndFlush(builder.build());
+                    }
 
                 } catch (Exception e) {
                     e.printStackTrace();
