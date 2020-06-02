@@ -19,8 +19,12 @@ package com.gettyio.core.handler.traffic;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.core.util.ThreadPool;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -86,7 +90,7 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
 
     @Override
     public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
-        byte[] bytes = (byte[]) obj;
+        byte[] bytes = ObjectUtil.ObjToByteArray(obj);
         totalWrite += bytes.length;
         intervalTotalWriteTmp += bytes.length;
         totolWriteCount++;
@@ -98,6 +102,7 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
         pool.shutdown();
         super.channelClosed(socketChannel);
     }
+
 
     public long getTotalRead() {
         return totalRead;

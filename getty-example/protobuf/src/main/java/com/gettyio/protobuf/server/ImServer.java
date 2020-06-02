@@ -12,6 +12,7 @@ import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.handler.timeout.HeartBeatTimeOutHandler;
 import com.gettyio.core.handler.timeout.IdleStateHandler;
+import com.gettyio.core.handler.traffic.ChannelTrafficShapingHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.protobuf.packet.MessageClass;
@@ -44,6 +45,10 @@ public class ImServer {
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
                 //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+
+                ChannelTrafficShapingHandler channelTrafficShapingHandler = new ChannelTrafficShapingHandler(5000);
+                defaultChannelPipeline.addLast(channelTrafficShapingHandler);
+                System.out.println(channelTrafficShapingHandler.getTotalRead());
 
 
                 //添加protobuf编码器

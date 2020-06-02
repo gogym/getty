@@ -32,9 +32,11 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
     @Override
     public void channelRead0(SocketChannel aioChannel, MessageClass.Message str) {
         count++;
-        if (count == 1000000) {
-            System.out.println("消息数量：" + count);
-        }
+        System.out.println("消息数量：" + count);
+        final MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
+        builder.setBody("123");
+        aioChannel.writeAndFlush(builder.build());
+
     }
 
     @Override

@@ -110,7 +110,7 @@ public class ImClient {
 //                    }
 
                     int i = 0;
-                    for (; i < 1000000; i++) {
+                    for (; i < 1; i++) {
                         channel.writeAndFlush(builder.build());
                     }
 
