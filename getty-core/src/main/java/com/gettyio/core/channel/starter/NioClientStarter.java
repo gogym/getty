@@ -117,12 +117,12 @@ public class NioClientStarter extends NioStarter {
      *
      * @throws Exception 异常
      */
-    public final void start() {
+    public final void start() throws Exception {
         try {
             start0(null);
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            return;
+            throw new Exception(e);
         }
     }
 
@@ -136,6 +136,7 @@ public class NioClientStarter extends NioStarter {
             start0(connectHandler);
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
+            connectHandler.onFailed(e);
             return;
         }
     }
