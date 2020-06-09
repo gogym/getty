@@ -65,7 +65,7 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.3.5</version>
+            <version>1.4.0</version>
         </dependency>
 ```
 
@@ -73,7 +73,7 @@
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.3.5'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.4.0'
 ```
 
 
@@ -86,7 +86,8 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.3.5'
 
 ### 新版本特征
 
- 1、修复protocol解码器解析超大消息时出现失败的问题
+ 1、优化部分代码
+ 2、添加mqtt编解码支持
  
 
 ### 更多详情与文档
