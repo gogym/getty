@@ -1,9 +1,15 @@
 package com.gettyio.test.server;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
+import io.netty.handler.codec.mqtt.MqttDecoder;
+import io.netty.handler.codec.mqtt.MqttEncoder;
+import io.netty.handler.codec.mqtt.MqttMessage;
+import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
@@ -42,33 +48,46 @@ public class GimServerInitializer extends ChannelInitializer<SocketChannel> {
         // ----Protobuf处理器END----
 
 
-        pipeline.addLast("framer", new DelimiterBasedFrameDecoder(1024, Delimiters.lineDelimiter()));
-        pipeline.addLast("decoder", new StringDecoder(CharsetUtil.UTF_8));
-        pipeline.addLast("encoder", new StringEncoder(CharsetUtil.UTF_8));
+//        pipeline.addLast("framer", new DelimiterBasedFrameDecoder(1024, Delimiters.lineDelimiter()));
+//        pipeline.addLast("decoder", new StringDecoder(CharsetUtil.UTF_8));
+//        pipeline.addLast("encoder", new StringEncoder(CharsetUtil.UTF_8));
 
 
-        pipeline.addLast(new SimpleChannelInboundHandler<MessageClass.Message>() {
+//        pipeline.addLast(new SimpleChannelInboundHandler<MessageClass.Message>() {
+//            @Override
+//            public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+//                Channel incoming = ctx.channel();
+//                System.out.println("[Client] - " + incoming.remoteAddress() + " 连接过来");
+//                //incoming.writeAndFlush("123\r\n456\r789\nabcde\r\n");
+//            }
+//            @Override
+//            protected void channelRead0(ChannelHandlerContext ctx, MessageClass.Message msg) throws Exception {
+//                //System.out.println("收到消息：" + msg.getId());
+//            }
+//        });
+
+
+        pipeline.addLast("decoder", MqttEncoder.INSTANCE);
+        pipeline.addLast("encoder", new MqttDecoder());
+        pipeline.addLast(new SimpleChannelInboundHandler<MqttMessage>() {
 
             @Override
-            public void handlerAdded(ChannelHandlerContext ctx)
-                    throws Exception {
-                Channel incoming = ctx.channel();
-                System.out.println("[Client] - " + incoming.remoteAddress()
-                        + " 连接过来");
+            protected void channelRead0(ChannelHandlerContext channelHandlerContext, MqttMessage mqttMessage) throws Exception {
+                System.out.println("mqtt消息：" + mqttMessage.toString());
 
-                //incoming.writeAndFlush("123\r\n456\r789\nabcde\r\n");
+                switch (mqttMessage.fixedHeader().messageType()) {
+                    case PUBLISH:
+                        MqttPublishMessage mqttPublishMessage = (MqttPublishMessage) mqttMessage;
+                        ByteBuf payload = mqttPublishMessage.payload();
+                        byte[] bytes = ByteBufUtil.getBytes(payload);
+                        System.out.println("payload：" + new String(bytes));
+                        break;
+                    default:
+                        break;
+                }
+
             }
-
-            @Override
-            protected void channelRead0(ChannelHandlerContext ctx, MessageClass.Message msg)
-                    throws Exception {
-
-                //System.out.println("收到消息：" + msg.getId());
-
-            }
-
         });
-
 
     }
 }

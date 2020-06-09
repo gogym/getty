@@ -16,7 +16,11 @@
  */
 package com.gettyio.core.buffer;
 
+import com.gettyio.core.util.CharsetUtil;
+import com.gettyio.core.util.StringUtil;
+
 import java.io.IOException;
+import java.nio.charset.Charset;
 
 /**
  * AutoByteBuffer.java
@@ -189,6 +193,13 @@ public class AutoByteBuffer {
         return false;
     }
 
+    public boolean hasArray() {
+        if (writerIndex > 0) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 当前剩余可写入数据长度，每次触发扩容后都不一样
      *
@@ -248,6 +259,11 @@ public class AutoByteBuffer {
         } else {
             throw new ByteBufferException("readableBytes = 0");
         }
+    }
+
+
+    public short readUnsignedByte() throws ByteBufferException {
+        return (short) (readByte() & 0xFF);
     }
 
     /**
@@ -318,6 +334,14 @@ public class AutoByteBuffer {
 
     }
 
+
+    public AutoByteBuffer readRetainedSlice(int len) throws ByteBufferException {
+        byte[] bytes = new byte[len];
+        this.readBytes(bytes);
+        AutoByteBuffer b = AutoByteBuffer.newByteBuffer(len).writeBytes(bytes);
+        return b;
+    }
+
     /**
      * 写入Byte数据，1 byte，类似byteBuffer的put
      *
@@ -340,7 +364,7 @@ public class AutoByteBuffer {
      */
     public AutoByteBuffer write(int b) {
         autoExpandCapacity(1);
-        data[writerIndex] = (byte) b;
+        data[writerIndex] = (byte) ((0xFF) & b);
         writerIndex++;
         return this;
 
@@ -357,7 +381,19 @@ public class AutoByteBuffer {
         writeBytesToBytes(intToByteArray(b), data, writerIndex);
         writerIndex += 4;
         return this;
+    }
 
+    /**
+     * 写入一个short
+     *
+     * @param value
+     * @return
+     */
+    public AutoByteBuffer writeShort(int value) {
+        autoExpandCapacity(2);
+        writeBytesToBytes(shortToByte(value), data, writerIndex);
+        writerIndex += 2;
+        return this;
     }
 
     /**
@@ -376,16 +412,34 @@ public class AutoByteBuffer {
     /**
      * 写入数组,并指定写入长度
      *
-     * @param b          数据
-     * @param dataLength 写入长度
+     * @param b   数据
+     * @param len 写入长度
      * @return AutoByteBuffer
      */
-    public AutoByteBuffer writeBytes(byte[] b, int dataLength) {
+    public AutoByteBuffer writeBytes(byte[] b, int len) {
         autoExpandCapacity(b.length);
-        writeBytesToBytes(b, data, writerIndex, dataLength);
-        writerIndex += dataLength;
+        writeBytesToBytes(b, data, writerIndex, len);
+        writerIndex += len;
         return this;
     }
+
+
+    /**
+     * 写入一个数组，指定位置
+     *
+     * @param src      来源数组
+     * @param srcIndex 来源数组开始位置
+     * @param len      来源数组写入长度
+     * @return AutoByteBuffer
+     */
+    public AutoByteBuffer writeBytes(byte[] src, int srcIndex, int len) {
+        autoExpandCapacity(len);
+        // src : 原数组 int srcPos : 从元数据的起始位置开始 dest : 目标数组 destPos : 目标数组的开始起始位置 length  : 要copy的数组的长度
+        System.arraycopy(src, srcIndex, data, writerIndex, len);
+        writerIndex += len;
+        return this;
+    }
+
 
     /**
      * 写入一个ByteBuffer可读数据
@@ -416,6 +470,7 @@ public class AutoByteBuffer {
         writerIndex += dataLength;
         return this;
     }
+
 
     /**
      * 检查写入数据长度，如果不够则扩容,自动扩容,递增值为BUFFER_SIZE的倍数
@@ -474,7 +529,7 @@ public class AutoByteBuffer {
 
 
     /**
-     * 数组复制，向一个数组写入一个数组数组
+     * 数组复制，向一个数组写入一个数组
      *
      * @param src            来源数组
      * @param target         被写入新数据数组
@@ -498,6 +553,91 @@ public class AutoByteBuffer {
         return this;
     }
 
+
+    /**
+     * 复制自身
+     *
+     * @return
+     */
+    public AutoByteBuffer duplicate() {
+        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+        autoByteBuffer.writeBytes(this);
+        return autoByteBuffer;
+    }
+
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("ByteBuffer{");
+        sb.append("readerIndex=").append(readerIndex);
+        sb.append(", writerIndex=").append(writerIndex);
+        sb.append(", capacity=").append(data.length);
+        sb.append('}');
+        return sb.toString();
+    }
+
+
+    public String toString(int index, int length, Charset charset) {
+        return decodeString(this, index, length, charset);
+    }
+
+
+    /**
+     * 获取指定的数组
+     *
+     * @param start
+     * @param length
+     * @return
+     */
+    public byte[] getBytes(int start, int length) {
+        byte[] bs = new byte[length];
+        System.arraycopy(this, start, bs, 0, length);
+        return bs;
+    }
+
+    /**
+     * 获取长度下标
+     *
+     * @param length
+     * @return
+     */
+    public AutoByteBuffer skipBytes(int length) {
+        readerIndex += length;
+        return this;
+    }
+
+
+    /**
+     * 指定解析成string
+     *
+     * @param src
+     * @param readerIndex
+     * @param len
+     * @param charset
+     * @return
+     */
+    public String decodeString(AutoByteBuffer src, int readerIndex, int len, Charset charset) {
+        if (len == 0) {
+            return StringUtil.EMPTY_STRING;
+        }
+        final byte[] array;
+        final int offset;
+
+        if (src.hasArray()) {
+            array = src.array();
+            offset = 0 + readerIndex;
+        } else {
+            offset = 0;
+            array = getBytes(readerIndex, len);
+        }
+        if (CharsetUtil.US_ASCII.equals(charset)) {
+            // Fast-path for US-ASCII which is used frequently.
+            return new String(array, 0, offset, len);
+        }
+        return new String(array, offset, len, charset);
+    }
+
+
     /**
      * 整数转换成数组
      *
@@ -508,20 +648,27 @@ public class AutoByteBuffer {
         return new byte[]{(byte) ((i >> 24) & 0xFF), (byte) ((i >> 16) & 0xFF), (byte) ((i >> 8) & 0xFF), (byte) (i & 0xFF)};
     }
 
+    private short byteToShort(byte[] bytes) {
+        byte high = bytes[0];
+        byte low = bytes[1];
+        short z = (short) (((high & 0x00FF) << 8) | (0x00FF & low));
+        return z;
+
+    }
+
+
+    private byte[] shortToByte(int s) {
+        byte[] targets = new byte[2];
+        targets[0] = (byte) (s >> 8 & 0xFF);
+        targets[1] = (byte) (s & 0xFF);
+        return targets;
+    }
+
+
     public static class ByteBufferException extends IOException {
         ByteBufferException(String message) {
             super(message);
         }
-    }
-
-    @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder("ByteBuffer{");
-        sb.append("readerIndex=").append(readerIndex);
-        sb.append(", writerIndex=").append(writerIndex);
-        sb.append(", capacity=").append(data.length);
-        sb.append('}');
-        return sb.toString();
     }
 
 }

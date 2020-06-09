@@ -1,11 +1,17 @@
 package com.gettyio.test.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import com.gettyio.test.packet.MessageClass;
+import io.netty.handler.codec.mqtt.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class NettyClient {
 
@@ -27,7 +33,7 @@ public class NettyClient {
                         .option(EpollChannelOption.SO_REUSEPORT, true)//SO_REUSEPORT支持多个进程或者线程绑定到同一端口，提高服务器程序的性能
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000).handler(new GimClientInitializer());//连接超时时间
 
-                future = bootstrap.connect("127.0.0.1", 3333);
+                future = bootstrap.connect("127.0.0.1", 9999);
 
                 // 添加future监听
                 future.addListener(new ChannelFutureListener() {
@@ -38,7 +44,7 @@ public class NettyClient {
                         } else {
                             System.out.println("连接成功");
                             Channel c = f.channel();
-                           // MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
+                            // MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
                             //builder.setId("123");
 
 //                            for (int i = 0; i < 100; i++) {
@@ -48,9 +54,47 @@ public class NettyClient {
 
                             String s = "12\r\n";
                             byte[] msgBody = s.getBytes("utf-8");
+
+//                            MqttMessage mqttMessage= MqttMessageFactory.newMessage(
+//                                    new MqttFixedHeader(MqttMessageType.CONNACK, false, MqttQoS.AT_MOST_ONCE, false, 0),
+//                                    new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_REFUSED_UNACCEPTABLE_PROTOCOL_VERSION, false), null);
+
+//                            MqttConnectMessage mqttMessage = new MqttConnectMessage(
+//                                    new MqttFixedHeader(MqttMessageType.CONNECT, false, MqttQoS.AT_MOST_ONCE, false, 0),
+//                                    new MqttConnectVariableHeader("MQTT", 4, true, true, true, 0, true, true, 20),
+//                                    new MqttConnectPayload("123", "willtopic", "willmessage", "username", "password"));
+
+
+//                            MqttPublishMessage mqttMessage = new MqttPublishMessage(
+//                                    new MqttFixedHeader(MqttMessageType.PUBLISH, false, MqttQoS.AT_MOST_ONCE, false, 0),
+//                                    new MqttPublishVariableHeader("MQTT", 4),
+//                                    Unpooled.wrappedBuffer("你好".getBytes()));
+
+//                            List<MqttTopicSubscription> topicSubscriptions=new ArrayList<>();
+//                            MqttTopicSubscription mqttTopicSubscription=new MqttTopicSubscription("aaa",MqttQoS.AT_LEAST_ONCE);
+//                            topicSubscriptions.add(mqttTopicSubscription);
+//                            MqttSubscribeMessage mqttMessage = new MqttSubscribeMessage(
+//                                    new MqttFixedHeader(MqttMessageType.SUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0),
+//                                    MqttMessageIdVariableHeader.from(4),
+//                                    new MqttSubscribePayload(topicSubscriptions));
+
+                            List<String> topicSubscriptions=new ArrayList<>();
+                            topicSubscriptions.add("aaa");
+                            MqttUnsubscribeMessage mqttMessage = new MqttUnsubscribeMessage(
+                                    new MqttFixedHeader(MqttMessageType.UNSUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0),
+                                     MqttMessageIdVariableHeader.from(4),
+                                    new MqttUnsubscribePayload(topicSubscriptions));
+
+
+
+//                            MqttSubAckMessage mqttMessage = new MqttSubAckMessage(
+//                                    new MqttFixedHeader(MqttMessageType.SUBACK, false, MqttQoS.AT_MOST_ONCE, false, 0),
+//                                    MqttMessageIdVariableHeader.from(4),
+//                                    new MqttSubAckPayload(1));
+
                             long ct = System.currentTimeMillis();
-                            for (int i = 0; i < 1000000; i++) {
-                                c.writeAndFlush(msgBody);
+                            for (int i = 0; i < 1; i++) {
+                                c.writeAndFlush(mqttMessage);
                             }
 
                             long lt = System.currentTimeMillis();

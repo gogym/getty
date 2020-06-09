@@ -3,6 +3,9 @@ package com.gettyio.test.client;
 import io.netty.channel.*;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
+import io.netty.handler.codec.mqtt.MqttDecoder;
+import io.netty.handler.codec.mqtt.MqttEncoder;
+import io.netty.handler.codec.mqtt.MqttMessage;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
@@ -41,9 +44,9 @@ public class GimClientInitializer extends ChannelInitializer<Channel> {
         // ----Protobuf处理器END----
 
 
-        pipeline.addLast("framer", new DelimiterBasedFrameDecoder(1024, Delimiters.lineDelimiter()));
-        pipeline.addLast("decoder", new StringDecoder(CharsetUtil.UTF_8));
-        pipeline.addLast("encoder", new StringEncoder(CharsetUtil.UTF_8));
+//        pipeline.addLast("framer", new DelimiterBasedFrameDecoder(1024, Delimiters.lineDelimiter()));
+//        pipeline.addLast("decoder", new StringDecoder(CharsetUtil.UTF_8));
+//        pipeline.addLast("encoder", new StringEncoder(CharsetUtil.UTF_8));
 //        pipeline.addLast(new SimpleChannelInboundHandler<String>() {
 //
 //            @Override
@@ -66,6 +69,16 @@ public class GimClientInitializer extends ChannelInitializer<Channel> {
 //
 //        });
 
+
+        pipeline.addLast("decoder", MqttEncoder.INSTANCE);
+        pipeline.addLast("encoder", new MqttDecoder());
+        pipeline.addLast(new SimpleChannelInboundHandler<MqttMessage>(){
+
+            @Override
+            protected void channelRead0(ChannelHandlerContext channelHandlerContext, MqttMessage mqttMessage) throws Exception {
+                System.out.println(mqttMessage.toString());
+            }
+        });
 
     }
 }
