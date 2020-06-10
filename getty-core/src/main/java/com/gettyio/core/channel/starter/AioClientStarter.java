@@ -217,7 +217,7 @@ public class AioClientStarter extends AioStarter {
 
     private void showdown0(boolean flag) {
         if (aioChannel != null) {
-            aioChannel.close();
+            aioChannel.close(flag);
             aioChannel = null;
         }
         //仅Client内部创建的ChannelGroup需要shutdown

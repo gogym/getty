@@ -109,6 +109,8 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public void starRead() {
 
+        initiateClose = false;
+
         if (NioChannel.this.sslHandler != null) {
             //若开启了SSL，则需要握手
             NioChannel.this.sslHandler.getSslService().beginHandshake(handshakeCompletedListener);
@@ -223,6 +225,19 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         }
 
     }
+
+
+    /**
+     * 主动关闭
+     *
+     * @param initiateClose
+     */
+    @Override
+    public synchronized void close(boolean initiateClose) {
+        this.initiateClose = initiateClose;
+        close();
+    }
+
 
     @Override
     public void writeAndFlush(Object obj) {

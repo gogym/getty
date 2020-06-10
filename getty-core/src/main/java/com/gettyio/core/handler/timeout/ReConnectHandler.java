@@ -20,6 +20,8 @@ import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.starter.ConnectHandler;
+import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
@@ -30,6 +32,8 @@ import com.gettyio.core.util.timer.TimerTask;
 
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
+import java.nio.channels.AsynchronousChannelGroup;
+import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
@@ -47,8 +51,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ReConnectHandler extends ChannelInboundHandlerAdapter implements TimerTask {
 
-    protected static final InternalLogger logger = InternalLoggerFactory.getInstance(ReConnectHandler.class);
-
+    private final InternalLogger logger = InternalLoggerFactory.getInstance(ReConnectHandler.class);
     /**
      * 时间基数，重连时间会越来越长
      */
@@ -65,37 +68,46 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     private SocketChannel channel;
 
     /**
+     * 连接回调
+     */
+    private ConnectHandler connectHandler;
+
+    /**
      * 默认3s
      */
     private int connectTimeout = 3000;
 
-    public ReConnectHandler(SocketChannel socketChannel) {
-        this.channel = socketChannel;
+    public ReConnectHandler(ConnectHandler connectHandler) {
+        this.connectHandler = connectHandler;
     }
 
 
-    public ReConnectHandler(SocketChannel socketChannel, int threshold) {
-        this.channel = socketChannel;
+    public ReConnectHandler(int threshold, ConnectHandler connectHandler) {
         this.threshold = threshold;
+        this.connectHandler = connectHandler;
     }
 
-    public ReConnectHandler(SocketChannel socketChannel, int threshold, int connectTimeout) {
-        this.channel = socketChannel;
+    public ReConnectHandler(int threshold, int connectTimeout, ConnectHandler connectHandler) {
         this.connectTimeout = connectTimeout;
+        this.connectHandler = connectHandler;
     }
 
 
     @Override
-    public void channelAdded(SocketChannel aioChannel) throws Exception {
+    public void channelAdded(SocketChannel socketChannel) throws Exception {
+        this.channel = socketChannel;
         //重置时间基数
         attempts = 0;
-        super.channelAdded(aioChannel);
+        super.channelAdded(socketChannel);
     }
 
 
     @Override
     public void channelClosed(SocketChannel socketChannel) throws Exception {
-        //reConnect(socketChannel);
+        if (!socketChannel.isInitiateClose()) {
+            //如果不是主动关闭，则发起重连
+            reConnect(socketChannel);
+        }
         super.channelClosed(socketChannel);
     }
 
@@ -113,7 +125,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
         final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
 
         if (channel instanceof AioChannel) {
-            java.nio.channels.AsynchronousSocketChannel socketChannel = java.nio.channels.AsynchronousSocketChannel.open(java.nio.channels.AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
+            AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
                 @Override
                 public Thread newThread(Runnable target) {
                     return new Thread(target);
@@ -124,28 +136,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                     socketChannel.setOption(entry.getKey(), entry.getValue());
                 }
             }
-
-
-            final java.nio.channels.AsynchronousSocketChannel finalSocketChannel = socketChannel;
-            /**
-             * 阻塞连接
-             */
-//            try {
-//                Future<Void> future = socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
-//                if (connectTimeout > 0) {
-//                    future.get(connectTimeout, TimeUnit.MILLISECONDS);
-//                } else {
-//                    future.get();
-//                }
-//
-//                //连接成功则构造AIOSession对象
-//                channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
-//                channel.starRead();
-//            } catch (TimeoutException e) {
-//                logger.error("connect aio server timeout", e);
-//                reConnect(channel);
-//            }
-
+            final AsynchronousSocketChannel finalSocketChannel = socketChannel;
             /**
              * 非阻塞连接
              */
@@ -155,6 +146,20 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                     logger.info("connect aio server success");
                     //连接成功则构造AIOSession对象
                     channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
+
+                    if (null != connectHandler) {
+                        if (null != channel.getSslHandler()) {
+                            channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                                @Override
+                                public void onComplete() {
+                                    logger.info("Ssl Handshake Completed");
+                                    connectHandler.onCompleted(channel);
+                                }
+                            });
+                        } else {
+                            connectHandler.onCompleted(channel);
+                        }
+                    }
                     channel.starRead();
                 }
 
@@ -162,6 +167,9 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                 public void failed(Throwable exc, java.nio.channels.AsynchronousSocketChannel attachment) {
                     logger.error("connect aio server  error", exc);
                     reConnect(channel);
+                    if (null != connectHandler) {
+                        connectHandler.onFailed(exc);
+                    }
                 }
             });
         } else if (channel instanceof NioChannel) {
@@ -173,7 +181,6 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                     socketChannel.setOption(entry.getKey(), entry.getValue());
                 }
             }
-
             socketChannel.configureBlocking(false);
             /*
              * 连接到指定的服务地址
@@ -189,8 +196,6 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
              * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
              */
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
-
-
             while (selector.select() > 0) {
                 Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                 while (it.hasNext()) {
@@ -202,21 +207,34 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                             channels.finishConnect();
                             try {
                                 channel = new NioChannel(socketChannel, clientConfig, channel.getChunkPool(), 1, channel.getChannelPipeline());
+                                if (null != connectHandler) {
+                                    if (null != channel.getSslHandler()) {
+                                        channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                                            @Override
+                                            public void onComplete() {
+                                                logger.info("Ssl Handshake Completed");
+                                                connectHandler.onCompleted(channel);
+                                            }
+                                        });
+                                    } else {
+                                        connectHandler.onCompleted(channel);
+                                    }
+                                }
                                 //创建成功立即开始读
                                 channel.starRead();
                             } catch (Exception e) {
                                 logger.error(e.getMessage(), e);
                                 reConnect(channel);
+                                if (null != connectHandler) {
+                                    connectHandler.onFailed(e);
+                                }
                             }
                         }
                     }
                 }
                 it.remove();
             }
-
         }
-
-
     }
 
 

@@ -53,7 +53,6 @@ public class MqttClient {
             }
         });
 
-
         client.start(new ConnectHandler() {
             @Override
             public void onCompleted(final SocketChannel channel) {

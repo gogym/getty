@@ -65,7 +65,7 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.4.0</version>
+            <version>1.4.1</version>
         </dependency>
 ```
 
@@ -73,7 +73,7 @@
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.4.0'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.4.1'
 ```
 
 
@@ -87,7 +87,8 @@ compile group: 'com.gettyio', name: 'getty-core', version: '1.4.0'
 ### 新版本特征
 
  1、优化部分代码
- 2、添加mqtt编解码支持
+ 2、提高channelAttribute的易用性
+ 2、优化重连插件
  
 
 ### 更多详情与文档

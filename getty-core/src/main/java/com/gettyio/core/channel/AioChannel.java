@@ -125,6 +125,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     @Override
     public void starRead() {
+        //主动关闭标志设置为false;
+        initiateClose = false;
         continueRead();
         if (this.sslHandler != null) {
             //若开启了SSL，则需要握手
@@ -138,7 +140,6 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     @Override
     public synchronized void close() {
-
 
         if (status == CHANNEL_STATUS_CLOSED) {
             logger.warn("Channel:{} is closed:", getChannelId());
@@ -197,6 +198,17 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             defaultChannelPipeline = null;
         }
 
+    }
+
+    /**
+     * 主动关闭
+     *
+     * @param initiateClose
+     */
+    @Override
+    public synchronized void close(boolean initiateClose) {
+        this.initiateClose = initiateClose;
+        close();
     }
 
 

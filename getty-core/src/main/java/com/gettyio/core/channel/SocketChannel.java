@@ -31,6 +31,7 @@ import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import com.gettyio.core.util.ConcurrentSafeMap;
 import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.StringUtil;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -52,7 +53,7 @@ public abstract class SocketChannel {
      */
     protected static final byte CHANNEL_STATUS_CLOSED = 1;
     /**
-     * 正常
+     * 已开启
      */
     protected static final byte CHANNEL_STATUS_ENABLED = 3;
 
@@ -60,6 +61,12 @@ public abstract class SocketChannel {
      * 默认保持长连接
      */
     protected boolean keepAlive = true;
+
+    /**
+     * 是否调用close()方法关闭
+     */
+    protected boolean initiateClose = false;
+
 
     /**
      * 内存池
@@ -93,7 +100,7 @@ public abstract class SocketChannel {
     /**
      * 用于方便设置随通道传播的属性
      */
-    protected ConcurrentSafeMap<Object, Object> channelAttribute = new ConcurrentSafeMap<>();
+    protected ConcurrentSafeMap<String, Object> channelAttribute = new ConcurrentSafeMap<>();
 
     //-------------------------------------------------------------------------------------
 
@@ -127,6 +134,11 @@ public abstract class SocketChannel {
      */
     public abstract void close();
 
+    /**
+     * 主动关闭，标记
+     * @param initiateClose
+     */
+    public abstract void close(boolean initiateClose);
 
 //-------------------------------------------------------------------------------------------------
 
@@ -314,15 +326,37 @@ public abstract class SocketChannel {
     }
 
 
-    public ConcurrentSafeMap<Object, Object> getChannelAttribute() {
+    public ConcurrentSafeMap<String, Object> getChannelAttribute() {
         return channelAttribute;
     }
 
-    public void setChannelAttribute(ConcurrentSafeMap<Object, Object> channelAttribute) {
-        this.channelAttribute = channelAttribute;
+    public Object getChannelAttribute(String key) {
+        if (StringUtil.isEmpty(key)) {
+            return null;
+        }
+        return channelAttribute.get(key);
     }
+
+
+    public void setChannelAttribute(String key, Object obj) {
+        this.channelAttribute.put(key, obj);
+    }
+
+
+    public void removeChannelAttribute(String key) {
+        if (StringUtil.isEmpty(key)) {
+            return;
+        }
+        this.channelAttribute.remove(key);
+    }
+
 
     public void setKeepAlive(boolean keepAlive) {
         this.keepAlive = keepAlive;
+    }
+
+
+    public boolean isInitiateClose() {
+        return initiateClose;
     }
 }

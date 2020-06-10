@@ -81,6 +81,8 @@ public class UdpChannel extends SocketChannel {
 
     @Override
     public void starRead() {
+        this.initiateClose = false;
+
         workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
@@ -168,6 +170,12 @@ public class UdpChannel extends SocketChannel {
             defaultChannelPipeline.clean();
             defaultChannelPipeline = null;
         }
+    }
+
+    @Override
+    public synchronized void close(boolean initiateClose) {
+        this.initiateClose = initiateClose;
+        close();
     }
 
     @Override
