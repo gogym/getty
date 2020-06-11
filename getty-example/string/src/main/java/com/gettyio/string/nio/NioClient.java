@@ -14,27 +14,29 @@ import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
+import com.gettyio.string.aio.AioClient;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 public class NioClient {
 
-    static ThreadPool threadPool = new ThreadPool(ThreadPool.FixedThread, 10);
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
 
         int i = 0;
         while (i < 1) {
-
-            test(8888);
+            NioClient ac = new NioClient();
+            ac.test(8888);
             i++;
         }
     }
 
 
-    private static void test(int port) {
+    private void test(int port) {
+
+        final ConnectHandler ch = new ConnectHandlerImp();
 
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
@@ -65,9 +67,9 @@ public class NioClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                // defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
-                //defaultChannelPipeline.addLast(new ReConnectHandler(channel));
+                defaultChannelPipeline.addLast(new ReConnectHandler(ch));
 
                 //指定结束符解码器
                 defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
@@ -79,34 +81,41 @@ public class NioClient {
         });
 
 
-        client.start(new ConnectHandler() {
-            @Override
-            public void onCompleted(SocketChannel channel) {
-                try {
-                    String s = "12\r\n";
-                    byte[] msgBody = s.getBytes("utf-8");
-                    long ct = System.currentTimeMillis();
-
-                    int i = 0;
-                    for (; i < 10; i++) {
-                        channel.writeAndFlush(msgBody);
-                    }
-
-                    long lt = System.currentTimeMillis();
-                    System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                    System.out.printf("发送消息数量：" + i + "条\r\n");
-                } catch (Exception e) {
-
-                }
-            }
-
-            @Override
-            public void onFailed(Throwable exc) {
-
-            }
-        });
+        client.start(ch);
 
 
     }
 
+
+    class ConnectHandlerImp implements ConnectHandler {
+        @Override
+        public void onCompleted(SocketChannel channel) {
+
+            try {
+                String s = "12\r\n";
+                byte[] msgBody = s.getBytes("utf-8");
+                long ct = System.currentTimeMillis();
+
+                int i = 0;
+                for (; i < 1; i++) {
+                    // byte[] msgBody = s.getBytes("utf-8");
+                    channel.writeAndFlush(msgBody);
+
+                }
+
+                long lt = System.currentTimeMillis();
+                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+                System.out.printf("发送消息数量：" + i + "条\r\n");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+
+        }
+
+        @Override
+        public void onFailed(Throwable exc) {
+
+        }
+    }
 }

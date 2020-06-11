@@ -104,7 +104,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
     @Override
     public void channelClosed(SocketChannel socketChannel) throws Exception {
-        if (!socketChannel.isInitiateClose()) {
+        if (!socketChannel.isInitiateClose() && timer.workerState == HashedWheelTimer.WORKER_STATE_INIT) {
             //如果不是主动关闭，则发起重连
             reConnect(socketChannel);
         }
@@ -114,7 +114,9 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
     @Override
     public void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception {
-        reConnect(socketChannel);
+        if (timer.workerState == HashedWheelTimer.WORKER_STATE_INIT) {
+            reConnect(socketChannel);
+        }
         super.exceptionCaught(socketChannel, cause);
     }
 
@@ -186,7 +188,6 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
              * 连接到指定的服务地址
              */
             socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
-
             /*
              * 创建一个事件选择器Selector
              */
@@ -204,8 +205,8 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         java.nio.channels.SocketChannel channels = (java.nio.channels.SocketChannel) sk.channel();
                         //during connecting, finish the connect
                         if (channels.isConnectionPending()) {
-                            channels.finishConnect();
                             try {
+                                channels.finishConnect();
                                 channel = new NioChannel(socketChannel, clientConfig, channel.getChunkPool(), 1, channel.getChannelPipeline());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
@@ -228,6 +229,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                                 if (null != connectHandler) {
                                     connectHandler.onFailed(e);
                                 }
+                                return;
                             }
                         }
                     }

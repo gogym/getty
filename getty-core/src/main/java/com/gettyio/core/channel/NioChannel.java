@@ -166,11 +166,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                     }
                 } catch (Exception e) {
                     logger.error(e);
-                    try {
-                        invokePipeline(ChannelState.INPUT_SHUTDOWN);
-                    } catch (Exception e1) {
-                        logger.error(e1);
-                    }
                     close();
                     return;
                 }
