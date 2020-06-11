@@ -18,6 +18,7 @@ package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
+import com.gettyio.core.util.ObjectUtil;
 
 
 /**
@@ -32,6 +33,9 @@ public class StringEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(SocketChannel socketChannel, Object obj) throws Exception {
+        if (obj instanceof String) {
+            obj = ((String) obj).getBytes("utf-8");
+        }
         super.encode(socketChannel, obj);
     }
 

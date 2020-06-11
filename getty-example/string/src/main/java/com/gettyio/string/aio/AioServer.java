@@ -6,6 +6,7 @@ import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
+import com.gettyio.core.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
@@ -65,6 +66,8 @@ public class AioServer {
 
                     //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
                     // defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
+
+                    defaultChannelPipeline.addLast(new StringEncoder());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
                     defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
                     //添加字符串解码器
