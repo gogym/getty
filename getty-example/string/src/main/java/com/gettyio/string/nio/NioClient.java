@@ -7,6 +7,7 @@ import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
+import com.gettyio.core.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
@@ -71,12 +72,13 @@ public class NioClient {
 
                 defaultChannelPipeline.addLast(new ReConnectHandler(ch));
 
+                defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
                 defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
                 //字符串解码器
                 defaultChannelPipeline.addLast(new StringDecoder());
                 //定义消息解码器
-                defaultChannelPipeline.addLast(new SimpleHandler());
+                defaultChannelPipeline.addLast(new ClientSimpleHandler());
             }
         });
 

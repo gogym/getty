@@ -207,7 +207,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         if (channels.isConnectionPending()) {
                             try {
                                 channels.finishConnect();
-                                channel = new NioChannel(socketChannel, clientConfig, channel.getChunkPool(), 1, channel.getChannelPipeline());
+                                channel = new NioChannel(socketChannel, clientConfig, channel.getChunkPool(), 3, channel.getChannelPipeline());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
                                         channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {

@@ -244,12 +244,11 @@ public class NioClientStarter extends NioStarter {
         datagramChannel.configureBlocking(false);
         Selector selector = Selector.open();
         datagramChannel.register(selector, SelectionKey.OP_READ);
-        nioChannel = new UdpChannel(datagramChannel, selector, aioClientConfig, chunkPool, channelPipeline, 2);
+        nioChannel = new UdpChannel(datagramChannel, selector, aioClientConfig, chunkPool, channelPipeline, 3);
         nioChannel.starRead();
         if (null != connectHandler) {
             connectHandler.onCompleted(nioChannel);
         }
-
     }
 
 
