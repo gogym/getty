@@ -71,11 +71,11 @@ public class BaseConfig {
     /**
      * 流控阈值
      */
-    private final int flowControlSize = 20;
+    private int flowControlSize = 20;
     /**
      * 释放流控阈值
      */
-    private final int releaseFlowControlSize = 10;
+    private int releaseFlowControlSize = 10;
 
     /**
      * 设置Socket的TCP参数配置
@@ -99,7 +99,12 @@ public class BaseConfig {
     /**
      * 是否开启零拷贝
      */
-    private final Boolean isDirect = true;
+    private Boolean isDirect = true;
+
+
+    private Integer bossGroupNum = 1;
+
+    private Integer workerLoopNum = 1;
 
     //------------------------------------------------------------------------------------------------
 
@@ -156,6 +161,23 @@ public class BaseConfig {
 
     public void setChunkPoolBlockTime(int chunkPoolBlockTime) {
         this.chunkPoolBlockTime = chunkPoolBlockTime;
+    }
+
+
+    public Integer getBossGroupNum() {
+        return bossGroupNum;
+    }
+
+    public void setBossGroupNum(Integer bossGroupNum) {
+        this.bossGroupNum = bossGroupNum;
+    }
+
+    public Integer getWorkerLoopNum() {
+        return workerLoopNum;
+    }
+
+    public void setWorkerLoopNum(Integer workerLoopNum) {
+        this.workerLoopNum = workerLoopNum;
     }
 
     @Override

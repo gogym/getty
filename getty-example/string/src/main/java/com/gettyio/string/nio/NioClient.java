@@ -99,7 +99,7 @@ public class NioClient {
                 long ct = System.currentTimeMillis();
 
                 int i = 0;
-                for (; i < 1; i++) {
+                for (; i < 5; i++) {
                     // byte[] msgBody = s.getBytes("utf-8");
                     channel.writeAndFlush(msgBody);
 

@@ -15,7 +15,7 @@ public abstract class Starter {
     /**
      * Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
      */
-    protected int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
+    private int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
     /**
      * Worker线程数
      */

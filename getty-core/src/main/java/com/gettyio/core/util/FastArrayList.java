@@ -26,6 +26,10 @@ package com.gettyio.core.util;
  */
 public class FastArrayList<T> {
 
+    /**
+     * 当前下标
+     */
+    private int currentIndex = 0;
 
     /**
      * 用于存储数据,关键字transient，序列化对象的时候，这个属性就不会被序列化。
@@ -262,4 +266,12 @@ public class FastArrayList<T> {
     public T[] arrays() {
         return data;
     }
+
+
+    // 轮询
+    public T round() {
+        currentIndex = (currentIndex + 1) % this.size;
+        return this.get(currentIndex);
+    }
+
 }
