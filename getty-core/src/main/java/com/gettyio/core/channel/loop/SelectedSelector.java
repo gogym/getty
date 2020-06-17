@@ -29,7 +29,7 @@ public class SelectedSelector extends Selector {
     }
 
     /**
-     * 同步， 保证多个线程调用register的时候不会出现问题
+     * 同步， 保证多个线程调用register不会出现问题
      *
      * @param channel
      * @param op

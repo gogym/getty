@@ -218,7 +218,7 @@ public final class ChunkPool {
                 }
 
                 // 如果内存不够，就通知其他等待者,避免一直阻塞
-                if (this.availableMemory > 0 || !this.mediumFree.isEmpty()) {
+                if (this.availableMemory > 0 || !this.tinyFree.isEmpty() || !this.smallFree.isEmpty() || !this.mediumFree.isEmpty() || !this.largeFree.isEmpty()) {
                     if (!this.waiters.isEmpty()) {
                         this.waiters.peekFirst().signal();
                     }
@@ -446,8 +446,17 @@ public final class ChunkPool {
         if (waiters != null) {
             waiters.clear();
         }
+        if (tinyFree != null) {
+            tinyFree.clear();
+        }
+        if (smallFree != null) {
+            smallFree.clear();
+        }
         if (mediumFree != null) {
             mediumFree.clear();
+        }
+        if (largeFree != null) {
+            largeFree.clear();
         }
     }
 

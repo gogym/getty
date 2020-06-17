@@ -21,6 +21,7 @@ import com.gettyio.core.buffer.Time;
 import com.gettyio.core.channel.*;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -49,11 +50,16 @@ public class NioClientStarter extends NioStarter {
     /**
      * 客户端配置
      */
-    private ClientConfig aioClientConfig = new ClientConfig();
+    private ClientConfig clientConfig = new ClientConfig();
     /**
      * channel通道
      */
     private SocketChannel nioChannel;
+
+    /**
+     * loop
+     */
+    private NioEventLoop nioEventLoop;
 
     /**
      * 简单启动
@@ -62,24 +68,24 @@ public class NioClientStarter extends NioStarter {
      * @param port 服务器端口号
      */
     public NioClientStarter(String host, int port) {
-        aioClientConfig.setHost(host);
-        aioClientConfig.setPort(port);
+        clientConfig.setHost(host);
+        clientConfig.setPort(port);
     }
 
 
     /**
      * 配置文件启动
      *
-     * @param aioClientConfig 配置
+     * @param clientConfig 配置
      */
-    public NioClientStarter(ClientConfig aioClientConfig) {
-        if (null == aioClientConfig.getHost() || "".equals(aioClientConfig.getHost())) {
+    public NioClientStarter(ClientConfig clientConfig) {
+        if (null == clientConfig.getHost() || "".equals(clientConfig.getHost())) {
             throw new NullPointerException("The connection host is null.");
         }
-        if (0 == aioClientConfig.getPort()) {
+        if (0 == clientConfig.getPort()) {
             throw new NullPointerException("The connection port is null.");
         }
-        this.aioClientConfig = aioClientConfig;
+        this.clientConfig = clientConfig;
     }
 
 
@@ -100,17 +106,6 @@ public class NioClientStarter extends NioStarter {
         return this;
     }
 
-
-    /**
-     * 设置Boss线程数
-     *
-     * @param threadNum 线程数
-     * @return AioServerStarter
-     */
-    public NioClientStarter bossThreadNum(int threadNum) {
-        this.bossThreadNum = threadNum;
-        return this;
-    }
 
     /**
      * 启动客户端。
@@ -153,9 +148,10 @@ public class NioClientStarter extends NioStarter {
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
         //初始化内存池
-        chunkPool = new ChunkPool(aioClientConfig.getClientChunkSize(), new Time(), aioClientConfig.isDirect());
+        chunkPool = new ChunkPool(clientConfig.getClientChunkSize(), new Time(), clientConfig.isDirect());
         //调用内部启动
-
+        nioEventLoop = new NioEventLoop(clientConfig, chunkPool);
+        nioEventLoop.run();
         if (socketMode == SocketMode.TCP) {
             startTcp(connectHandler);
         } else {
@@ -170,8 +166,8 @@ public class NioClientStarter extends NioStarter {
     private void startTcp(final ConnectHandler connectHandler) throws Exception {
 
         final java.nio.channels.SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
-        if (aioClientConfig.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : aioClientConfig.getSocketOptions().entrySet()) {
+        if (clientConfig.getSocketOptions() != null) {
+            for (Map.Entry<SocketOption<Object>, Object> entry : clientConfig.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
@@ -180,7 +176,7 @@ public class NioClientStarter extends NioStarter {
         /*
          * 连接到指定的服务地址
          */
-        socketChannel.connect(new InetSocketAddress(aioClientConfig.getHost(), aioClientConfig.getPort()));
+        socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
 
         /*
          * 创建一个事件选择器Selector
@@ -202,8 +198,7 @@ public class NioClientStarter extends NioStarter {
                     if (channel.isConnectionPending()) {
                         channel.finishConnect();
                         try {
-                            nioChannel = new NioChannel(socketChannel, aioClientConfig, chunkPool, workerThreadNum, channelPipeline);
-
+                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, channelPipeline);
                             if (null != connectHandler) {
                                 if (null != nioChannel.getSslHandler()) {
                                     nioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
@@ -217,8 +212,8 @@ public class NioClientStarter extends NioStarter {
                                     connectHandler.onCompleted(nioChannel);
                                 }
                             }
-                            //创建成功立即开始读
-                            nioChannel.starRead();
+                            //创建成功注册
+                            ((NioChannel) nioChannel).register();
                         } catch (Exception e) {
                             LOGGER.error(e.getMessage(), e);
                             if (nioChannel != null) {
@@ -244,7 +239,7 @@ public class NioClientStarter extends NioStarter {
         datagramChannel.configureBlocking(false);
         Selector selector = Selector.open();
         datagramChannel.register(selector, SelectionKey.OP_READ);
-        nioChannel = new UdpChannel(datagramChannel, selector, aioClientConfig, chunkPool, channelPipeline, 3);
+        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, chunkPool, channelPipeline, 3);
         nioChannel.starRead();
         if (null != connectHandler) {
             connectHandler.onCompleted(nioChannel);
@@ -264,6 +259,10 @@ public class NioClientStarter extends NioStarter {
         if (nioChannel != null) {
             nioChannel.close();
             nioChannel = null;
+        }
+
+        if (nioEventLoop != null) {
+            nioEventLoop.shutdown();
         }
     }
 

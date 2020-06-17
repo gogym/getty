@@ -47,7 +47,7 @@ public class BaseConfig {
     /**
      * 版本
      */
-    public static final String VERSION = "1.4.1";
+    public static final String VERSION = "1.4.3";
     /**
      * 服务器地址
      */
@@ -101,10 +101,6 @@ public class BaseConfig {
      */
     private Boolean isDirect = true;
 
-
-    private Integer bossGroupNum = 1;
-
-    private Integer workerLoopNum = 1;
 
     //------------------------------------------------------------------------------------------------
 
@@ -163,22 +159,6 @@ public class BaseConfig {
         this.chunkPoolBlockTime = chunkPoolBlockTime;
     }
 
-
-    public Integer getBossGroupNum() {
-        return bossGroupNum;
-    }
-
-    public void setBossGroupNum(Integer bossGroupNum) {
-        this.bossGroupNum = bossGroupNum;
-    }
-
-    public Integer getWorkerLoopNum() {
-        return workerLoopNum;
-    }
-
-    public void setWorkerLoopNum(Integer workerLoopNum) {
-        this.workerLoopNum = workerLoopNum;
-    }
 
     @Override
     public String toString() {

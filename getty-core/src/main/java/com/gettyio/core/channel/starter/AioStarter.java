@@ -37,10 +37,6 @@ public abstract class AioStarter extends Starter {
      */
     protected ChunkPool chunkPool;
 
-    /**
-     * 线程池
-     */
-    protected ThreadPool workerThreadPool;
 
     /**
      * aio线程组

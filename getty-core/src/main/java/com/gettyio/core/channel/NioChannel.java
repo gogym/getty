@@ -16,22 +16,16 @@
  */
 package com.gettyio.core.channel;
 
-import com.gettyio.core.buffer.BufferWriter;
-import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.function.Function;
+import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.util.Iterator;
-import java.util.concurrent.Semaphore;
 
 /**
  * NioChannel.java
@@ -41,43 +35,31 @@ import java.util.concurrent.Semaphore;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class NioChannel extends SocketChannel implements Function<BufferWriter, Void> {
+public class NioChannel extends SocketChannel {
 
     private java.nio.channels.SocketChannel channel;
-    private Selector selector;
-
-    protected BufferWriter bufferWriter;
-
-    /**
-     * 写缓冲
-     */
-    protected ByteBuffer writeByteBuffer;
-
-
     /**
      * SSL服务
      */
     private SslHandler sslHandler;
     private IHandshakeCompletedListener handshakeCompletedListener;
 
-
     /**
-     * 输出信号量
+     * 责任链对象
      */
-    private Semaphore semaphore = new Semaphore(1);
-
-    ThreadPool workerThreadPool;
     private ChannelPipeline channelPipeline;
 
-    public NioChannel(java.nio.channels.SocketChannel channel, BaseConfig config, ChunkPool chunkPool, Integer workerThreadNum, ChannelPipeline channelPipeline) {
-        this.channel = channel;
+    /**
+     * loop
+     */
+    private NioEventLoop nioEventLoop;
+
+    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ChannelPipeline channelPipeline) {
         this.config = config;
-        this.chunkPool = chunkPool;
-        this.chunkPool = chunkPool;
+        this.channel = channel;
         this.channelPipeline = channelPipeline;
+        this.nioEventLoop = nioEventLoop;
         try {
-            this.selector = Selector.open();
-            channel.register(selector, SelectionKey.OP_READ);
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
         } catch (Exception e) {
@@ -85,9 +67,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             throw new RuntimeException("SocketChannel init exception", e);
         }
 
-        //初始化数据输出类
-        bufferWriter = new BufferWriter(BufferWriter.BLOCK, chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
-        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         //触发责任链
         try {
             invokePipeline(ChannelState.NEW_CHANNEL);
@@ -95,83 +74,31 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             logger.error(e);
         }
 
-        //开启线程写出消息
-        workerThreadPool.execute(new Runnable() {
-            @Override
-            public void run() {
-                NioChannel.this.continueWrite();
-            }
-        });
-
     }
 
-
-    @Override
-    public void starRead() {
-
-        initiateClose = false;
-
+    public void register() throws ClosedChannelException {
         if (NioChannel.this.sslHandler != null) {
             //若开启了SSL，则需要握手
             NioChannel.this.sslHandler.getSslService().beginHandshake(handshakeCompletedListener);
         }
-        //多线程处理，提高效率
-        workerThreadPool.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    while (selector.select() > 0) {
-                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                        while (it.hasNext()) {
-                            SelectionKey sk = it.next();
-                            //清理事件，提到这里，提高处理消息效率
-                            it.remove();
-                            if (sk.isConnectable()) {
-                                java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
-                                //during connecting, finish the connect
-                                if (channel.isConnectionPending()) {
-                                    channel.finishConnect();
-                                }
+        //注册事件
+        nioEventLoop.getSelector().register(channel, SelectionKey.OP_READ, this);
+    }
 
-                            } else if (sk.isReadable()) {
-                                ByteBuffer readBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
-                                //接收数据
-                                int reccount = ((java.nio.channels.SocketChannel) sk.channel()).read(readBuffer);
-                                if (reccount == -1) {
-                                    chunkPool.deallocate(readBuffer);
-                                    close();
-                                    return;
-                                }
+    public void doRead(byte[] bytes) {
+        initiateClose = false;
 
-                                //读取缓冲区数据到管道
-                                if (null != readBuffer) {
-                                    readBuffer.flip();
-                                    //读取缓冲区数据，输送到责任链
-                                    while (readBuffer.hasRemaining()) {
-                                        byte[] bytes = new byte[readBuffer.remaining()];
-                                        readBuffer.get(bytes, 0, bytes.length);
-                                        try {
-                                            readToPipeline(bytes);
-                                        } catch (Exception e) {
-                                            logger.error(e);
-                                            close();
-                                        }
-                                    }
-                                }
-                                //触发读取完成，清理缓冲区
-                                chunkPool.deallocate(readBuffer);
-                            }
-                        }
-                        //it.remove();
-                    }
-                } catch (Exception e) {
-                    logger.error(e);
-                    close();
-                    return;
-                }
-            }
-        });
+//        if (NioChannel.this.sslHandler != null) {
+//            //若开启了SSL，则需要握手
+//            NioChannel.this.sslHandler.getSslService().beginHandshake(handshakeCompletedListener);
+//        }
 
+        try {
+            readToPipeline(bytes);
+        } catch (Exception e) {
+            logger.error(e);
+            close();
+        }
     }
 
 
@@ -183,11 +110,9 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             return;
         }
 
-
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
         }
-
 
         try {
             channel.shutdownInput();
@@ -212,13 +137,11 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         //最后需要清空责任链
         if (defaultChannelPipeline != null) {
             defaultChannelPipeline.clean();
             defaultChannelPipeline = null;
         }
-
     }
 
 
@@ -247,10 +170,16 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     public void writeToChannel(Object obj) {
         try {
             byte[] bytes = (byte[]) obj;
-            bufferWriter.write(bytes, 0, bytes.length);
-        } catch (IOException e) {
+            nioEventLoop.getBufferWriter().writeAndFlush(this, bytes);
+        } catch (Exception e) {
             logger.error(e);
         }
+    }
+
+
+    @Override
+    public java.nio.channels.SocketChannel getSocketChannel() {
+        return this.channel;
     }
 
     @Override
@@ -284,44 +213,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     }
 
 
-    /**
-     * 继续写
-     */
-    private void continueWrite() {
-
-        while (true) {
-            if (writeByteBuffer == null) {
-                writeByteBuffer = bufferWriter.poll();
-            } else if (!writeByteBuffer.hasRemaining()) {
-                //写完及时释放
-                chunkPool.deallocate(writeByteBuffer);
-                writeByteBuffer = bufferWriter.poll();
-            }
-
-            if (writeByteBuffer != null) {
-                //再次写
-                try {
-                    channel.write(writeByteBuffer);
-                } catch (IOException e) {
-                    NioChannel.this.close();
-                    logger.error("write error", e);
-                    break;
-                }
-            }
-            if (!keepAlive) {
-                NioChannel.this.close();
-                break;
-            }
-        }
-    }
-
-
-    @Override
-    public Void apply(BufferWriter input) {
-        return null;
-    }
-
-
     @Override
     public ChannelPipeline getChannelPipeline() {
         return channelPipeline;
@@ -340,6 +231,10 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     @Override
     public SslHandler getSslHandler() {
         return this.sslHandler;
+    }
+
+    public NioEventLoop getNioEventLoop() {
+        return nioEventLoop;
     }
 
     @Override

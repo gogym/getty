@@ -16,7 +16,7 @@
  */
 package com.gettyio.core.channel;
 
-import com.gettyio.core.buffer.BufferWriter;
+import com.gettyio.core.buffer.AioBufferWriter;
 import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * @date:2020/4/8
  * @copyright: Copyright by gettyio.com
  */
-public class AioChannel extends SocketChannel implements Function<BufferWriter, Void> {
+public class AioChannel extends SocketChannel implements Function<AioBufferWriter, Void> {
 
     /**
      * 通信channel对象
@@ -74,7 +74,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     private IHandshakeCompletedListener handshakeCompletedListener;
 
 
-    protected BufferWriter bufferWriter;
+    protected AioBufferWriter bufferWriter;
 
     private ChannelPipeline channelPipeline;
 
@@ -109,7 +109,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         }
 
         //初始化数据输出类
-        bufferWriter = new BufferWriter(BufferWriter.NOBLOCK, chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
+        bufferWriter = new AioBufferWriter(chunkPool, this, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
 
         //触发责任链
         try {
@@ -431,7 +431,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     }
 
     @Override
-    public Void apply(BufferWriter input) {
+    public Void apply(AioBufferWriter input) {
         //获取信息量
         if (!semaphore.tryAcquire()) {
             return null;

@@ -65,7 +65,7 @@ public class NioServer {
                     sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                     //初始化ssl服务
                     SslService sSLService = new SslService(sSLConfig);
-                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                    defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                     //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
                     //defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
@@ -82,7 +82,7 @@ public class NioServer {
 
             System.out.println("启动了NIO TCP");
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
     }
 

@@ -6,6 +6,8 @@ package com.gettyio.core.channel.starter;/*
  * 时间：2020/4/8
  */
 
+import com.gettyio.core.util.ThreadPool;
+
 public abstract class Starter {
 
     /**
@@ -20,5 +22,16 @@ public abstract class Starter {
      * Worker线程数
      */
     protected int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
+
+
+    /**
+     * boss线程池
+     */
+    protected ThreadPool bossThreadPool;
+
+    /**
+     * 线程池
+     */
+    protected ThreadPool workerThreadPool;
 
 }

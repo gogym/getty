@@ -27,7 +27,7 @@ public class NioClient {
 
 
         int i = 0;
-        while (i < 1) {
+        while (i < 5) {
             NioClient ac = new NioClient();
             ac.test(8888);
             i++;
@@ -68,7 +68,7 @@ public class NioClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-                // defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 defaultChannelPipeline.addLast(new ReConnectHandler(ch));
 
@@ -99,7 +99,7 @@ public class NioClient {
                 long ct = System.currentTimeMillis();
 
                 int i = 0;
-                for (; i < 5; i++) {
+                for (; i < 100; i++) {
                     // byte[] msgBody = s.getBytes("utf-8");
                     channel.writeAndFlush(msgBody);
 

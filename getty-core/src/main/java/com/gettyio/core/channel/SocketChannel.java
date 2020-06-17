@@ -126,7 +126,8 @@ public abstract class SocketChannel {
     /**
      * 开始读取，很重要，只有调用该方法，才会开始监听消息读取
      */
-    public abstract void starRead();
+    public void starRead() {
+    }
 
 
     /**
@@ -136,6 +137,7 @@ public abstract class SocketChannel {
 
     /**
      * 主动关闭，标记
+     *
      * @param initiateClose
      */
     public abstract void close(boolean initiateClose);
@@ -285,6 +287,10 @@ public abstract class SocketChannel {
         return null;
     }
 
+    public java.nio.channels.SocketChannel getSocketChannel() {
+        return null;
+    }
+
 
     public ChunkPool getChunkPool() {
         return chunkPool;
@@ -355,6 +361,9 @@ public abstract class SocketChannel {
         this.keepAlive = keepAlive;
     }
 
+    public boolean isKeepAlive() {
+        return keepAlive;
+    }
 
     public boolean isInitiateClose() {
         return initiateClose;

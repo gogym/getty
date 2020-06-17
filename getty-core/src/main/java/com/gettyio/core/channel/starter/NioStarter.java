@@ -43,11 +43,6 @@ public abstract class NioStarter extends Starter {
     protected ChunkPool chunkPool;
 
     /**
-     * 线程池
-     */
-    protected ThreadPool workerThreadPool;
-
-    /**
      * 责任链对象
      */
     protected ChannelPipeline channelPipeline;

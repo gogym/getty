@@ -207,7 +207,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         if (channels.isConnectionPending()) {
                             try {
                                 channels.finishConnect();
-                                channel = new NioChannel(socketChannel, clientConfig, channel.getChunkPool(), 3, channel.getChannelPipeline());
+                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getChannelPipeline());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
                                         channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
@@ -222,7 +222,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                                     }
                                 }
                                 //创建成功立即开始读
-                                channel.starRead();
+                                ((NioChannel) channel).register();
                             } catch (Exception e) {
                                 logger.error(e.getMessage(), e);
                                 reConnect(channel);

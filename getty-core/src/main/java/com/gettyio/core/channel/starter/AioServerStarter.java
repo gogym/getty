@@ -126,7 +126,16 @@ public class AioServerStarter extends AioStarter {
      * @return AioServerStarter
      */
     public AioServerStarter bossThreadNum(int threadNum) {
-        this.bossThreadNum = threadNum;
+        if (threadNum >= 3) {
+            this.bossThreadNum = threadNum;
+        }
+        return this;
+    }
+
+    public AioServerStarter workerThreadNum(int threadNum) {
+        if (threadNum >= 3) {
+            this.workerThreadNum = threadNum;
+        }
         return this;
     }
 
@@ -149,6 +158,8 @@ public class AioServerStarter extends AioStarter {
             this.chunkPool = new ChunkPool(config.getServerChunkSize(), new Time(), config.isDirect());
         }
 
+        //初始化boss线程池
+        bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         //启动
@@ -195,7 +206,7 @@ public class AioServerStarter extends AioStarter {
             }
 
             //开启线程，开始接收客户端的连接
-            workerThreadPool.execute(new Runnable() {
+            bossThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
                     //循环监听客户端的连接
@@ -207,7 +218,7 @@ public class AioServerStarter extends AioStarter {
                             final AsynchronousSocketChannel channel = future.get();
 
                             //通过线程池创建客户端连接通道
-                            workerThreadPool.execute(new Runnable() {
+                            bossThreadPool.execute(new Runnable() {
                                 @Override
                                 public void run() {
                                     //开始创建客户端会话
@@ -285,6 +296,10 @@ public class AioServerStarter extends AioStarter {
                 serverSocketChannel = null;
             }
 
+
+            if (!bossThreadPool.isTerminated()) {
+                bossThreadPool.shutdownNow();
+            }
             if (!workerThreadPool.isTerminated()) {
                 workerThreadPool.shutdownNow();
             }
