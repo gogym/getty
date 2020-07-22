@@ -42,7 +42,7 @@ public class NioServer {
             //设置SocketOptions
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
-            NioServerStarter server = new NioServerStarter(8888);
+            NioServerStarter server = new NioServerStarter(8888).workerThreadNum(5);
             server.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {

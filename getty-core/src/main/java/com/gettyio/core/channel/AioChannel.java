@@ -103,7 +103,7 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
             try {
                 channel.close();
             } catch (IOException e1) {
-                e1.printStackTrace();
+                logger.error(e1);
             }
             throw new RuntimeException("channelPipeline init exception", e);
         }
@@ -171,12 +171,12 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
         try {
             channel.shutdownInput();
         } catch (IOException e) {
-            logger.debug(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
         try {
             channel.shutdownOutput();
         } catch (IOException e) {
-            logger.debug(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
         try {
             channel.close();
@@ -189,7 +189,7 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
         try {
             invokePipeline(ChannelState.CHANNEL_CLOSED);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("close channel exception", e);
         }
 
         //最后需要清空责任链
@@ -245,6 +245,11 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
                     readToPipeline(bytes);
                 } catch (Exception e) {
                     logger.error(e);
+                    try {
+                        invokePipeline(ChannelState.INPUT_EXCEPTION);
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
+                    }
                     close();
                 }
             }

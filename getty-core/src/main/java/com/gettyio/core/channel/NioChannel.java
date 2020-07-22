@@ -117,12 +117,12 @@ public class NioChannel extends SocketChannel {
         try {
             channel.shutdownInput();
         } catch (IOException e) {
-            logger.debug(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
         try {
             channel.shutdownOutput();
         } catch (IOException e) {
-            logger.debug(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
         try {
             channel.close();
@@ -135,7 +135,7 @@ public class NioChannel extends SocketChannel {
         try {
             invokePipeline(ChannelState.CHANNEL_CLOSED);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("close channel exception", e);
         }
         //最后需要清空责任链
         if (defaultChannelPipeline != null) {

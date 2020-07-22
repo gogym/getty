@@ -233,7 +233,10 @@ public abstract class SocketChannel {
                 channelHandlerAdapter.channelClosed(this);
                 break;
             case INPUT_SHUTDOWN:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel is shutdown"));
+            case INPUT_EXCEPTION:
+            case OUTPUT_SHUTDOWN:
+            case OUTPUT_EXCEPTION:
+                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel runtime exception"));
                 break;
             default:
                 break;

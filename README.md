@@ -65,7 +65,7 @@
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.4.1</version>
+            <version>1.4.3</version>
         </dependency>
 ```
 
@@ -73,7 +73,7 @@
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.4.1'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.4.3'
 ```
 
 
