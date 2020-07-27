@@ -2,9 +2,13 @@ package tcp;
 
 
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.handler.codec.websocket.WebSocketFrame;
+import com.gettyio.core.handler.codec.websocket.frame.TextWebSocketFrame;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
-public class SimpleHandler extends SimpleChannelInboundHandler<String> {
+import javax.xml.soap.Text;
+
+public class SimpleHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
     @Override
     public void channelAdded(SocketChannel aioChannel) {
 
@@ -19,10 +23,14 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, String str) {
+    public void channelRead0(SocketChannel aioChannel, WebSocketFrame frame) {
 
-        System.out.println("读取消息了:" + str);
-        aioChannel.writeAndFlush(str.getBytes());
+        if(frame instanceof TextWebSocketFrame){
+            System.out.println("类型匹配");
+        }
+
+        System.out.println("读取消息了:" + new String(frame.getPayloadData()));
+        aioChannel.writeAndFlush(new TextWebSocketFrame("123"));
     }
 
     @Override

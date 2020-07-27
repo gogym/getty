@@ -14,47 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gettyio.core.handler.codec.websocket;
+package com.gettyio.core.handler.codec.bytes;
 
+import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
 
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * Opcode.java
+ * StringDecoder.java
  *
- * @description:消息类型
+ * @description:string解码器
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public enum Opcode {
+public class BytesDecoder extends ObjectToMessageDecoder {
 
-    /**
-     * 附加数据帧、文本数据帧、二进制数据帧、连接关闭、ping、pong
-     */
-    CONTINUATION((byte) 0), TEXT((byte) 1), BINARY((byte) 2), CLOSE((byte) 8), PING((byte) 9), PONG((byte) 10);
-
-    private static Map<Byte, Opcode> map = new HashMap<>();
-
-    static {
-        for (Opcode opcode : values()) {
-            map.put(opcode.getCode(), opcode);
-        }
+    @Override
+    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+        byte[] bytes = (byte[]) obj;
+        out.put(bytes);
+        super.decode(socketChannel, obj, out);
     }
-
-    public static Opcode valueOf(byte code) {
-        return map.get(code);
-    }
-
-    private byte code;
-
-    private Opcode(byte code) {
-        this.code = code;
-    }
-
-    public byte getCode() {
-        return code;
-    }
-
 }

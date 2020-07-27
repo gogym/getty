@@ -62,6 +62,7 @@ import com.gettyio.core.util.ObjectUtil;
 
 /**
  * WebSocketEncoder.java
+ *
  * @description:http协议响应编码器
  * @author:gogym
  * @date:2020/4/9
@@ -73,18 +74,17 @@ public class WebSocketEncoder extends MessageToByteEncoder {
     public void encode(SocketChannel aioChannel, Object obj) throws Exception {
         if (WebSocketDecoder.handShak) {
             byte[] bytes;
-            if (obj instanceof String) {
-                bytes = ((String) obj).getBytes();
-            } else {
-                bytes = (byte[]) obj;
+            if (obj instanceof WebSocketFrame) {
+                bytes = ((WebSocketFrame) obj).content();
+                if (Integer.valueOf(WebSocketDecoder.protocolVersion) <= WebSocketConstants.SPLITVERSION0) {
+                    String str = new String(bytes, "utf-8");
+                    String msg = (WebSocketConstants.BEGIN_MSG + str + WebSocketConstants.END_MSG);
+                    obj = msg.getBytes("UTF-8");
+                } else {
+                    obj = codeVersion6(bytes, ((WebSocketFrame) obj).getOpcode());
+                }
             }
-            if (Integer.valueOf(WebSocketDecoder.protocolVersion) <= WebSocketConstants.SPLITVERSION0) {
-                String str = new String(bytes, "utf-8");
-                String msg = (WebSocketConstants.BEGIN_MSG + str + WebSocketConstants.END_MSG);
-                obj = msg.getBytes();
-            } else {
-                obj = codeVersion6(bytes);
-            }
+
         }
         super.encode(aioChannel, obj);
     }
@@ -97,25 +97,25 @@ public class WebSocketEncoder extends MessageToByteEncoder {
      * @return byte[]
      * 对websocket协议进行编码
      */
-    public byte[] codeVersion6(byte[] msg) {
+    public byte[] codeVersion6(byte[] msg, byte op) {
 
         AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-        WebSocketMessage messageFrame = new WebSocketMessage();
+        WebSocketFrame messageFrame = new WebSocketFrame();
         messageFrame.setDateLength(msg.length);
 
         byte[] headers = new byte[2];
-        headers[0] = WebSocketMessage.FIN;
-        headers[0] |= messageFrame.getRsv1() | messageFrame.getRsv2() | messageFrame.getRsv3() | WebSocketMessage.TXT;
+        headers[0] = WebSocketFrame.FIN;
+        headers[0] |= messageFrame.getRsv1() | messageFrame.getRsv2() | messageFrame.getRsv3() | op;
         headers[1] = 0;
         //headers[1] |=  messageFrame.getMask() | messageFrame.getPayloadLen();
         headers[1] |= 0x00 | messageFrame.getPayloadLen();
         // 头部控制信息
         autoByteBuffer.writeBytes(headers);
 
-        if (messageFrame.getPayloadLen() == WebSocketMessage.HAS_EXTEND_DATA) {
+        if (messageFrame.getPayloadLen() == WebSocketFrame.HAS_EXTEND_DATA) {
             // 处理数据长度为126位的情况
             autoByteBuffer.writeBytes(ObjectUtil.shortToByte(messageFrame.getPayloadLenExtended()));
-        } else if (messageFrame.getPayloadLen() == WebSocketMessage.HAS_EXTEND_DATA_CONTINUE) {
+        } else if (messageFrame.getPayloadLen() == WebSocketFrame.HAS_EXTEND_DATA_CONTINUE) {
             // 处理数据长度为127位的情况
             autoByteBuffer.writeBytes(ObjectUtil.longToByte(messageFrame.getPayloadLenExtendedContinued()));
         }

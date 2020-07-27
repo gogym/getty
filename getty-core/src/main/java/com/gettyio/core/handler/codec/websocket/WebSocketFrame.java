@@ -17,6 +17,7 @@
 package com.gettyio.core.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.handler.codec.websocket.frame.PingWebSocketFrame;
 import com.gettyio.core.util.ObjectUtil;
 
 /**
@@ -27,7 +28,7 @@ import com.gettyio.core.util.ObjectUtil;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class WebSocketMessage {
+public class WebSocketFrame {
     /**
      * 1000 0000
      */
@@ -55,18 +56,9 @@ public class WebSocketMessage {
     /**
      * 0111 1111
      */
-    public static final byte PAYLOADLEN = 0x7F;
+    public static final byte PAYLOAD_LEN = 0x7F;
     public static final byte HAS_EXTEND_DATA = 126;
     public static final byte HAS_EXTEND_DATA_CONTINUE = 127;
-
-    /**
-     * 0000 0001
-     */
-    public static final byte TXT = 0x01;
-    /**
-     * 0000 1000
-     */
-    public static final byte CLOSE = 0x08;
 
     /**
      * 1bit
@@ -122,7 +114,7 @@ public class WebSocketMessage {
      */
     private AutoByteBuffer payloadData = AutoByteBuffer.newByteBuffer();
 
-    public WebSocketMessage() {
+    public WebSocketFrame() {
 
     }
 
@@ -171,8 +163,8 @@ public class WebSocketMessage {
         this.opcode = opcode;
     }
 
-    public AutoByteBuffer getPayloadData() {
-        return payloadData;
+    public byte[] getPayloadData() {
+        return payloadData.readableBytesArray();
     }
 
     public void setPayloadData(byte[] payloadData) {
@@ -325,9 +317,9 @@ public class WebSocketMessage {
                     this.setMask((byte) (bt & MASK));
 
 				/*如果小于126 表示后面的数据长度是 [Payload len] 的值。（最大125byte）
-			          等于 126 表示之后的16 bit位的数据值标识数据的长度。（最大65535byte） 
+			          等于 126 表示之后的16 bit位的数据值标识数据的长度。（最大65535byte）
 			          等于 127 表示之后的64 bit位的数据值标识数据的长度。（一个有符号长整型的最大值）*/
-                    this.setDateLength(bt & PAYLOADLEN);// 数据长度位数
+                    this.setDateLength(bt & PAYLOAD_LEN);// 数据长度位数
                 } else {
                     return;
                 }
@@ -401,4 +393,14 @@ public class WebSocketMessage {
                 }
         }
     }
+
+
+    /**
+     * 获取设置的内容
+     */
+    public byte[] content() {
+        return null;
+    }
+
+
 }

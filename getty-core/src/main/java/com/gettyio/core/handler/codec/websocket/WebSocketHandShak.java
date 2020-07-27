@@ -47,7 +47,6 @@ public class WebSocketHandShak {
      */
     public static WebSocketRequest parserRequest(String requestData) {
 
-
         // 解析握手信息
         WebSocketRequest requestInfo = new WebSocketRequest();
         String[] requestDatas = requestData.split("\r\n");

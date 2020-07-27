@@ -2,15 +2,12 @@ package tcp;
 
 
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.websocket.WebSocketDecoder;
 import com.gettyio.core.handler.codec.websocket.WebSocketEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
@@ -64,13 +61,20 @@ public class WsServer {
                     sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
                     SslService sslService = new SslService(sSLConfig, "TLSv1.2");
-                    defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
+                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
 
                     defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());
-                    defaultChannelPipeline.addLast(new StringDecoder());
-                    //添加自定义的简单消息处理器
+//                    defaultChannelPipeline.addLast(new StringEncoder());
+//                    defaultChannelPipeline.addLast(new StringDecoder());
                     defaultChannelPipeline.addLast(new SimpleHandler());
+
+                    // ----配置Protobuf处理器----
+//                    defaultChannelPipeline.addLast(new ProtobufDecoder(MessageClass.Message.getDefaultInstance()));
+//                    defaultChannelPipeline.addLast(new ProtobufEncoder());
+//                    defaultChannelPipeline.addLast(new PbSimpleHandler());
+                    // ----Protobuf处理器END----
+
                 }
             }).start();
             System.out.println("启动ws服务");

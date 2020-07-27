@@ -45,9 +45,9 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
     /**
      * 协议版本,默认0
      */
-    static String protocolVersion = "0";
+    public static String protocolVersion = "0";
 
-    WebSocketMessage messageFrame;
+    WebSocketFrame messageFrame;
 
     @Override
     public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
@@ -56,17 +56,14 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             if (Integer.valueOf(protocolVersion) >= WebSocketConstants.SPLITVERSION6) {
                 AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
                 //解析数据帧
-                byte[] bytes = parserVersion6(autoByteBuffer);
-                if (Arrays.equals(ObjectUtil.shortToByte(1001), bytes)) {
-                    //1001是ws关闭帧，检测到则关闭连接
-                    handShak = false;
-                    protocolVersion = "0";
-                    return;
-                }
-                if (bytes != null) {
-                    super.decode(socketChannel, bytes, out);
+                WebSocketFrame frame = parserVersion6(autoByteBuffer);
+                messageFrame = null;
+                if (frame != null) {
+                    out.put(frame);
+                    super.decode(socketChannel, obj, out);
                 }
             } else {
+                out.put(obj);
                 super.decode(socketChannel, obj, out);
             }
         } else {
@@ -96,11 +93,11 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
      * @return byte[]
      * 说明：解析版本6以后的数据帧格式
      */
-    private byte[] parserVersion6(AutoByteBuffer buffer) throws Exception {
+    private WebSocketFrame parserVersion6(AutoByteBuffer buffer) throws Exception {
         do {
             if (messageFrame == null) {
                 // 没有出现半包
-                messageFrame = new WebSocketMessage();
+                messageFrame = new WebSocketFrame();
             }
             if (!messageFrame.isReadFinish()) {
                 // 读取解析消息头
@@ -121,9 +118,9 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             }
 
             if (messageFrame.isReadFinish()) {
-                bytes = messageFrame.getPayloadData().readableBytesArray();
-                messageFrame = null;
-                return bytes;
+                //bytes = messageFrame.getPayloadData().readableBytesArray();
+                //messageFrame = null;
+                return messageFrame;
             }
 
         } while (buffer.hasRemaining());
