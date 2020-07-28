@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>1.4.3</version>
+    <version>1.2.6-SNAPSHOT</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
@@ -231,23 +231,23 @@
             <distributionManagement>
 
 
-                <snapshotRepository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-                </snapshotRepository>
-                <repository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                </repository>
-
-                <!--<repository>-->
-                    <!--<id>nexus</id>-->
-                    <!--<url>http://47.112.166.17:8081/repository/maven-releases/</url>-->
-                <!--</repository>-->
                 <!--<snapshotRepository>-->
-                    <!--<id>nexus</id>-->
-                    <!--<url>http://47.112.166.17:8081/repository/maven-snapshots/</url>-->
+                    <!--<id>ossrh</id>-->
+                    <!--<url>https://oss.sonatype.org/content/repositories/snapshots</url>-->
                 <!--</snapshotRepository>-->
+                <!--<repository>-->
+                    <!--<id>ossrh</id>-->
+                    <!--<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>-->
+                <!--</repository>-->
+
+                <repository>
+                    <id>nexus</id>
+                    <url>http://47.112.166.17:8081/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>nexus</id>
+                    <url>http://47.112.166.17:8081/repository/maven-snapshots/</url>
+                </snapshotRepository>
 
             </distributionManagement>
         </profile>

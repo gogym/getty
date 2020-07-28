@@ -43,7 +43,6 @@ public class WsClient {
         //chatclient.setSocketFactory(factory);
 
         chatclient.connectBlocking();
-
         boolean loop = true;
         int times = 0;
        // while (loop) {

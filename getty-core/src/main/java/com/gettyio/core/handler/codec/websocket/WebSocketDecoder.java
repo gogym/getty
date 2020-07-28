@@ -18,6 +18,7 @@ package com.gettyio.core.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.handler.codec.DecoderException;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.handler.codec.websocket.frame.*;
 import com.gettyio.core.logging.InternalLogger;
@@ -59,6 +60,8 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                 if (frame != null) {
                     out.put(frame);
                     super.decode(socketChannel, obj, out);
+                } else {
+                    throw new DecoderException("Already handshake.don't need to shake hands again before disconnecting");
                 }
             } else {
                 out.put(obj);
@@ -98,6 +101,9 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                 //获取opcode
                 byte bt = buffer.read(0);
                 byte opcode = (byte) (bt & 0x0F);
+                if(null==Opcode.valueOf(opcode)){
+                    return null;
+                }
                 //按类型构建帧
                 switch (Opcode.valueOf(opcode)) {
                     case CONTINUATION:
@@ -119,7 +125,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                         messageFrame = new PongWebSocketFrame();
                         break;
                     default:
-                        break;
+                        return null;
                 }
             }
             if (!messageFrame.isReadFinish()) {
@@ -153,6 +159,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
     public void channelClosed(SocketChannel socketChannel) throws Exception {
         handShak = false;
         protocolVersion = "0";
+        messageFrame = null;
         super.channelClosed(socketChannel);
     }
 }

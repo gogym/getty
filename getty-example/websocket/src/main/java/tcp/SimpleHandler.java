@@ -22,12 +22,10 @@ public class SimpleHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
     @Override
     public void channelRead0(SocketChannel aioChannel, WebSocketFrame frame) {
 
-        if (frame instanceof TextWebSocketFrame) {
-            System.out.println("类型匹配:"+((TextWebSocketFrame) frame).text());
+        if (frame instanceof BinaryWebSocketFrame) {
+            System.out.println("类型匹配:");
         }
 
-        System.out.println("读取消息了:" + new String(frame.getPayloadData()));
-        aioChannel.writeAndFlush(new TextWebSocketFrame("123"));
     }
 
     @Override
