@@ -23,14 +23,14 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 
 
 /**
- * Web Socket frame containing binary data.
+ * 关闭帧，这个帧不能主动发送。由websocket自身控制，一般用于接收判断即可
  */
-public class PingWebSocketFrame extends WebSocketFrame {
+public class CloseWebSocketFrame extends WebSocketFrame {
 
     protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TextWebSocketFrame.class);
 
-    public PingWebSocketFrame() {
-        setOpcode(Opcode.PING.getCode());
+    public CloseWebSocketFrame() {
+        setOpcode(Opcode.CLOSE.getCode());
     }
 
 }

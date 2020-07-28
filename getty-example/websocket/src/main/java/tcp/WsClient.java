@@ -2,8 +2,10 @@ package tcp;
 
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.util.ThreadPool;
+import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.enums.ReadyState;
+import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ServerHandshake;
 
 import javax.net.ssl.*;
@@ -38,16 +40,17 @@ public class WsClient {
         sSLConfig.setClientMode(true);
         SSLContext sslContext = init(sSLConfig);
         SSLSocketFactory factory = sslContext.getSocketFactory();
-        chatclient.setSocketFactory(factory);
+        //chatclient.setSocketFactory(factory);
 
         chatclient.connectBlocking();
 
         boolean loop = true;
         int times = 0;
-        while (loop) {
+       // while (loop) {
             times++;
             if (ReadyState.OPEN.equals(chatclient.getReadyState())) {
                 chatclient.send("123");  //发送二进制文件
+                //chatclient.sendPing();
                 Thread.sleep(1000);
             } else {
                 System.out.println("还没ready, 继续进行中");
@@ -55,10 +58,10 @@ public class WsClient {
                     Thread.sleep(1000);
                 } else {
                     System.out.println("超时");
-                    break;
+                    //break;
                 }
             }
-        }
+       // }
     }
 
 
@@ -132,7 +135,7 @@ class WebSocketClientInst extends WebSocketClient {
 
     @Override
     public void onOpen(ServerHandshake handshakedata) {
-        System.out.println("Connected");
+        System.out.println("onOpen");
 
     }
 
@@ -144,15 +147,24 @@ class WebSocketClientInst extends WebSocketClient {
 
     @Override
     public void onClose(int code, String reason, boolean remote) {
-        System.out.println("Disconnected");
+        System.out.println("onClose");
 
     }
 
     @Override
     public void onError(Exception ex) {
         ex.printStackTrace();
-
     }
 
+    @Override
+    public void onWebsocketPing(WebSocket conn, Framedata f) {
+        System.out.println("onWebsocketPing");
+    }
+
+
+    @Override
+    public void onWebsocketPong(WebSocket conn, Framedata f) {
+        System.out.println("onWebsocketPong");
+    }
 }
 

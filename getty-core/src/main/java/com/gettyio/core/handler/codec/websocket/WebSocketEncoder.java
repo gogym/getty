@@ -19,6 +19,8 @@ package com.gettyio.core.handler.codec.websocket;
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
+import com.gettyio.core.handler.codec.websocket.frame.WebSocketFrame;
+import com.gettyio.core.util.CharsetUtil;
 import com.gettyio.core.util.ObjectUtil;
 
 /**
@@ -75,14 +77,20 @@ public class WebSocketEncoder extends MessageToByteEncoder {
         if (WebSocketDecoder.handShak) {
             byte[] bytes;
             if (obj instanceof WebSocketFrame) {
-                bytes = ((WebSocketFrame) obj).content();
+                bytes = ((WebSocketFrame) obj).getPayloadData();
                 if (Integer.valueOf(WebSocketDecoder.protocolVersion) <= WebSocketConstants.SPLITVERSION0) {
-                    String str = new String(bytes, "utf-8");
-                    String msg = (WebSocketConstants.BEGIN_MSG + str + WebSocketConstants.END_MSG);
-                    obj = msg.getBytes("UTF-8");
+                    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+                    autoByteBuffer.writeBytes(WebSocketConstants.BEGIN_MSG.getBytes(CharsetUtil.UTF_8));
+                    autoByteBuffer.writeBytes(bytes);
+                    autoByteBuffer.writeBytes(WebSocketConstants.END_MSG.getBytes(CharsetUtil.UTF_8));
+                    obj = autoByteBuffer.array();
                 } else {
                     obj = codeVersion6(bytes, ((WebSocketFrame) obj).getOpcode());
                 }
+            } else {
+                //如果发送的不是WebSocketFrame，则默认构建二进制WebSocketFrame
+                bytes = ObjectUtil.ObjToByteArray(obj);
+                obj = codeVersion6(bytes, Opcode.BINARY.getCode());
             }
 
         }
@@ -107,7 +115,6 @@ public class WebSocketEncoder extends MessageToByteEncoder {
         headers[0] = WebSocketFrame.FIN;
         headers[0] |= messageFrame.getRsv1() | messageFrame.getRsv2() | messageFrame.getRsv3() | op;
         headers[1] = 0;
-        //headers[1] |=  messageFrame.getMask() | messageFrame.getPayloadLen();
         headers[1] |= 0x00 | messageFrame.getPayloadLen();
         // 头部控制信息
         autoByteBuffer.writeBytes(headers);
@@ -119,18 +126,6 @@ public class WebSocketEncoder extends MessageToByteEncoder {
             // 处理数据长度为127位的情况
             autoByteBuffer.writeBytes(ObjectUtil.longToByte(messageFrame.getPayloadLenExtendedContinued()));
         }
-
-        //写到客户端可以不做掩码处理
-//        if (messageFrame.isMask()) {
-//            // 做了掩码处理的，需要传递掩码的key
-//            byte[] keys = messageFrame.getMaskingKey();
-//            autoByteBuffer.writeBytes(messageFrame.getMaskingKey());
-//
-//            for (int i = 0; i < autoByteBuffer.array().length; ++i) {
-        //进行掩码处理
-//                autoByteBuffer.array()[i] ^= keys[i % 4];
-//            }
-//        }
         autoByteBuffer.writeBytes(msg);
 
         return autoByteBuffer.readableBytesArray();

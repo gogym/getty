@@ -21,16 +21,16 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 
 
-
 /**
  * Web Socket frame containing binary data.
  */
-public class PingWebSocketFrame extends WebSocketFrame {
+public class ContinuationWebSocketFrame extends WebSocketFrame {
 
     protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TextWebSocketFrame.class);
 
-    public PingWebSocketFrame() {
-        setOpcode(Opcode.PING.getCode());
+    public ContinuationWebSocketFrame() {
+        setOpcode(Opcode.CONTINUATION.getCode());
     }
+
 
 }

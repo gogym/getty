@@ -19,13 +19,11 @@ package com.gettyio.core.handler.codec.websocket;
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.handler.codec.websocket.frame.*;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.CharsetUtil;
 import com.gettyio.core.util.LinkedNonReadBlockQueue;
-import com.gettyio.core.util.ObjectUtil;
-
-import java.util.Arrays;
 
 /**
  * WebSocketDecoder.java
@@ -45,7 +43,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
     /**
      * 协议版本,默认0
      */
-    public static String protocolVersion = "0";
+    public static String protocolVersion = String.valueOf(WebSocketConstants.SPLITVERSION0);
 
     WebSocketFrame messageFrame;
 
@@ -97,7 +95,32 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
         do {
             if (messageFrame == null) {
                 // 没有出现半包
-                messageFrame = new WebSocketFrame();
+                //获取opcode
+                byte bt = buffer.read(0);
+                byte opcode = (byte) (bt & 0x0F);
+                //按类型构建帧
+                switch (Opcode.valueOf(opcode)) {
+                    case CONTINUATION:
+                        messageFrame = new ContinuationWebSocketFrame();
+                        break;
+                    case TEXT:
+                        messageFrame = new TextWebSocketFrame();
+                        break;
+                    case BINARY:
+                        messageFrame = new BinaryWebSocketFrame();
+                        break;
+                    case CLOSE:
+                        messageFrame = new CloseWebSocketFrame();
+                        break;
+                    case PING:
+                        messageFrame = new PingWebSocketFrame();
+                        break;
+                    case PONG:
+                        messageFrame = new PongWebSocketFrame();
+                        break;
+                    default:
+                        break;
+                }
             }
             if (!messageFrame.isReadFinish()) {
                 // 读取解析消息头
@@ -118,8 +141,6 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             }
 
             if (messageFrame.isReadFinish()) {
-                //bytes = messageFrame.getPayloadData().readableBytesArray();
-                //messageFrame = null;
                 return messageFrame;
             }
 

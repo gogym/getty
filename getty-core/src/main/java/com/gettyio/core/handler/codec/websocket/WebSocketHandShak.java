@@ -77,12 +77,12 @@ public class WebSocketHandShak {
                 }
             }
 
+            //读取请求头
             String[] parts = line.split(": ", 2);
             if (parts.length != 2) {
                 LOGGER.info("Wrong field format: " + line);
                 return null;
             }
-
             String name = parts[0].toLowerCase();
             String value = parts[1].toLowerCase();
 
@@ -172,12 +172,12 @@ public class WebSocketHandShak {
      */
     public static String getKey(String key) {
         // CHROME WEBSOCKET VERSION 8中定义的GUID
-        String guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+        String guid = WebSocketConstants.GUID;
         key += guid;
         LOGGER.info(key);
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
-            md.update(key.getBytes("iso-8859-1"), 0, key.length());
+            md.update(key.getBytes(WebSocketConstants.HEADER_CODE), 0, key.length());
             byte[] sha1Hash = md.digest();
             key = base64Encode(sha1Hash);
         } catch (NoSuchAlgorithmException e) {

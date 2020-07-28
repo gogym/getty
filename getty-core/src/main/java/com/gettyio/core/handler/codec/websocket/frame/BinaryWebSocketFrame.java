@@ -20,17 +20,19 @@ import com.gettyio.core.handler.codec.websocket.Opcode;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 
-
-
 /**
  * Web Socket frame containing binary data.
  */
-public class PingWebSocketFrame extends WebSocketFrame {
+public class BinaryWebSocketFrame extends WebSocketFrame {
 
-    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TextWebSocketFrame.class);
+    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BinaryWebSocketFrame.class);
 
-    public PingWebSocketFrame() {
-        setOpcode(Opcode.PING.getCode());
+    public BinaryWebSocketFrame() {
+        setOpcode(Opcode.BINARY.getCode());
     }
 
+    public BinaryWebSocketFrame(byte[] bytes) {
+        setOpcode(Opcode.BINARY.getCode());
+        setPayloadData(bytes);
+    }
 }

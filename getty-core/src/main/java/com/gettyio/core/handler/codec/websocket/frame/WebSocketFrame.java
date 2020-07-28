@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gettyio.core.handler.codec.websocket;
+package com.gettyio.core.handler.codec.websocket.frame;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.handler.codec.websocket.frame.PingWebSocketFrame;
@@ -281,10 +281,9 @@ public class WebSocketFrame {
     }
 
     /**
-     * 方法名：parseMessageHeader
+     * 解析消息头部信息
      *
      * @param buffer 数据
-     *               解析消息头部信息
      */
     public void parseMessageHeader(AutoByteBuffer buffer) throws Exception {
         int bt, b2;
@@ -319,7 +318,7 @@ public class WebSocketFrame {
 				/*如果小于126 表示后面的数据长度是 [Payload len] 的值。（最大125byte）
 			          等于 126 表示之后的16 bit位的数据值标识数据的长度。（最大65535byte）
 			          等于 127 表示之后的64 bit位的数据值标识数据的长度。（一个有符号长整型的最大值）*/
-                    this.setDateLength(bt & PAYLOAD_LEN);// 数据长度位数
+                    this.setDateLength(bt & PAYLOAD_LEN);
                 } else {
                     return;
                 }
@@ -393,14 +392,5 @@ public class WebSocketFrame {
                 }
         }
     }
-
-
-    /**
-     * 获取设置的内容
-     */
-    public byte[] content() {
-        return null;
-    }
-
 
 }

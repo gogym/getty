@@ -17,11 +17,9 @@ package com.gettyio.core.handler.codec.websocket.frame;
 
 
 import com.gettyio.core.handler.codec.websocket.Opcode;
-import com.gettyio.core.handler.codec.websocket.WebSocketConstants;
-import com.gettyio.core.handler.codec.websocket.WebSocketDecoder;
-import com.gettyio.core.handler.codec.websocket.WebSocketFrame;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.util.CharsetUtil;
 
 import java.io.UnsupportedEncodingException;
 
@@ -31,12 +29,16 @@ import java.io.UnsupportedEncodingException;
 public class TextWebSocketFrame extends WebSocketFrame {
 
     protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TextWebSocketFrame.class);
-    private byte[] bytes;
+
+    public TextWebSocketFrame() {
+        setOpcode(Opcode.TEXT.getCode());
+    }
 
     public TextWebSocketFrame(String text) {
         setOpcode(Opcode.TEXT.getCode());
         try {
-            bytes = text.getBytes("utf-8");
+            byte[] bytes = text.getBytes("utf-8");
+            setPayloadData(bytes);
         } catch (UnsupportedEncodingException e) {
             LOGGER.error(e);
         }
@@ -44,12 +46,12 @@ public class TextWebSocketFrame extends WebSocketFrame {
 
     public TextWebSocketFrame(byte[] bytes) {
         setOpcode(Opcode.TEXT.getCode());
-        this.bytes = bytes;
+        setPayloadData(bytes);
+    }
+
+    public String text() {
+        return new String(getPayloadData(), CharsetUtil.UTF_8);
     }
 
 
-    @Override
-    public byte[] content() {
-        return bytes;
-    }
 }
