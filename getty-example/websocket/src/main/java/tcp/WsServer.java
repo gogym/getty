@@ -65,8 +65,7 @@ public class WsServer {
 
                     defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());
-//                    defaultChannelPipeline.addLast(new StringEncoder());
-//                    defaultChannelPipeline.addLast(new StringDecoder());
+
                     defaultChannelPipeline.addLast(new SimpleHandler());
 
                     // ----配置Protobuf处理器----

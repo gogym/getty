@@ -11,6 +11,7 @@ import org.java_websocket.handshake.ServerHandshake;
 import javax.net.ssl.*;
 import java.io.*;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
@@ -48,7 +49,7 @@ public class WsClient {
        // while (loop) {
             times++;
             if (ReadyState.OPEN.equals(chatclient.getReadyState())) {
-                chatclient.send("123");  //发送二进制文件
+                chatclient.send("123".getBytes());  //发送二进制文件
                 //chatclient.sendPing();
                 Thread.sleep(1000);
             } else {
@@ -142,6 +143,11 @@ class WebSocketClientInst extends WebSocketClient {
     public void onMessage(String message) {
         System.out.println("got: " + message);
 
+    }
+
+    @Override
+    public void onMessage(ByteBuffer bytes) {
+        System.out.println("bytes: " + new String(bytes.array()));
     }
 
     @Override
