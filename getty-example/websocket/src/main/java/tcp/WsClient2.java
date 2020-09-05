@@ -9,7 +9,7 @@ import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ServerHandshake;
 
 import javax.net.ssl.*;
-import java.io.*;
+import java.io.FileInputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.security.KeyStore;
@@ -17,7 +17,7 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
-public class WsClient {
+public class WsClient2 {
 
     static ThreadPool threadPool = new ThreadPool(ThreadPool.FixedThread, 10);
     private static String PROTOCOL = "TLSv1.2";
@@ -25,7 +25,7 @@ public class WsClient {
     public static void main(String[] args) throws Exception {
         //System.setProperty("javax.net.debug", "all");
         System.setProperty("https.protocols", "TLSv1,TLSv1.1,TLSv1.2");
-        WebSocketClientInst chatclient = new WebSocketClientInst(new URI("ws://localhost:8888/echo"));
+        WebSocketClientInst2 chatclient = new WebSocketClientInst2(new URI("ws://localhost:8888/echo"));
 
         //获取证书
         String pkPath = WsClient.class.getClassLoader().getResource("clientStore.jks")
@@ -127,9 +127,9 @@ public class WsClient {
 }
 
 
-class WebSocketClientInst extends WebSocketClient {
+class WebSocketClientInst2 extends WebSocketClient {
 
-    public WebSocketClientInst(URI serverUri) {
+    public WebSocketClientInst2(URI serverUri) {
         super(serverUri);
     }
 

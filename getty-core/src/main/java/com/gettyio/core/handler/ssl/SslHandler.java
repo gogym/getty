@@ -117,6 +117,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
         @Override
         public void onComplete() {
             logger.info("Handshake Completed");
+            socketChannel.setHandShak(true);
         }
     }
 

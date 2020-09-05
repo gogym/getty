@@ -38,10 +38,6 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
     protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(WebSocketDecoder.class);
     /**
-     * 是否已经握手
-     */
-    static boolean handShak = false;
-    /**
      * 协议版本,默认0
      */
     public static String protocolVersion = String.valueOf(WebSocketConstants.SPLITVERSION0);
@@ -50,7 +46,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
     @Override
     public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
-        if (handShak) {
+        if (socketChannel.isHandShak()) {
             // 已经握手处理
             if (Integer.valueOf(protocolVersion) >= WebSocketConstants.SPLITVERSION6) {
                 AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
@@ -81,7 +77,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                 socketChannel.getSslHandler().encode(socketChannel, bytes);
             }
             protocolVersion = requestInfo.getSecVersion().toString();
-            handShak = true;
+            socketChannel.setHandShak(true);
         }
 
     }
@@ -101,7 +97,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                 //获取opcode
                 byte bt = buffer.read(0);
                 byte opcode = (byte) (bt & 0x0F);
-                if(null==Opcode.valueOf(opcode)){
+                if (null == Opcode.valueOf(opcode)) {
                     return null;
                 }
                 //按类型构建帧
@@ -157,7 +153,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
     @Override
     public void channelClosed(SocketChannel socketChannel) throws Exception {
-        handShak = false;
+        socketChannel.setHandShak(false);
         protocolVersion = "0";
         messageFrame = null;
         super.channelClosed(socketChannel);

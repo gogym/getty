@@ -67,6 +67,11 @@ public abstract class SocketChannel {
      */
     protected boolean initiateClose = false;
 
+    /**
+     * 是否已经握手
+     */
+    protected boolean handShak = false;
+
 
     /**
      * 内存池
@@ -370,5 +375,13 @@ public abstract class SocketChannel {
 
     public boolean isInitiateClose() {
         return initiateClose;
+    }
+
+    public boolean isHandShak() {
+        return handShak;
+    }
+
+    public void setHandShak(boolean handShak) {
+        this.handShak = handShak;
     }
 }

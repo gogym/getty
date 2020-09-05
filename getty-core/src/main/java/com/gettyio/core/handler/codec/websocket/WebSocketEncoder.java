@@ -74,7 +74,7 @@ public class WebSocketEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(SocketChannel aioChannel, Object obj) throws Exception {
-        if (WebSocketDecoder.handShak) {
+        if (aioChannel.isHandShak()) {
             byte[] bytes;
             if (obj instanceof WebSocketFrame) {
                 bytes = ((WebSocketFrame) obj).getPayloadData();
