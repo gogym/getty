@@ -83,8 +83,11 @@ public class FastArrayList<T> {
             if (index == -1 && obj == null) {
                 System.arraycopy(data, 0, newData, 0, size);
             } else {
-                //将要插入索引位置前面的对象 拷贝
+
+                System.arraycopy(data, 0, newData, 0, size);
+                //将要插入索引位置后面的对象 拷贝。空出指定位置
                 System.arraycopy(data, index, newData, index + 1, size - index);
+                newData[index] = obj;
             }
 
             //将 newData 数组赋值给 data数组
@@ -98,7 +101,7 @@ public class FastArrayList<T> {
      *
      * @return int
      */
-    public int getSize() {
+    public int size() {
         return this.size;
     }
 
@@ -138,6 +141,27 @@ public class FastArrayList<T> {
         return true;
 
     }
+
+    /**
+     * 添加到数组首位
+     *
+     * @param obj
+     * @return
+     */
+    public boolean addFirst(T obj) {
+        return add(0, obj);
+    }
+
+    /**
+     * 添加最后
+     *
+     * @param obj
+     * @return
+     */
+    public boolean addLast(T obj) {
+        return add(size, obj);
+    }
+
 
     /**
      * 判断给定索引是否越界
@@ -185,9 +209,27 @@ public class FastArrayList<T> {
     }
 
     /**
+     * 获取第一个
+     *
+     * @return
+     */
+    public T getFirst() {
+        return get(0);
+    }
+
+    /**
+     * 获取最后一个
+     *
+     * @return
+     */
+    public T getLast() {
+        return get(size - 1);
+    }
+
+    /**
      * 删除所有元素
      */
-    public void removeAll() {
+    public void clear() {
         for (int i = 0; i < data.length; i++) {
             data[i] = null;
         }
@@ -268,7 +310,11 @@ public class FastArrayList<T> {
     }
 
 
-    // 轮询
+    /**
+     * 轮训，均衡的随机获取数组里面的元素
+     *
+     * @return
+     */
     public T round() {
         currentIndex = (currentIndex + 1) % this.size;
         return this.get(currentIndex);

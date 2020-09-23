@@ -22,8 +22,8 @@ import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
+import com.gettyio.core.util.FastArrayList;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 
 
@@ -39,21 +39,21 @@ public class DefaultChannelPipeline {
     /**
      * 入栈链
      */
-    LinkedList<ChannelHandlerAdapter> inPipeList;
+    FastArrayList<ChannelHandlerAdapter> inPipeList;
     /**
      * 出栈链
      */
-    LinkedList<ChannelHandlerAdapter> outPipeList;
+    FastArrayList<ChannelHandlerAdapter> outPipeList;
 
     SocketChannel socketChannel;
 
     public DefaultChannelPipeline(SocketChannel socketChannel) {
         this.socketChannel = socketChannel;
         if (inPipeList == null) {
-            inPipeList = new LinkedList<>();
+            inPipeList = new FastArrayList<>();
         }
         if (outPipeList == null) {
-            outPipeList = new LinkedList<>();
+            outPipeList = new FastArrayList<>();
         }
     }
 
@@ -63,8 +63,8 @@ public class DefaultChannelPipeline {
      *
      * @return
      */
-    public Iterator<ChannelHandlerAdapter> getInPipeList() {
-        return inPipeList.iterator();
+    public FastArrayList<ChannelHandlerAdapter> getInPipeList() {
+        return inPipeList;
     }
 
 
@@ -73,9 +73,8 @@ public class DefaultChannelPipeline {
      *
      * @return
      */
-    public Iterator<ChannelHandlerAdapter> getOutPipeList() {
-        LinkedList<ChannelHandlerAdapter> newList = reverseLinkedList(outPipeList);
-        return newList.iterator();
+    public FastArrayList<ChannelHandlerAdapter> getOutPipeList() {
+        return outPipeList;
     }
 
 
