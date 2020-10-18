@@ -67,7 +67,7 @@ public class BaseConfig {
     /**
      * 输出类队列大小，默认10*1024*1024
      */
-    private int bufferWriterQueueSize = 10 * 1024 * 1024;
+    private int bufferWriterQueueSize = 1024 * 1024;
     /**
      * 流控阈值
      */

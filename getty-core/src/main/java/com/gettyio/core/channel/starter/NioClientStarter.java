@@ -61,6 +61,8 @@ public class NioClientStarter extends NioStarter {
      */
     private NioEventLoop nioEventLoop;
 
+    Selector selector;
+
     /**
      * 简单启动
      *
@@ -181,8 +183,7 @@ public class NioClientStarter extends NioStarter {
         /*
          * 创建一个事件选择器Selector
          */
-        Selector selector = Selector.open();
-
+        selector = Selector.open();
         /*
          * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
          */
@@ -256,9 +257,18 @@ public class NioClientStarter extends NioStarter {
 
 
     private void showdown0(boolean flag) {
+
         if (nioChannel != null) {
             nioChannel.close();
             nioChannel = null;
+        }
+
+        if (selector != null && selector.isOpen()) {
+            try {
+                selector.close();
+            } catch (IOException e) {
+                LOGGER.error(e);
+            }
         }
 
         if (nioEventLoop != null) {

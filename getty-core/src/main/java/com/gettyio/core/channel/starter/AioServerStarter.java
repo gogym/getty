@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
 import java.nio.channels.*;
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.*;
 
@@ -297,14 +298,14 @@ public class AioServerStarter extends AioStarter {
             }
 
 
-            if (!bossThreadPool.isTerminated()) {
+            if (!bossThreadPool.isShutDown()) {
                 bossThreadPool.shutdownNow();
             }
-            if (!workerThreadPool.isTerminated()) {
+            if (!workerThreadPool.isShutDown()) {
                 workerThreadPool.shutdownNow();
             }
 
-            if (!asynchronousChannelGroup.isTerminated()) {
+            if (!asynchronousChannelGroup.isShutdown()) {
                 asynchronousChannelGroup.shutdownNow();
             }
             //该方法必须在shutdown或shutdownNow后执行,才会生效。否则会造成死锁
@@ -317,6 +318,8 @@ public class AioServerStarter extends AioStarter {
         } catch (InterruptedException e) {
             LOGGER.error("server shutdown exception", e);
         }
+
+        LOGGER.info("server shutdown at " + new Date());
     }
 
 

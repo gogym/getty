@@ -149,6 +149,7 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
         return capacity;
     }
 
+
     @Override
     public int getCount() {
         return count;

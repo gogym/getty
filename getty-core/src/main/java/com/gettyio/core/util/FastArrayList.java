@@ -16,6 +16,10 @@
  */
 package com.gettyio.core.util;
 
+import java.lang.reflect.Array;
+import java.util.Iterator;
+import java.util.function.Consumer;
+
 /**
  * FastArrayList.java
  *
@@ -24,7 +28,7 @@ package com.gettyio.core.util;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class FastArrayList<T> {
+public class FastArrayList<T> implements Iterable<T> {
 
     /**
      * 当前下标
@@ -60,12 +64,26 @@ public class FastArrayList<T> {
         }
     }
 
+    public FastArrayList(Class<T> type, int initialCapacity) {
+        if (initialCapacity < 0) {
+            throw new IllegalArgumentException("非法的集合初始容量值 Illegal Capacity: " +
+                    initialCapacity);
+        } else {
+            //实例化数组
+            this.data = (T[]) Array.newInstance(type, initialCapacity);
+        }
+    }
+
     /**
      * 无参构造函数
      * 指定数组的初始大小为 10
      */
     public FastArrayList() {
         this(DEFAULT_CAPACITY);
+    }
+
+    public FastArrayList(Class<T> type) {
+        this(type, DEFAULT_CAPACITY);
     }
 
     /**
@@ -320,4 +338,27 @@ public class FastArrayList<T> {
         return this.get(currentIndex);
     }
 
+
+    @Override
+    public Iterator<T> iterator() {
+        class iter implements Iterator<T> {
+            @Override
+            public boolean hasNext() {
+                return (currentIndex < size);
+            }
+
+            @Override
+            public T next() {
+                return data[currentIndex++];
+            }
+
+            @Override
+            public void remove() {
+
+            }
+        }
+
+        return new iter();
+
+    }
 }

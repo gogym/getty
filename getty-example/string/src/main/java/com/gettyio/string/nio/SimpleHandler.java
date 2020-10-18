@@ -7,14 +7,11 @@ import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import java.io.IOException;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<String> {
+
+
     @Override
     public void channelAdded(SocketChannel aioChannel) {
-
-        try {
-            System.out.println("连接成功" + aioChannel.getRemoteAddress().getHostString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+            System.out.println("连接成功");
 
     }
 

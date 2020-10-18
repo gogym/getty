@@ -23,13 +23,20 @@ public class NioServer {
 
 
     public static void main(String[] args) {
+        NioServer ns = new NioServer();
+        ns.test(8888);
+       // ns.test(8889);
+    }
+
+
+    public void test(int port){
         try {
             //初始化配置对象
             ServerConfig aioServerConfig = new ServerConfig();
             //设置host,不设置默认localhost
             aioServerConfig.setHost("127.0.0.1");
             //设置端口号
-            aioServerConfig.setPort(8888);
+            aioServerConfig.setPort(port);
             //设置服务器端内存池最大可分配空间大小，默认256mb，内存池空间可以根据吞吐量设置。
             // 尽量可以设置大一点，因为这不会真正的占用系统内存，只有真正使用时才会分配
             aioServerConfig.setServerChunkSize(512 * 1024 * 1024);
@@ -42,7 +49,7 @@ public class NioServer {
             //设置SocketOptions
             aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
-            NioServerStarter server = new NioServerStarter(8888).workerThreadNum(5);
+            NioServerStarter server = new NioServerStarter(port).workerThreadNum(5);
             server.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {
@@ -81,6 +88,9 @@ public class NioServer {
 
 
             System.out.println("启动了NIO TCP");
+
+            server.shutdown();
+
         } catch (Exception e) {
             e.printStackTrace();
         }

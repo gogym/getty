@@ -36,4 +36,5 @@ public interface LinkedQueue<T> {
     int getCount();
 
     int getCapacity();
+
 }

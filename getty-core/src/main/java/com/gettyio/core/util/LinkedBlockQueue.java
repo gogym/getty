@@ -147,10 +147,13 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         return capacity;
     }
 
+
     @Override
     public int getCount() {
         return count;
     }
+
+
 
 
 }

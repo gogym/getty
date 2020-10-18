@@ -26,6 +26,8 @@ public class NioEventLoop implements EventLoop {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioEventLoop.class);
 
+    private boolean shutdown = false;
+
     private BaseConfig config;
 
     /**
@@ -73,7 +75,7 @@ public class NioEventLoop implements EventLoop {
         workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
-                while (true) {
+                while (true && !shutdown) {
                     try {
                         selector.select();
                     } catch (IOException e) {
@@ -144,7 +146,7 @@ public class NioEventLoop implements EventLoop {
             @Override
             public void run() {
 
-                while (true) {
+                while (true && !shutdown) {
                     if (writeByteBuffer == null) {
                         writeByteBuffer = nioBufferWriter.poll();
                     } else if (!writeByteBuffer.getByteBuffer().hasRemaining()) {
@@ -168,13 +170,15 @@ public class NioEventLoop implements EventLoop {
                             writeByteBuffer = null;
                             continue;
                         }
+
+                        if (!writeByteBuffer.getNioChannel().isKeepAlive()) {
+                            writeByteBuffer.getNioChannel().close();
+                            chunkPool.deallocate(writeByteBuffer.getByteBuffer());
+                            writeByteBuffer = null;
+                            continue;
+                        }
                     }
-                    if (!writeByteBuffer.getNioChannel().isKeepAlive()) {
-                        writeByteBuffer.getNioChannel().close();
-                        chunkPool.deallocate(writeByteBuffer.getByteBuffer());
-                        writeByteBuffer = null;
-                        continue;
-                    }
+
                 }
             }
         });
@@ -183,15 +187,20 @@ public class NioEventLoop implements EventLoop {
 
     @Override
     public void shutdown() {
-        if (!workerThreadPool.isTerminated()) {
-            workerThreadPool.shutdownNow();
-        }
+
+        shutdown = true;
+
         if (nioBufferWriter != null) {
             try {
                 nioBufferWriter.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+
+        if (!workerThreadPool.isShutDown()) {
+            workerThreadPool.shutdown();
         }
     }
 

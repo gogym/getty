@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
 import java.nio.channels.*;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -76,7 +77,7 @@ public class NioServerStarter extends NioStarter {
     /**
      * loop集合
      */
-    private FastArrayList<NioEventLoop> nioEventLoopFastArrayList = new FastArrayList<>();
+    private FastArrayList<NioEventLoop> nioEventLoopFastArrayList = new FastArrayList<>(NioEventLoop.class);
 
     /**
      * 简单启动
@@ -364,12 +365,14 @@ public class NioServerStarter extends NioStarter {
                 selector = null;
             }
 
-            for (NioEventLoop nioEventLoop : nioEventLoopFastArrayList.arrays()) {
+            for (NioEventLoop nioEventLoop : nioEventLoopFastArrayList) {
                 nioEventLoop.shutdown();
             }
 
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
         }
+
+        LOGGER.info("getty server is shutdown in "+new Date());
     }
 }

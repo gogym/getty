@@ -26,12 +26,23 @@ public class NioClient {
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
 
-        int i = 0;
-        while (i < 1) {
-            NioClient ac = new NioClient();
-            ac.test(8888);
-            i++;
-        }
+        NioClient ac = new NioClient();
+        ac.test(8888);
+
+//        int i = 0;
+//        while (i < 10000) {
+//
+//            if(i%2==0){
+//                NioClient ac = new NioClient();
+//                ac.test(8888);
+//            }else {
+//                NioClient ac = new NioClient();
+//                ac.test(8889);
+//            }
+//            i++;
+//            Thread.sleep(2);
+//            System.out.println(i);
+//        }
     }
 
 
@@ -42,8 +53,8 @@ public class NioClient {
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-        aioConfig.setClientChunkSize(512 * 1024 * 1024);
-        aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);
+       // aioConfig.setClientChunkSize( 1024);
+       // aioConfig.setBufferWriterQueueSize( 1024);
 
 
         NioClientStarter client = new NioClientStarter(aioConfig);
@@ -85,7 +96,6 @@ public class NioClient {
 
         client.start(ch);
 
-
     }
 
 
@@ -93,24 +103,24 @@ public class NioClient {
         @Override
         public void onCompleted(SocketChannel channel) {
 
-            try {
-                String s = "12\r\n";
-                byte[] msgBody = s.getBytes("utf-8");
-                long ct = System.currentTimeMillis();
-
-                int i = 0;
-                for (; i < 1000000; i++) {
-                    // byte[] msgBody = s.getBytes("utf-8");
-                    channel.writeAndFlush(msgBody);
-
-                }
-
-                long lt = System.currentTimeMillis();
-                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                System.out.printf("发送消息数量：" + i + "条\r\n");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+//            try {
+//                String s = "12\r\n";
+//                byte[] msgBody = s.getBytes("utf-8");
+//                long ct = System.currentTimeMillis();
+//
+//                int i = 0;
+//                for (; i < 1000000; i++) {
+//                    // byte[] msgBody = s.getBytes("utf-8");
+//                    channel.writeAndFlush(msgBody);
+//
+//                }
+//
+//                long lt = System.currentTimeMillis();
+//                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+//                System.out.printf("发送消息数量：" + i + "条\r\n");
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
 
 
         }

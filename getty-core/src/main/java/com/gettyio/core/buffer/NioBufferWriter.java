@@ -133,6 +133,7 @@ public final class NioBufferWriter extends BufferWriter {
             throw new IOException("OutputStream has closed");
         }
         closed = true;
+
         if (chunkPool != null) {
             //清空内存池
             chunkPool.clear();

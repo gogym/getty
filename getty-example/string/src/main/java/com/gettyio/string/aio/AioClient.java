@@ -80,6 +80,8 @@ public class AioClient {
 
         client.start(ch);
 
+        client.shutdown();
+
     }
 
 

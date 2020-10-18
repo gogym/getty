@@ -10,17 +10,30 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import com.gettyio.test.packet.MessageClass;
 import io.netty.handler.codec.mqtt.*;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class NettyClient {
 
-    public static void main(String[] args) {
+    public static void main(String[] args)  throws InterruptedException, ExecutionException, IOException {
 
-        // 启动新的线程托管服务
-        new Thread() {
-            @Override
-            public void run() {
+
+        int i = 0;
+        while (i < 10000) {
+            NettyClient ac = new NettyClient();
+            ac.test(8888);
+            i++;
+            Thread.sleep(2);
+            System.out.println(i);
+        }
+    }
+
+
+    public void test(int port){
+
+
 
                 ChannelFuture future;//信道
                 EventLoopGroup group = new NioEventLoopGroup(2);
@@ -42,8 +55,8 @@ public class NettyClient {
                         // 如果重连失败，则调用ChannelInactive方法，再次出发重连事件，一直尝试12次，如果失败则不再重连
                         if (!succeed) {
                         } else {
-                            System.out.println("连接成功");
-                            Channel c = f.channel();
+                            //System.out.println("连接成功");
+                            // Channel c = f.channel();
                             // MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
                             //builder.setId("123");
 
@@ -52,8 +65,8 @@ public class NettyClient {
 //                            }
 
 
-                            String s = "12\r\n";
-                            byte[] msgBody = s.getBytes("utf-8");
+//                            String s = "12\r\n";
+//                            byte[] msgBody = s.getBytes("utf-8");
 
 //                            MqttMessage mqttMessage= MqttMessageFactory.newMessage(
 //                                    new MqttFixedHeader(MqttMessageType.CONNACK, false, MqttQoS.AT_MOST_ONCE, false, 0),
@@ -78,12 +91,12 @@ public class NettyClient {
 //                                    MqttMessageIdVariableHeader.from(4),
 //                                    new MqttSubscribePayload(topicSubscriptions));
 
-                            List<String> topicSubscriptions=new ArrayList<>();
-                            topicSubscriptions.add("aaa");
-                            MqttUnsubscribeMessage mqttMessage = new MqttUnsubscribeMessage(
-                                    new MqttFixedHeader(MqttMessageType.UNSUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0),
-                                     MqttMessageIdVariableHeader.from(4),
-                                    new MqttUnsubscribePayload(topicSubscriptions));
+//                            List<String> topicSubscriptions=new ArrayList<>();
+//                            topicSubscriptions.add("aaa");
+//                            MqttUnsubscribeMessage mqttMessage = new MqttUnsubscribeMessage(
+//                                    new MqttFixedHeader(MqttMessageType.UNSUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0),
+//                                     MqttMessageIdVariableHeader.from(4),
+//                                    new MqttUnsubscribePayload(topicSubscriptions));
 
 
 
@@ -92,13 +105,13 @@ public class NettyClient {
 //                                    MqttMessageIdVariableHeader.from(4),
 //                                    new MqttSubAckPayload(1));
 
-                            long ct = System.currentTimeMillis();
-                            for (int i = 0; i < 1; i++) {
-                                c.writeAndFlush(mqttMessage);
-                            }
-
-                            long lt = System.currentTimeMillis();
-                            System.out.println("耗时：" + (lt - ct));
+//                            long ct = System.currentTimeMillis();
+//                            for (int i = 0; i < 1; i++) {
+//                                c.writeAndFlush(mqttMessage);
+//                            }
+//
+//                            long lt = System.currentTimeMillis();
+//                            System.out.println("耗时：" + (lt - ct));
 
 
                         }
@@ -106,8 +119,8 @@ public class NettyClient {
                 });
 
 
-            }
-        }.start();
+
+
 
     }
 }

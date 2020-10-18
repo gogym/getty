@@ -32,6 +32,7 @@ import com.gettyio.core.util.ThreadPool;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
 import java.nio.channels.*;
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
@@ -225,6 +226,8 @@ public class AioClientStarter extends AioStarter {
             asynchronousChannelGroup.shutdown();
             asynchronousChannelGroup = null;
         }
+
+        LOGGER.info("getty shutdown at "+new Date());
     }
 
 
