@@ -96,6 +96,13 @@ public class NioClient {
 
         client.start(ch);
 
+//        try {
+//            Thread.sleep(2000);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        client.shutdown();
+
     }
 
 
@@ -103,24 +110,24 @@ public class NioClient {
         @Override
         public void onCompleted(SocketChannel channel) {
 
-//            try {
-//                String s = "12\r\n";
-//                byte[] msgBody = s.getBytes("utf-8");
-//                long ct = System.currentTimeMillis();
-//
-//                int i = 0;
-//                for (; i < 1000000; i++) {
-//                    // byte[] msgBody = s.getBytes("utf-8");
-//                    channel.writeAndFlush(msgBody);
-//
-//                }
-//
-//                long lt = System.currentTimeMillis();
-//                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-//                System.out.printf("发送消息数量：" + i + "条\r\n");
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
+            try {
+                String s = "12\r\n";
+                byte[] msgBody = s.getBytes("utf-8");
+                long ct = System.currentTimeMillis();
+
+                int i = 0;
+                for (; i < 1000000; i++) {
+                    // byte[] msgBody = s.getBytes("utf-8");
+                    channel.writeAndFlush(msgBody);
+
+                }
+
+                long lt = System.currentTimeMillis();
+                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+                System.out.printf("发送消息数量：" + i + "条\r\n");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
 
         }

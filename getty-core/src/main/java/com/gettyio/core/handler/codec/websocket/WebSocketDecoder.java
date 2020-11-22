@@ -57,7 +57,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                     out.put(frame);
                     super.decode(socketChannel, obj, out);
                 } else {
-                    throw new DecoderException("Already handshake.don't need to shake hands again before disconnecting");
+                    throw new DecoderException("frame is null , close the connection");
                 }
             } else {
                 out.put(obj);

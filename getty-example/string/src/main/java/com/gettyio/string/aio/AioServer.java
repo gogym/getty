@@ -80,6 +80,9 @@ public class AioServer {
 
             System.out.println("启动了TCP");
 
+            //Thread.sleep(2000);
+            //server.shutdown();
+
         } catch (Exception e) {
 
         }

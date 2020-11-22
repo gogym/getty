@@ -355,24 +355,33 @@ public class NioServerStarter extends NioStarter {
                 serverSocketChannel = null;
             }
 
-            if (datagramChannel != null) {
-                datagramChannel.close();
-                datagramChannel = null;
-            }
-
-            if (selector != null) {
-                selector.close();
-                selector = null;
-            }
-
-            for (NioEventLoop nioEventLoop : nioEventLoopFastArrayList) {
-                nioEventLoop.shutdown();
-            }
-
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
         }
 
-        LOGGER.info("getty server is shutdown in "+new Date());
+        if (datagramChannel != null) {
+            try {
+                datagramChannel.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            datagramChannel = null;
+        }
+
+        if (selector != null) {
+            try {
+                selector.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            selector = null;
+        }
+
+        for (NioEventLoop nioEventLoop : nioEventLoopFastArrayList) {
+            nioEventLoop.shutdown();
+        }
+
+
+        LOGGER.info("getty server is shutdown in " + new Date());
     }
 }

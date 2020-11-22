@@ -89,7 +89,8 @@ public class NioServer {
 
             System.out.println("启动了NIO TCP");
 
-            server.shutdown();
+            //Thread.sleep(2000);
+            //server.shutdown();
 
         } catch (Exception e) {
             e.printStackTrace();

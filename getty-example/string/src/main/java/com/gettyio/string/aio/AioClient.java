@@ -24,7 +24,7 @@ public class AioClient {
 
 
         int i = 0;
-        while (i < 1) {
+        while (i < 2) {
             AioClient ac = new AioClient();
             ac.test(8888);
             i++;
@@ -79,8 +79,7 @@ public class AioClient {
         });
 
         client.start(ch);
-
-        client.shutdown();
+        //client.shutdown();
 
     }
 

@@ -47,7 +47,7 @@ public class BaseConfig {
     /**
      * 版本
      */
-    public static final String VERSION = "1.4.6";
+    public static final String VERSION = "1.4.8";
     /**
      * 服务器地址
      */
