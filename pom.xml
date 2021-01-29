@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>1.4.8</version>
+    <version>1.4.9</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
@@ -198,7 +198,7 @@
                             </executions>
                         </plugin>
                         <!--  必须配置GPG插件用于使用以下配置对组件进行签名 -->
-                        <!-- mvn clean deploy -projects getty-core -am -P ossrh -->
+                        <!-- mvn clean deploy -projects getty-core,getty-expansion -am -P ossrh -->
                         <plugin>
                             <groupId>org.apache.maven.plugins</groupId>
                             <artifactId>maven-gpg-plugin</artifactId>
