@@ -1,29 +1,28 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.util;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Iterator;
-import java.util.function.Consumer;
 
 /**
  * FastArrayList.java
  *
- * @description:自定义高性能的数组集合
+ * @description:自定义高性能的数组集合,注意，这不是线程安全的
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
@@ -110,7 +109,6 @@ public class FastArrayList<T> implements Iterable<T> {
 
             //将 newData 数组赋值给 data数组
             data = newData;
-            newData = null;
         }
     }
 
@@ -181,19 +179,6 @@ public class FastArrayList<T> implements Iterable<T> {
     }
 
 
-    /**
-     * 判断给定索引是否越界
-     *
-     * @param index index
-     * @return boolean
-     */
-    public boolean checkIndexOut(int index) {
-        if (index > size || index < 0) {
-            throw new IndexOutOfBoundsException("指定的索引越界，集合大小为:" + size + ",您指定的索引大小为:" + index);
-        }
-        return true;
-    }
-
     public boolean add(int index, T obj) {
         //如果给定索引长度刚好等于原数组长度，那么直接在尾部添加进去
         if (index == size) {
@@ -211,6 +196,19 @@ public class FastArrayList<T> implements Iterable<T> {
             size++;
         }
 
+        return true;
+    }
+
+    /**
+     * 判断给定索引是否越界
+     *
+     * @param index index
+     * @return boolean
+     */
+    public boolean checkIndexOut(int index) {
+        if (index > size || index < 0) {
+            throw new IndexOutOfBoundsException("指定的索引越界，集合大小为:" + size + ",您指定的索引大小为:" + index);
+        }
         return true;
     }
 
@@ -323,8 +321,22 @@ public class FastArrayList<T> implements Iterable<T> {
         return false;
     }
 
+
+    /**
+     * 返回集合的对象地址，修改会影响集合本身
+     * @return
+     */
     public T[] arrays() {
         return data;
+    }
+
+    /**
+     * 获取集合内数组对象。不会影响集合本身
+     * @return
+     */
+    public T[] toArray() {
+        T[] elements = arrays();
+        return Arrays.copyOf(elements, elements.length);
     }
 
 

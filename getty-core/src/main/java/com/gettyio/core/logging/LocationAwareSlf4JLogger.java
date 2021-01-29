@@ -1,7 +1,7 @@
 /*
- * Copyright 2017 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -20,13 +20,18 @@ import org.slf4j.spi.LocationAwareLogger;
 import static org.slf4j.spi.LocationAwareLogger.*;
 
 /**
- * <a href="http://www.slf4j.org/">SLF4J</a> logger which is location aware and so will log the correct origin of the
- * logging event by filter out the wrapper itself.
+ * 位置感知的日志记录器
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className LocationAwareSlf4JLogger.java
+ * @description
+ * @date 2020/12/31
  */
 final class LocationAwareSlf4JLogger extends AbstractInternalLogger {
 
-    // IMPORTANT: All our log methods first check if the log level is enabled before call the wrapped
-    // LocationAwareLogger.log(...) method. This is done to reduce GC creation that is caused by varargs.
+    // 所有的日志方法在调用包装之前首先检查日志级别是否启用
+    // LocationAwareLogger.log(...) 这样做是为了减少可变参数导致的GC
 
     static final String FQCN = LocationAwareSlf4JLogger.class.getName();
     private static final long serialVersionUID = -8292030083201538180L;

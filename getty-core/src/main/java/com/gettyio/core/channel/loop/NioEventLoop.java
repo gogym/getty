@@ -1,3 +1,18 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.channel.loop;
 
 import com.gettyio.core.buffer.*;
@@ -26,8 +41,14 @@ public class NioEventLoop implements EventLoop {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioEventLoop.class);
 
+    /**
+     * 是否已经关闭
+     */
     private boolean shutdown = false;
 
+    /**
+     * 配置
+     */
     private BaseConfig config;
 
     /**
@@ -44,7 +65,6 @@ public class NioEventLoop implements EventLoop {
      */
     protected ChunkPool chunkPool;
 
-
     /**
      * 数据输出类
      */
@@ -56,6 +76,11 @@ public class NioEventLoop implements EventLoop {
     protected ChannelByteBuffer writeByteBuffer;
 
 
+    /**
+     * 构造方法
+     * @param config
+     * @param chunkPool
+     */
     public NioEventLoop(BaseConfig config, ChunkPool chunkPool) {
         this.config = config;
         this.chunkPool = chunkPool;
@@ -65,7 +90,7 @@ public class NioEventLoop implements EventLoop {
         try {
             selector = new SelectedSelector(Selector.open());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("selector init exception",e);
         }
     }
 

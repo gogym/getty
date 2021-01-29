@@ -3,10 +3,10 @@ package com.gettyio.protobuf.client;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
-import com.gettyio.core.handler.codec.protobuf.ProtobufDecoder;
-import com.gettyio.core.handler.codec.protobuf.ProtobufEncoder;
-import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
-import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -83,36 +83,27 @@ public class ImClient {
 
                     final MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
                     builder.setBody("123");
-//                    new Thread(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            System.out.println("请输入需要发送的消息：");
-//                            Scanner sc = new Scanner(System.in);
-//                            while (sc.hasNext()) {
-//                                String s = sc.nextLine();
-//                                if (!s.equals("")) {
-//                                    // gimContext.messagEmitter.sendSingleChatText(senderId, senderName, senderHeadImg, receiverId, receiverName, receiverHeadImg, s);
-//
-//                                    builder.setBody(s);
-//                                    channel.writeAndFlush(builder.build());
-//
-//
-//                                    //gimContext.messagEmitter.sendGroupChatText(senderId, senderName, senderHeadImg, groupId, groupName, groupHeadImg, s, null);
-//                                    //解绑用户
-//                                    //gimContext.gimBind.unbindUser(senderId);
-//                                }
-//                            }
-//                        }
-//                    }).start();
-//                    while (true) {
-//                        Thread.sleep(100);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            System.out.println("请输入需要发送的消息：");
+                            Scanner sc = new Scanner(System.in);
+                            while (sc.hasNext()) {
+                                String s = sc.nextLine();
+                                if (!s.equals("")) {
+
+                                    builder.setBody(s);
+                                    channel.writeAndFlush(builder.build());
+
+                                }
+                            }
+                        }
+                    }).start();
+
+//                    int i = 0;
+//                    for (; i < 1; i++) {
 //                        channel.writeAndFlush(builder.build());
 //                    }
-
-                    int i = 0;
-                    for (; i < 1; i++) {
-                        channel.writeAndFlush(builder.build());
-                    }
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -121,7 +112,7 @@ public class ImClient {
 
             @Override
             public void onFailed(Throwable exc) {
-
+                exc.printStackTrace();
             }
         });
 

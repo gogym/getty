@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.util;
 
@@ -26,9 +25,11 @@ public final class MathUtil {
 
     /**
      * Fast method of finding the next power of 2 greater than or equal to the supplied value.
-     *
+     * 求大于或等于2的下一个幂的快速方法
      * <p>If the value is {@code <= 0} then 1 will be returned.
      * This method is not suitable for {@link Integer#MIN_VALUE} or numbers greater than 2^30.
+     * 如果值是{@code <= 0}，则返回1。
+     * 此方法不适合{@link Integer#MIN_VALUE}或大于2^30的数字
      *
      * @param value from which to search for next power of 2
      * @return The next power of 2 or the value itself if it is a power of 2
@@ -39,9 +40,11 @@ public final class MathUtil {
     }
 
     /**
+     * 求2的下一个幂值大于或等于提供值的快速方法。
      * Fast method of finding the next power of 2 greater than or equal to the supplied value.
      * <p>This method will do runtime bounds checking and call {@link #findNextPositivePowerOfTwo(int)} if within a
      * valid range.
+     *
      * @param value from which to search for next power of 2
      * @return The next power of 2 or the value itself if it is a power of 2.
      * <p>Special cases for return values are as follows:
@@ -55,9 +58,11 @@ public final class MathUtil {
     }
 
     /**
+     * 确定请求的{索引}和{长度}是否适合{容量}
      * Determine if the requested {@code index} and {@code length} will fit within {@code capacity}.
-     * @param index The starting index.
-     * @param length The length which will be utilized (starting from {@code index}).
+     *
+     * @param index    The starting index.
+     * @param length   The length which will be utilized (starting from {@code index}).
      * @param capacity The capacity that {@code index + length} is allowed to be within.
      * @return {@code true} if the requested {@code index} and {@code length} will fit within {@code capacity}.
      * {@code false} if this would result in an index out of bounds exception.
@@ -68,12 +73,12 @@ public final class MathUtil {
 
     /**
      * Compares two {@code int} values.
-     *
-     * @param  x the first {@code int} to compare
-     * @param  y the second {@code int} to compare
+     *比较两个值
+     * @param x the first {@code int} to compare
+     * @param y the second {@code int} to compare
      * @return the value {@code 0} if {@code x == y};
-     *         {@code -1} if {@code x < y}; and
-     *         {@code 1} if {@code x > y}
+     * {@code -1} if {@code x < y}; and
+     * {@code 1} if {@code x > y}
      */
     public static int compare(final int x, final int y) {
         // do not subtract for comparison, it could overflow
@@ -82,10 +87,10 @@ public final class MathUtil {
 
     /**
      * Compare two {@code long} values.
+     *
      * @param x the first {@code long} to compare.
      * @param y the second {@code long} to compare.
-     * @return
-     * <ul>
+     * @return <ul>
      * <li>0 if {@code x == y}</li>
      * <li>{@code > 0} if {@code x > y}</li>
      * <li>{@code < 0} if {@code x < y}</li>

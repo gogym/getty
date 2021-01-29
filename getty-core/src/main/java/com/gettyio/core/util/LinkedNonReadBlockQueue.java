@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.util;
 
@@ -24,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * LinkedNonBlockQueue.java
  *
- * @description:数组实现的出队非阻塞队列
+ * @description:数组实现的出队非阻塞队列，poll方法不会阻塞，没有元素直接返回null
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
@@ -60,10 +59,8 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
      * 队列满情况
      */
     Condition notFull = lock.newCondition();
-    /**
-     * 队列为空情况
-     */
-    Condition notEmpty = lock.newCondition();
+
+    boolean isFull = false;
 
 
     public LinkedNonReadBlockQueue() {
@@ -88,7 +85,7 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
      * @throws InterruptedException 异常
      */
     @Override
-    public void put(T t) throws InterruptedException {
+    public T put(T t) throws InterruptedException {
         //检查是否为空
         checkNull(t);
         //获取锁
@@ -96,6 +93,7 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
         try {
             //已经满了 则发生阻塞 无法继续插入
             while (items.length == count) {
+                isFull = true;
                 notFull.await();
             }
             items[putIndex] = t;
@@ -103,10 +101,11 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
                 putIndex = 0;
             }
             count++;
-            notEmpty.signal();
         } finally {
             lock.unlock();
         }
+
+        return t;
     }
 
     /**
@@ -117,24 +116,27 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
      */
     @Override
     public T poll() throws InterruptedException {
-        T t;
-        lock.lock();
-        try {
-            while (count == 0) {
-                //出队阻塞
-                //notEmpty.await();
-                return null;
+        if (count == 0) {
+            if (isFull) {
+                lock.lock();
+                try {
+                    isFull = false;
+                    notFull.signal();
+                } finally {
+                    lock.unlock();
+                }
             }
-            t = this.items[removeIndex];
-            this.items[removeIndex] = null;
-            if (++removeIndex == items.length) {
-                removeIndex = 0;
-            }
-            count--;
-            notFull.signal();
-        } finally {
-            lock.unlock();
+            //如果队列中没有元素，直接返回null。不阻塞
+            return null;
         }
+
+       T t = this.items[removeIndex];
+        this.items[removeIndex] = null;
+        if (++removeIndex == items.length) {
+            removeIndex = 0;
+        }
+        count--;
+
         return t;
     }
 

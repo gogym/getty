@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -22,8 +22,13 @@ import org.slf4j.helpers.NOPLoggerFactory;
 import org.slf4j.spi.LocationAwareLogger;
 
 /**
- * Logger factory which creates a <a href="http://www.slf4j.org/">SLF4J</a>
- * logger.
+ * Slf4JLogger 工厂
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className Slf4JLoggerFactory.java
+ * @description
+ * @date 2020/12/31
  */
 public class Slf4JLoggerFactory extends InternalLoggerFactory {
 
@@ -31,14 +36,14 @@ public class Slf4JLoggerFactory extends InternalLoggerFactory {
     public static final InternalLoggerFactory INSTANCE = new Slf4JLoggerFactory();
 
     /**
-     * @deprecated Use {@link #INSTANCE} instead.
+     * 用 {@link #INSTANCE} 获取实例.
      */
-    @Deprecated
-    public Slf4JLoggerFactory() {
+    private Slf4JLoggerFactory() {
     }
 
     Slf4JLoggerFactory(boolean failIfNOP) {
-        assert failIfNOP; // Should be always called with true.
+        //总是用true来调用
+        assert failIfNOP;
         if (LoggerFactory.getILoggerFactory() instanceof NOPLoggerFactory) {
             throw new NoClassDefFoundError("NOPLoggerFactory not supported");
         }
@@ -49,7 +54,12 @@ public class Slf4JLoggerFactory extends InternalLoggerFactory {
         return wrapLogger(LoggerFactory.getLogger(name));
     }
 
-    // package-private for testing.
+    /**
+     * 包的私有测试
+     *
+     * @param logger
+     * @return
+     */
     static InternalLogger wrapLogger(Logger logger) {
         return logger instanceof LocationAwareLogger ?
                 new LocationAwareSlf4JLogger((LocationAwareLogger) logger) : new Slf4JLogger(logger);

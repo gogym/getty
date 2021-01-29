@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -18,7 +18,13 @@ package com.gettyio.core.logging;
 import org.slf4j.Logger;
 
 /**
- * <a href="http://www.slf4j.org/">SLF4J</a> logger.
+ * Slf4JLogger 实例
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className Slf4JLogger.java
+ * @description
+ * @date 2020/12/31
  */
 final class Slf4JLogger extends AbstractInternalLogger {
 

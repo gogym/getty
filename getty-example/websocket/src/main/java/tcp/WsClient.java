@@ -23,7 +23,6 @@ public class WsClient {
     private static String PROTOCOL = "TLSv1.2";
 
     public static void main(String[] args) throws Exception {
-        //System.setProperty("javax.net.debug", "all");
         System.setProperty("https.protocols", "TLSv1,TLSv1.1,TLSv1.2");
         WebSocketClientInst chatclient = new WebSocketClientInst(new URI("ws://localhost:8888/echo"));
 
@@ -50,7 +49,6 @@ public class WsClient {
             times++;
             if (ReadyState.OPEN.equals(chatclient.getReadyState())) {
                 chatclient.send("123".getBytes());  //发送二进制文件
-                //chatclient.sendPing();
                 Thread.sleep(1000);
             } else {
                 System.out.println("还没ready, 继续进行中");

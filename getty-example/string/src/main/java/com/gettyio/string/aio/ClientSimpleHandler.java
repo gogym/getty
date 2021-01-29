@@ -7,9 +7,7 @@ import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 public class ClientSimpleHandler extends SimpleChannelInboundHandler<String> {
     @Override
     public void channelAdded(SocketChannel aioChannel) {
-
         System.out.println("连接成功");
-
     }
 
     @Override

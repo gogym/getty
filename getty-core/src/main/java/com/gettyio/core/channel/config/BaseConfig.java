@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.channel.config;
 
@@ -26,28 +25,9 @@ import java.util.Map;
  * @description:配置项
  * @author:gogym
  * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
  */
-public class BaseConfig {
+public abstract class BaseConfig {
 
-    public static final String BANNER =
-            "                       tt     yt             \n" +
-                    "                       tt     ye             \n" +
-                    "  ttttt      tttt     teet   ytety   tt   ty \n" +
-                    " tetytgt    yey tt     et     tey    tey yet \n" +
-                    "ytt  yet    et   ey    tt     ye     yet tey \n" +
-                    "yet  yet    getttty    tt     ye      ttyet  \n" +
-                    "ytt  ygt    et         tt     ye      yetey  \n" +
-                    " tetytgt    yetytt     teyy   yeyy     tgt   \n" +
-                    "     tet     tttty     ytty    tty     tey   \n" +
-                    "ytt  yey                               te    \n" +
-                    " ttttty                              yttt    \n" +
-                    "   yy                                yyy     \n";
-
-    /**
-     * 版本
-     */
-    public static final String VERSION = "1.4.8";
     /**
      * 服务器地址
      */
@@ -65,7 +45,7 @@ public class BaseConfig {
      */
     private int chunkPoolBlockTime = 1000;
     /**
-     * 输出类队列大小，默认10*1024*1024
+     * 输出类队列大小，默认1024*1024
      */
     private int bufferWriterQueueSize = 1024 * 1024;
     /**
@@ -90,6 +70,8 @@ public class BaseConfig {
      * 4. StandardSocketOptions.SO_REUSEADDR
      * 禁用Nagle算法。boolean
      * 5. StandardSocketOptions.TCP_NODELAY
+     *
+     *
      * AIO客户端的有效可选范围为：
      * 2. StandardSocketOptions.SO_RCVBUF
      * 4. StandardSocketOptions.SO_REUSEADDR
@@ -162,11 +144,16 @@ public class BaseConfig {
 
     @Override
     public String toString() {
-        return "Config{readBufferSize=" + readBufferSize +
-                ", host='" + host == null ? "localhost" : host + '\'' +
+        return "BaseConfig{" +
+                "host='" + host + '\'' +
                 ", port=" + port +
+                ", readBufferSize=" + readBufferSize +
+                ", chunkPoolBlockTime=" + chunkPoolBlockTime +
+                ", bufferWriterQueueSize=" + bufferWriterQueueSize +
+                ", flowControlSize=" + flowControlSize +
+                ", releaseFlowControlSize=" + releaseFlowControlSize +
                 ", socketOptions=" + socketOptions +
+                ", isDirect=" + isDirect +
                 '}';
     }
-
 }

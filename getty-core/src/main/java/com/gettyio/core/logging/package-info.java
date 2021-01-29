@@ -1,7 +1,7 @@
 /*
- * Copyright 2013 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -12,9 +12,5 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations
  * under the License.
- */
-
-/**
- * <em>Internal-use-only</em> logging API which is not allowed to be used outside Netty.
  */
 package com.gettyio.core.logging;

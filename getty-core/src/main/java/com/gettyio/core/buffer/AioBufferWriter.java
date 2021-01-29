@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.buffer;
 
@@ -26,52 +25,43 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeoutException;
 
+
 /**
- * BufferWriter.java
+ * aio模式下控制数据输出
  *
- * @description:用于控制数据输出
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @version 1.0.0
+ * @className AioBufferWriter.java
+ * @description
+ * @date 2020/4/8
  */
-public final class AioBufferWriter extends BufferWriter {
+public final class AioBufferWriter extends AbstractBufferWriter<ByteBuffer> {
+
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioBufferWriter.class);
 
     /**
-     * 缓冲池
+     * 函数
      */
-    private final ChunkPool chunkPool;
-    /**
-     * 内存申请最大阻塞时间
-     */
-    private int chunkPoolBlockTime;
     private final Function<AioBufferWriter, Void> function;
     /**
-     * 当前是否已关闭
-     */
-    private boolean closed = false;
-    /**
-     * 阻塞队列
+     * 数据缓冲队列
      */
     private final LinkedQueue<ByteBuffer> queue;
 
+
+    /**
+     * 构造方法
+     *
+     * @param chunkPool             内存池
+     * @param flushFunction         函数
+     * @param bufferWriterQueueSize 写队列大小
+     * @param chunkPoolBlockTime    内存池最大阻塞时间
+     */
     public AioBufferWriter(ChunkPool chunkPool, Function<AioBufferWriter, Void> flushFunction, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
         this.chunkPoolBlockTime = chunkPoolBlockTime;
         this.function = flushFunction;
         queue = new LinkedNonReadBlockQueue<>(bufferWriterQueueSize);
-
-    }
-
-    @Deprecated
-    @Override
-    public void write(int b) throws IOException {
-        byte[] bytes = new byte[4];
-        bytes[0] = (byte) (b & 0xFF);
-        bytes[1] = (byte) ((b >> 8) & 0xFF);
-        bytes[2] = (byte) ((b >> 16) & 0xFF);
-        bytes[3] = (byte) ((b >> 24) & 0xFF);
-        write(bytes, 0, bytes.length);
     }
 
     @Override
@@ -84,7 +74,6 @@ public final class AioBufferWriter extends BufferWriter {
         if (len <= 0 || b.length == 0) {
             return;
         }
-
         try {
             //申请写缓冲
             ByteBuffer chunkPage = chunkPool.allocate(len - off, chunkPoolBlockTime);
@@ -95,11 +84,12 @@ public final class AioBufferWriter extends BufferWriter {
             }
             //写入数据
             chunkPage.put(b, off, b.length);
-            //if (!chunkPage.hasRemaining()) {
             chunkPage.flip();
             //已经读取完，写到缓冲队列
-            queue.put(chunkPage);
-            // }
+            while (queue.getCount() < queue.getCapacity()) {
+                queue.put(chunkPage);
+                break;
+            }
 
         } catch (InterruptedException e) {
             LOGGER.error(e);
@@ -108,59 +98,50 @@ public final class AioBufferWriter extends BufferWriter {
         }
     }
 
-
-    /**
-     * 刷新缓冲区。
-     *
-     * @param b 数组
-     * @throws IOException 抛出异常
-     */
+    @Override
     public void writeAndFlush(byte[] b) throws IOException {
         if (b == null) {
             throw new NullPointerException();
         }
-        writeAndFlush(b, 0, b.length);
-    }
-
-    /**
-     * @param b   待输出数据
-     * @param off 起始位点
-     * @param len 输出的数据长度
-     * @throws IOException 抛出异常
-     */
-    private void writeAndFlush(byte[] b, int off, int len) throws IOException {
-        write(b, off, len);
+        write(b, 0, b.length);
         flush();
     }
 
     @Override
-    public void flush() {
+    public void flush() throws IOException{
         if (closed) {
-            throw new RuntimeException("OutputStream has closed");
+            throw new IOException("outputStream was closed");
         }
-        function.apply(this);
+        //如果队列里有数据在调用，减少无意义的刷新
+        if (queue.getCount() > 0) {
+            function.apply(this);
+        }
     }
 
     @Override
     public void close() throws IOException {
         if (closed) {
-            throw new IOException("OutputStream has closed");
+            throw new IOException("outputStream was closed");
         }
+        //关闭前先把缓冲队列是数据输出完
         while (queue.getCount() > 0) {
             flush();
         }
+
         closed = true;
+
         if (chunkPool != null) {
             //清空内存池
             chunkPool.clear();
         }
     }
 
+    @Override
     public boolean isClosed() {
         return closed;
     }
 
-
+    @Override
     public ByteBuffer poll() {
         try {
             return queue.poll();

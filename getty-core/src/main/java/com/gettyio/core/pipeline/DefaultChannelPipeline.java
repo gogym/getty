@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.pipeline;
 
@@ -23,9 +22,7 @@ import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
 import com.gettyio.core.util.FastArrayList;
-
-import java.util.LinkedList;
-
+import com.gettyio.core.util.FastCopyOnWriteArrayList;
 
 /**
  * DefaultChannelPipeline.java
@@ -39,21 +36,25 @@ public class DefaultChannelPipeline {
     /**
      * 入栈链
      */
-    FastArrayList<ChannelHandlerAdapter> inPipeList;
+    FastCopyOnWriteArrayList<ChannelHandlerAdapter> inPipeList;
     /**
      * 出栈链
      */
-    FastArrayList<ChannelHandlerAdapter> outPipeList;
+    FastCopyOnWriteArrayList<ChannelHandlerAdapter> outPipeList;
 
+
+    /**
+     * channel包装
+     */
     SocketChannel socketChannel;
 
     public DefaultChannelPipeline(SocketChannel socketChannel) {
         this.socketChannel = socketChannel;
         if (inPipeList == null) {
-            inPipeList = new FastArrayList<>();
+            inPipeList = new FastCopyOnWriteArrayList<>();
         }
         if (outPipeList == null) {
-            outPipeList = new FastArrayList<>();
+            outPipeList = new FastCopyOnWriteArrayList<>();
         }
     }
 
@@ -63,7 +64,7 @@ public class DefaultChannelPipeline {
      *
      * @return
      */
-    public FastArrayList<ChannelHandlerAdapter> getInPipeList() {
+    public FastCopyOnWriteArrayList<ChannelHandlerAdapter> getInPipeList() {
         return inPipeList;
     }
 
@@ -73,24 +74,10 @@ public class DefaultChannelPipeline {
      *
      * @return
      */
-    public FastArrayList<ChannelHandlerAdapter> getOutPipeList() {
+    public FastCopyOnWriteArrayList<ChannelHandlerAdapter> getOutPipeList() {
         return outPipeList;
     }
 
-
-    /**
-     * 翻转集合
-     *
-     * @param list
-     * @return
-     */
-    private LinkedList<ChannelHandlerAdapter> reverseLinkedList(LinkedList<ChannelHandlerAdapter> list) {
-        LinkedList<ChannelHandlerAdapter> newLinkedList = new LinkedList<>();
-        for (ChannelHandlerAdapter object : list) {
-            newLinkedList.add(0, object);
-        }
-        return newLinkedList;
-    }
 
     /**
      * 获取第一个入栈处理器
@@ -187,6 +174,7 @@ public class DefaultChannelPipeline {
             inPipeList.addFirst(channelHandlerAdapter);
             outPipeList.addFirst(channelHandlerAdapter);
         }
+
     }
 
 

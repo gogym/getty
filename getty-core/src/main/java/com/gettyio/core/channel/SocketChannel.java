@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.channel;
 
@@ -238,10 +237,16 @@ public abstract class SocketChannel {
                 channelHandlerAdapter.channelClosed(this);
                 break;
             case INPUT_SHUTDOWN:
+                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel input shutdown exception"));
+                break;
             case INPUT_EXCEPTION:
+                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel input exception"));
+                break;
             case OUTPUT_SHUTDOWN:
+                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel output shutdown exception"));
+                break;
             case OUTPUT_EXCEPTION:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel runtime exception"));
+                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel output exception"));
                 break;
             default:
                 break;
@@ -260,18 +265,13 @@ public abstract class SocketChannel {
      */
     protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.outPipeFirst();
-        if (channelHandlerAdapter == null) {
-            //如果没有对应的处理器，直接输出到wirter
-            writeToChannel(obj);
-            return;
-        }
 
         if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            channelHandlerAdapter.channelWrite(this, obj);
+            //channelHandlerAdapter.channelWrite(this, obj);
             channelHandlerAdapter.encode(this, obj);
             return;
         } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            channelHandlerAdapter.channelWrite(this, obj);
+            //channelHandlerAdapter.channelWrite(this, obj);
             channelHandlerAdapter.encode(this, obj);
             return;
         }

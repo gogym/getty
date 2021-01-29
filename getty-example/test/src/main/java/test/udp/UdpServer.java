@@ -1,10 +1,5 @@
-package test.udp;/*
- * 类名：UdpServer
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2019/12/17
- */
+package test.udp;
+
 
 import com.gettyio.core.util.ThreadPool;
 
@@ -16,6 +11,13 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 
+/**
+ * 类名：UdpServer
+ * 版权：Copyright by www.getty.com
+ * 描述：
+ * 修改人：gogym
+ * 时间：2019/12/17
+ */
 public class UdpServer {
 
 

@@ -23,8 +23,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     @Override
     public void channelRead0(SocketChannel aioChannel, DatagramPacket datagramPacket) {
 
-        System.out.println("读取消息了:" + new String(datagramPacket.getData()));
-        System.out.println("客户端地址:" + datagramPacket.getAddress().getHostName() + ":" + datagramPacket.getPort());
+        //System.out.println("读取消息了:" + new String(datagramPacket.getData()));
+        //System.out.println("客户端地址:" + datagramPacket.getAddress().getHostName() + ":" + datagramPacket.getPort());
     }
 
     @Override

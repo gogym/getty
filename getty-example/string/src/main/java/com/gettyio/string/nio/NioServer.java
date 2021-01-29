@@ -12,8 +12,6 @@ import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.handler.timeout.HeartBeatTimeOutHandler;
-import com.gettyio.core.handler.timeout.IdleStateHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 
@@ -41,7 +39,7 @@ public class NioServer {
             // 尽量可以设置大一点，因为这不会真正的占用系统内存，只有真正使用时才会分配
             aioServerConfig.setServerChunkSize(512 * 1024 * 1024);
             //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
-            aioServerConfig.setBufferWriterQueueSize(10 * 1024 * 1024);
+            aioServerConfig.setBufferWriterQueueSize( 1024 * 1024);
             //设置读取缓存块大小，一般不用设置这个参数，默认128字节
             aioServerConfig.setReadBufferSize(128);
             //设置内存池等待分配内存的最大阻塞时间，默认是1秒
@@ -74,8 +72,6 @@ public class NioServer {
                     SslService sSLService = new SslService(sSLConfig);
                     //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
-                    //defaultChannelPipeline.addLast(new IdleStateHandler(channel, 3, 0));
-                    //defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
                     defaultChannelPipeline.addLast(new StringEncoder());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
                     defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
@@ -89,8 +85,6 @@ public class NioServer {
 
             System.out.println("启动了NIO TCP");
 
-            //Thread.sleep(2000);
-            //server.shutdown();
 
         } catch (Exception e) {
             e.printStackTrace();

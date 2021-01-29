@@ -1,11 +1,22 @@
-package com.gettyio.core.channel.loop;
 /*
- * 类名：SelectorHelper
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2020/6/16
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
+package com.gettyio.core.channel.loop;
+
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
@@ -14,11 +25,43 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * 类名：SelectorHelper
+ * 版权：Copyright by www.getty.com
+ * 描述：
+ * 时间：2020/6/16
+ * @author gogym
+ */
 public class SelectedSelector extends Selector {
 
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(SelectedSelector.class);
+
+    /**
+     * 线程同步标志
+     */
     private volatile boolean mark = false;
-    private final Selector selector;
+
+    /**
+     * 如果空轮询的次数超过了512次，就认为其触发了空轮询bug
+     */
+    private final int SELECTOR_AUTO_REBUILD_THRESHOLD=512;
+
+    /**
+     * 空轮询计数器
+     */
+    private int selectCnt=1;
+
+    /**
+     * 默认超时时间1s
+     */
+    private final long timeoutMillis=1000;
+
+    /**
+     * 多路复用器
+     */
+    private Selector selector;
 
     public SelectedSelector(Selector selector) {
         this.selector = selector;
@@ -84,13 +127,28 @@ public class SelectedSelector extends Selector {
 
     @Override
     public int select() throws IOException {
+        //当前纳秒
+        long currentTimeNanos=System.nanoTime();
+
         for (; ; ) {
             if (mark == true) {
                 continue;
             }
-            int select = selector.select();
+            int select = selector.select(timeoutMillis);
             if (select >= 1) {
                 return select;
+            }
+            //计数器+1
+            selectCnt++;
+            long time = System.nanoTime();
+            if (time - TimeUnit.MILLISECONDS.toNanos(timeoutMillis) >= currentTimeNanos) {
+                // 超时
+                selectCnt = 1;
+            } else if (selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
+                //极短的时间内轮询超过默认值512
+                // 空轮询一次 cnt+1  如果一个周期内次数超过512，则假定发生了空轮询bug，重建selector
+                rebuildSelector();
+                selectCnt = 1;
             }
         }
     }
@@ -103,6 +161,61 @@ public class SelectedSelector extends Selector {
     @Override
     public void close() throws IOException {
         selector.close();
+    }
+
+
+    /**
+     * 新建一个selector来解决空轮询bug
+     */
+    public void rebuildSelector() {
+        rebuildSelector0();
+    }
+
+    /**
+     * 新建一个selector来解决空轮询bug
+     */
+    private void rebuildSelector0() {
+        final Selector oldSelector = selector;
+
+        //新建一个selector
+        Selector  newSelectorTuple = null;
+        try {
+            newSelectorTuple = Selector.open();
+        } catch (IOException e) {
+            logger.warn("Failed to create a new Selector.", e);
+            return;
+        }
+
+        // 将旧的selector的channel全部拿出来注册到新的selector上
+        int nChannels = 0;
+        for (SelectionKey key: oldSelector.keys()) {
+            Object a = key.attachment();
+            try{
+                if (!key.isValid() || key.channel().keyFor(newSelectorTuple) != null) {
+                    continue;
+                }
+                int interestOps = key.interestOps();
+                key.cancel();
+                SelectionKey newKey = key.channel().register(newSelectorTuple, interestOps, a);
+                nChannels ++;
+            }catch (Exception e){
+                logger.warn("Failed to re-register a Channel to the new Selector.", e);
+            }
+
+
+        }
+
+        selector = newSelectorTuple;
+        //关掉旧的selector
+        try {
+            oldSelector.close();
+        } catch (IOException e) {
+            logger.warn("Failed to close the old Selector.", e);
+        }
+
+        if (logger.isInfoEnabled()) {
+            logger.info("Migrated " + nChannels + " channel(s) to the new Selector.");
+        }
     }
 }
 

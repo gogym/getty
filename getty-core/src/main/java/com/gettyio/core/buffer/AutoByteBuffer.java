@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.buffer;
 
@@ -23,14 +22,19 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 
 /**
- * AutoByteBuffer.java
+ * 数组缓存处理类，用于解决需要写入一个未知长度的byte[]，如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
  *
- * @description:数组缓存处理类，用于解决需要写入一个未知长度的byte[]，如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
- * @author:gogym
- * @date:2019/9/27
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @version 1.0.0
+ * @className AutoByteBuffer.java
+ * @description
+ * @date 2019/9/27
  */
 public class AutoByteBuffer {
+
+    /**
+     * 默认的长度
+     */
     public static final int BUFFER_SIZE = 256;
     /**
      * 指针位置，即将读取的位置
@@ -71,7 +75,7 @@ public class AutoByteBuffer {
 
 
     /**
-     * 重置指针位置,相当于指定下次开始读取的下标
+     * 重置读指针位置,相当于指定下次开始读取的下标
      * 如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
      *
      * @param position 下标
@@ -87,7 +91,7 @@ public class AutoByteBuffer {
     }
 
     /**
-     * 获取未处理byte[]
+     * 获取未处理byte[]，就是获取原始数组的意思
      *
      * @return byte[]
      */
@@ -141,7 +145,8 @@ public class AutoByteBuffer {
     }
 
     /**
-     * 删除已读部分，保留未读部分，并重新初始化下标
+     * 删除已读部分，保留未读部分
+     * 读下标初始为0，写下标为未读长度
      */
     public void discardReadBytes() {
         byte[] newBytes = new byte[capacity()];
@@ -193,6 +198,11 @@ public class AutoByteBuffer {
         return false;
     }
 
+    /**
+     * 数组是否有长度
+     *
+     * @return
+     */
     public boolean hasArray() {
         if (writerIndex > 0) {
             return true;
@@ -235,6 +245,13 @@ public class AutoByteBuffer {
         }
     }
 
+    /**
+     * 读取制定下标的一个byte。
+     *
+     * @param index
+     * @return
+     * @throws ByteBufferException
+     */
     public byte read(int index) throws ByteBufferException {
         if (writerIndex() > index) {
             byte i = data[index];
@@ -262,6 +279,12 @@ public class AutoByteBuffer {
     }
 
 
+    /**
+     * 读取无符号byte
+     *
+     * @return
+     * @throws ByteBufferException
+     */
     public short readUnsignedByte() throws ByteBufferException {
         return (short) (readByte() & 0xFF);
     }
@@ -334,7 +357,13 @@ public class AutoByteBuffer {
 
     }
 
-
+    /**
+     * 读取指定长度的数据，返回AutoByteBuffer
+     *
+     * @param len
+     * @return
+     * @throws ByteBufferException
+     */
     public AutoByteBuffer readRetainedSlice(int len) throws ByteBufferException {
         byte[] bytes = new byte[len];
         this.readBytes(bytes);
@@ -576,7 +605,14 @@ public class AutoByteBuffer {
         return sb.toString();
     }
 
-
+    /**
+     * 解析成string
+     *
+     * @param index
+     * @param length
+     * @param charset
+     * @return
+     */
     public String toString(int index, int length, Charset charset) {
         return decodeString(this, index, length, charset);
     }
@@ -646,14 +682,6 @@ public class AutoByteBuffer {
      */
     private byte[] intToByteArray(int i) {
         return new byte[]{(byte) ((i >> 24) & 0xFF), (byte) ((i >> 16) & 0xFF), (byte) ((i >> 8) & 0xFF), (byte) (i & 0xFF)};
-    }
-
-    private short byteToShort(byte[] bytes) {
-        byte high = bytes[0];
-        byte low = bytes[1];
-        short z = (short) (((high & 0x00FF) << 8) | (0x00FF & low));
-        return z;
-
     }
 
 

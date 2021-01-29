@@ -20,6 +20,11 @@
             <version>1.4.8</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.gettyio</groupId>
+            <artifactId>getty-expansion</artifactId>
+            <version>1.4.8</version>
+        </dependency>
 
         <dependency>
             <groupId>org.assertj</groupId>

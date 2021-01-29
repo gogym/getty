@@ -4,13 +4,13 @@ package tcp;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.websocket.WebSocketDecoder;
-import com.gettyio.core.handler.codec.websocket.WebSocketEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.expansion.handler.codec.websocket.WebSocketDecoder;
+import com.gettyio.expansion.handler.codec.websocket.WebSocketEncoder;
 
 import java.net.StandardSocketOptions;
 
@@ -18,7 +18,6 @@ public class WsServer {
 
 
     public static void main(String[] args) {
-        //System.setProperty("javax.net.debug", "all");
         try {
             //初始化配置对象
             ServerConfig aioServerConfig = new ServerConfig();

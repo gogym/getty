@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.channel;
 
@@ -73,9 +72,14 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
     private SslHandler sslHandler;
     private IHandshakeCompletedListener handshakeCompletedListener;
 
-
+    /**
+     * 数据输出组建
+     */
     protected AioBufferWriter bufferWriter;
 
+    /**
+     * 处理器链
+     */
     private ChannelPipeline channelPipeline;
 
 
@@ -142,7 +146,7 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
     public synchronized void close() {
 
         if (status == CHANNEL_STATUS_CLOSED) {
-            logger.warn("Channel:{} is closed:", getChannelId());
+            logger.warn("Channel:{} is closed", getChannelId());
             return;
         }
 
@@ -254,11 +258,6 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
                 }
             }
             if (eof) {
-                try {
-                    invokePipeline(ChannelState.INPUT_SHUTDOWN);
-                } catch (Exception e) {
-                    logger.error(e);
-                }
                 close();
                 return;
             }
@@ -342,8 +341,9 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
         if (writeByteBuffer == null) {
             writeByteBuffer = bufferWriter.poll();
         } else if (!writeByteBuffer.hasRemaining()) {
-            //写完及时释放
+            //写完及时释放内存
             chunkPool.deallocate(writeByteBuffer);
+            //继续循环写出
             writeByteBuffer = bufferWriter.poll();
         }
 
@@ -353,9 +353,9 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
             //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
             return;
         }
-        //完全写完释放信息量
-        semaphore.release();
 
+        //释放信号量
+        semaphore.release();
         if (!keepAlive) {
             this.close();
         }
@@ -435,17 +435,19 @@ public class AioChannel extends SocketChannel implements Function<AioBufferWrite
         this.handshakeCompletedListener = handshakeCompletedListener;
     }
 
+    int i = 0;
+
     @Override
     public Void apply(AioBufferWriter input) {
+
         //获取信息量
-        if (!semaphore.tryAcquire()) {
-            return null;
-        }
-        AioChannel.this.writeByteBuffer = input.poll();
-        if (null == writeByteBuffer) {
-            semaphore.release();
-        } else {
-            AioChannel.this.continueWrite(writeByteBuffer);
+        if (semaphore.tryAcquire()) {
+            AioChannel.this.writeByteBuffer = input.poll();
+            if (null != writeByteBuffer) {
+                AioChannel.this.continueWrite(writeByteBuffer);
+            } else {
+                semaphore.release();
+            }
         }
         return null;
     }

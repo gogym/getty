@@ -3,18 +3,17 @@ package com.gettyio.protobuf.server;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.protobuf.ProtobufDecoder;
-import com.gettyio.core.handler.codec.protobuf.ProtobufEncoder;
-import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
-import com.gettyio.core.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.handler.timeout.HeartBeatTimeOutHandler;
-import com.gettyio.core.handler.timeout.IdleStateHandler;
-import com.gettyio.core.handler.traffic.ChannelTrafficShapingHandler;
+
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.expansion.handler.traffic.ChannelTrafficShapingHandler;
 import com.gettyio.protobuf.packet.MessageClass;
 
 public class ImServer {
@@ -58,10 +57,6 @@ public class ImServer {
                 //添加protobuf解码器
                 defaultChannelPipeline.addLast(new ProtobufVarint32FrameDecoder());
                 defaultChannelPipeline.addLast(new ProtobufDecoder(MessageClass.Message.getDefaultInstance()));
-
-//                defaultChannelPipeline.addLast(new IdleStateHandler(channel, 5, 0));
-//                defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
-
 
                 defaultChannelPipeline.addLast(new SimpleHandler());
 

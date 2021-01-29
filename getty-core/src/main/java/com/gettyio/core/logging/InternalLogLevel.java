@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -16,7 +16,13 @@
 package com.gettyio.core.logging;
 
 /**
- * The log level that {@link InternalLogger} can log at.
+ * 日志级别枚举
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className InternalLogLevel.java
+ * @description
+ * @date 2020/12/31
  */
 public enum InternalLogLevel {
     /**

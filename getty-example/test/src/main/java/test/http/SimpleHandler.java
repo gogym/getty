@@ -2,13 +2,15 @@ package test.http;
 
 
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.http.*;
+import com.gettyio.expansion.handler.codec.http.*;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
     @Override
     public void channelAdded(SocketChannel aioChannel) {
         System.out.println("连接过来了");
+        //设置keep-alive为false
+        aioChannel.setKeepAlive(false);
     }
 
     @Override
@@ -21,7 +23,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
     public void channelRead0(SocketChannel aioChannel, HttpRequest request) {
         System.out.println("读取消息了:" + request.getHttpVersion());
         //设置keep-alive为false
-        aioChannel.setKeepAlive(false);
+        //aioChannel.setKeepAlive(false);
 
         HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         response.getHttpHeaders().setHeader(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);

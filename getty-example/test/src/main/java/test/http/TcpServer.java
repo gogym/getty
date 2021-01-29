@@ -2,12 +2,11 @@ package test.http;
 
 
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.http.HttpDecoder;
-import com.gettyio.core.handler.codec.http.HttpRequestDecoder;
-import com.gettyio.core.handler.codec.http.HttpResponseEncoder;
+import com.gettyio.expansion.handler.codec.http.HttpDecoder;
+import com.gettyio.expansion.handler.codec.http.HttpRequestDecoder;
+import com.gettyio.expansion.handler.codec.http.HttpResponseEncoder;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 
@@ -18,6 +17,7 @@ public class TcpServer {
 
     public static void main(String[] args) {
         try {
+
             //初始化配置对象
             ServerConfig aioServerConfig = new ServerConfig();
             //设置host,不设置默认localhost
@@ -55,7 +55,7 @@ public class TcpServer {
             }).start();
 
 
-            System.out.println("启动了http");
+            System.out.println("启动了http,可以请求了：http://localhost:8888");
         } catch (Exception e) {
 
         }

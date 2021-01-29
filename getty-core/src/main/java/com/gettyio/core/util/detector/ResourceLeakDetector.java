@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.util.detector;
 
@@ -39,22 +38,6 @@ import static com.gettyio.core.util.StringUtil.*;
 
 
 /**
- * 类名：ResourceLeakDetector.java
- * 描述：
- * 修改人：gogym
- * 时间：2020/3/17
- * 参考：netty 4.3
- * 使用示例：
- * private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = new ResourceLeakDetector(HashedWheelTimer.class, 1);
- * private final ResourceLeakTracker<HashedWheelTimer> leak= leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;
- * if (leak != null) {
- * boolean closed = leak.close(this);
- * assert closed;
- * }
- */
-
-
-/**
  * ResourceLeakDetector.java
  *
  * @description:内存泄露检测工具,netty 4.3
@@ -72,14 +55,14 @@ import static com.gettyio.core.util.StringUtil.*;
 public class ResourceLeakDetector<T> {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(ResourceLeakDetector.class);
 
-    private static final String PROP_LEVEL_OLD = "io.netty.leakDetectionLevel";
-    private static final String PROP_LEVEL = "io.netty.leakDetection.level";
+    private static final String PROP_LEVEL_OLD = "io.getty.leakDetectionLevel";
+    private static final String PROP_LEVEL = "io.getty.leakDetection.level";
     private static final Level DEFAULT_LEVEL = Level.SIMPLE;
 
-    private static final String PROP_TARGET_RECORDS = "io.netty.leakDetection.targetRecords";
+    private static final String PROP_TARGET_RECORDS = "io.getty.leakDetection.targetRecords";
     private static final int DEFAULT_TARGET_RECORDS = 4;
 
-    private static final String PROP_SAMPLING_INTERVAL = "io.netty.leakDetection.samplingInterval";
+    private static final String PROP_SAMPLING_INTERVAL = "io.getty.leakDetection.samplingInterval";
     // There is a minor performance benefit in TLR if this is a power of 2.
     //如果这是2的幂，那么TLR有一个小的性能优势。
     private static final int DEFAULT_SAMPLING_INTERVAL = 128;
@@ -92,10 +75,10 @@ public class ResourceLeakDetector<T> {
 
     static {
         final boolean disabled;
-        if (SystemPropertyUtil.get("io.netty.noResourceLeakDetection") != null) {
-            disabled = SystemPropertyUtil.getBoolean("io.netty.noResourceLeakDetection", false);
-            logger.debug("-Dio.netty.noResourceLeakDetection: {}", disabled);
-            logger.warn("-Dio.netty.noResourceLeakDetection is deprecated. Use '-D{}={}' instead.",
+        if (SystemPropertyUtil.get("io.getty.noResourceLeakDetection") != null) {
+            disabled = SystemPropertyUtil.getBoolean("io.getty.noResourceLeakDetection", false);
+            logger.debug("-Dio.getty.noResourceLeakDetection: {}", disabled);
+            logger.warn("-Dio.getty.noResourceLeakDetection is deprecated. Use '-D{}={}' instead.",
                     PROP_LEVEL, DEFAULT_LEVEL.name().toLowerCase());
         } else {
             disabled = false;
@@ -157,9 +140,14 @@ public class ResourceLeakDetector<T> {
     private final ReferenceQueue<Object> refQueue = new ReferenceQueue<Object>();
     private final ConcurrentMap<String, Boolean> reportedLeaks = new ConcurrentHashMap();
 
-    //资源类型，一般是类名
+
+    /**
+     * 资源类型，一般是类名
+     */
     private final String resourceType;
-    //取样周期间隔
+    /**
+     * 取样周期间隔
+     */
     private final int samplingInterval;
 
     @Deprecated

@@ -26,7 +26,6 @@ public class WsClient2 {
         //System.setProperty("javax.net.debug", "all");
         System.setProperty("https.protocols", "TLSv1,TLSv1.1,TLSv1.2");
         WebSocketClientInst2 chatclient = new WebSocketClientInst2(new URI("ws://localhost:8888/echo"));
-
         //获取证书
         String pkPath = WsClient.class.getClassLoader().getResource("clientStore.jks")
                 .getPath();

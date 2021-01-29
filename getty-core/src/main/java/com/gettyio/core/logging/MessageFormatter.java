@@ -1,7 +1,7 @@
 /*
- * Copyright 2013 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -13,169 +13,68 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Copyright (c) 2004-2011 QOS.ch
- * All rights reserved.
- *
- * Permission is hereby granted, free  of charge, to any person obtaining
- * a  copy  of this  software  and  associated  documentation files  (the
- * "Software"), to  deal in  the Software without  restriction, including
- * without limitation  the rights to  use, copy, modify,  merge, publish,
- * distribute,  sublicense, and/or sell  copies of  the Software,  and to
- * permit persons to whom the Software  is furnished to do so, subject to
- * the following conditions:
- *
- * The  above  copyright  notice  and  this permission  notice  shall  be
- * included in all copies or substantial portions of the Software.
- *
- * THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
- * EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
- * MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- */
 package com.gettyio.core.logging;
 
-import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.Set;
 
-// contributors: lizongbo: proposed special treatment of array parameter values
-// Joern Huxhorn: pointed out double[] omission, suggested deep array copy
 
 /**
- * Formats messages according to very simple substitution rules. Substitutions
- * can be made 1, 2 or more arguments.
- * <p/>
- * <p/>
- * For example,
- * <p/>
- * <pre>
- * MessageFormatter.format(&quot;Hi {}.&quot;, &quot;there&quot;)
- * </pre>
- * <p/>
- * will return the string "Hi there.".
- * <p/>
- * The {} pair is called the <em>formatting anchor</em>. It serves to designate
- * the location where arguments need to be substituted within the message
- * pattern.
- * <p/>
- * In case your message contains the '{' or the '}' character, you do not have
- * to do anything special unless the '}' character immediately follows '{'. For
- * example,
- * <p/>
- * <pre>
- * MessageFormatter.format(&quot;Set {1,2,3} is not equal to {}.&quot;, &quot;1,2&quot;);
- * </pre>
- * <p/>
- * will return the string "Set {1,2,3} is not equal to 1,2.".
- * <p/>
- * <p/>
- * If for whatever reason you need to place the string "{}" in the message
- * without its <em>formatting anchor</em> meaning, then you need to escape the
- * '{' character with '\', that is the backslash character. Only the '{'
- * character should be escaped. There is no need to escape the '}' character.
- * For example,
- * <p/>
- * <pre>
- * MessageFormatter.format(&quot;Set \\{} is not equal to {}.&quot;, &quot;1,2&quot;);
- * </pre>
- * <p/>
- * will return the string "Set {} is not equal to 1,2.".
- * <p/>
- * <p/>
- * The escaping behavior just described can be overridden by escaping the escape
- * character '\'. Calling
- * <p/>
- * <pre>
- * MessageFormatter.format(&quot;File name is C:\\\\{}.&quot;, &quot;file.zip&quot;);
- * </pre>
- * <p/>
- * will return the string "File name is C:\file.zip".
- * <p/>
- * <p/>
- * The formatting conventions are different than those of {@link MessageFormat}
- * which ships with the Java platform. This is justified by the fact that
- * SLF4J's implementation is 10 times faster than that of {@link MessageFormat}.
- * This local performance difference is both measurable and significant in the
- * larger context of the complete logging processing chain.
- * <p/>
- * <p/>
- * See also {@link #format(String, Object)},
- * {@link #format(String, Object, Object)} and
- * {@link #arrayFormat(String, Object[])} methods for more details.
+ * 根据非常简单的替换规则来格式化消息,替换可以是1个、2个或更多的参数
+ * {}对被称为格式化锚。它是用来指定的消息中需要替换参数的位置
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className MessageFormatter.java
+ * @description
+ * @date 2020/12/31
  */
 final class MessageFormatter {
     private static final String DELIM_STR = "{}";
     private static final char ESCAPE_CHAR = '\\';
 
+
+    private MessageFormatter() {
+    }
+
     /**
-     * Performs single argument substitution for the 'messagePattern' passed as
-     * parameter.
-     * <p/>
-     * For example,
-     * <p/>
-     * <pre>
-     * MessageFormatter.format(&quot;Hi {}.&quot;, &quot;there&quot;);
-     * </pre>
-     * <p/>
-     * will return the string "Hi there.".
-     * <p/>
+     * 执行单个参数替换
      *
-     * @param messagePattern The message pattern which will be parsed and formatted
-     * @param arg            The argument to be substituted in place of the formatting anchor
-     * @return The formatted message
+     * @param messagePattern 将被解析和格式化的消息模式
+     * @param arg            要代替的参数
+     * @return 格式化的消息
      */
     static FormattingTuple format(String messagePattern, Object arg) {
         return arrayFormat(messagePattern, new Object[]{arg});
     }
 
     /**
-     * Performs a two argument substitution for the 'messagePattern' passed as
-     * parameter.
-     * <p/>
-     * For example,
-     * <p/>
-     * <pre>
-     * MessageFormatter.format(&quot;Hi {}. My name is {}.&quot;, &quot;Alice&quot;, &quot;Bob&quot;);
-     * </pre>
-     * <p/>
-     * will return the string "Hi Alice. My name is Bob.".
+     * 执行两个参数替换
      *
-     * @param messagePattern The message pattern which will be parsed and formatted
-     * @param argA           The argument to be substituted in place of the first formatting
-     *                       anchor
-     * @param argB           The argument to be substituted in place of the second formatting
-     *                       anchor
-     * @return The formatted message
+     * @param messagePattern 将被解析和格式化的消息模式
+     * @param argA           要代替的参数
+     * @param argB           要代替的参数
+     * @return 格式化的消息
      */
-    static FormattingTuple format(final String messagePattern,
-                                  Object argA, Object argB) {
+    static FormattingTuple format(final String messagePattern, Object argA, Object argB) {
         return arrayFormat(messagePattern, new Object[]{argA, argB});
     }
 
     /**
-     * Same principle as the {@link #format(String, Object)} and
-     * {@link #format(String, Object, Object)} methods except that any number of
-     * arguments can be passed in an array.
+     * 执行若干个参数替换
      *
-     * @param messagePattern The message pattern which will be parsed and formatted
-     * @param argArray       An array of arguments to be substituted in place of formatting
-     *                       anchors
-     * @return The formatted message
+     * @param messagePattern 将被解析和格式化的消息模式
+     * @param argArray       参数数组
+     * @return 格式化的消息
      */
-    static FormattingTuple arrayFormat(final String messagePattern,
-                                       final Object[] argArray) {
+    static FormattingTuple arrayFormat(final String messagePattern, final Object[] argArray) {
         if (argArray == null || argArray.length == 0) {
             return new FormattingTuple(messagePattern, null);
         }
 
         int lastArrIdx = argArray.length - 1;
         Object lastEntry = argArray[lastArrIdx];
-        Throwable throwable = lastEntry instanceof Throwable? (Throwable) lastEntry : null;
+        Throwable throwable = lastEntry instanceof Throwable ? (Throwable) lastEntry : null;
 
         if (messagePattern == null) {
             return new FormattingTuple(null, throwable);
@@ -183,7 +82,7 @@ final class MessageFormatter {
 
         int j = messagePattern.indexOf(DELIM_STR);
         if (j == -1) {
-            // this is a simple string
+            //简单字符串
             return new FormattingTuple(messagePattern, throwable);
         }
 
@@ -193,11 +92,10 @@ final class MessageFormatter {
         do {
             boolean notEscaped = j == 0 || messagePattern.charAt(j - 1) != ESCAPE_CHAR;
             if (notEscaped) {
-                // normal case
                 sbuf.append(messagePattern, i, j);
             } else {
                 sbuf.append(messagePattern, i, j - 1);
-                // check that escape char is not is escaped: "abc x:\\{}"
+                // 检查转义字符是否被转义: "abc x:\\{}"
                 notEscaped = j >= 2 && messagePattern.charAt(j - 2) == ESCAPE_CHAR;
             }
 
@@ -214,14 +112,18 @@ final class MessageFormatter {
             j = messagePattern.indexOf(DELIM_STR, i);
         } while (j != -1);
 
-        // append the characters following the last {} pair.
+        // 追加最后一对{}后面的字符
         sbuf.append(messagePattern, i, messagePattern.length());
-        return new FormattingTuple(sbuf.toString(), L <= lastArrIdx? throwable : null);
+        return new FormattingTuple(sbuf.toString(), L <= lastArrIdx ? throwable : null);
     }
 
-    // special treatment of array values was suggested by 'lizongbo'
-    private static void deeplyAppendParameter(StringBuilder sbuf, Object o,
-                                              Set<Object[]> seenSet) {
+    /**
+     * 对数组值进行特殊处理
+     * @param sbuf
+     * @param o
+     * @param seenSet
+     */
+    private static void deeplyAppendParameter(StringBuilder sbuf, Object o, Set<Object[]> seenSet) {
         if (o == null) {
             sbuf.append("null");
             return;
@@ -229,7 +131,7 @@ final class MessageFormatter {
         Class<?> objClass = o.getClass();
         if (!objClass.isArray()) {
             if (Number.class.isAssignableFrom(objClass)) {
-                // Prevent String instantiation for some number types
+                //防止某些数字类型的字符串实例化
                 if (objClass == Long.class) {
                     sbuf.append(((Long) o).longValue());
                 } else if (objClass == Integer.class || objClass == Short.class || objClass == Byte.class) {
@@ -245,8 +147,7 @@ final class MessageFormatter {
                 safeObjectAppend(sbuf, o);
             }
         } else {
-            // check for primitive array types because they
-            // unfortunately cannot be cast to Object[]
+            // 检查基本数组类型，因为它们不能被转换为Object[]
             sbuf.append('[');
             if (objClass == boolean[].class) {
                 booleanArrayAppend(sbuf, (boolean[]) o);
@@ -276,9 +177,7 @@ final class MessageFormatter {
             String oAsString = o.toString();
             sbuf.append(oAsString);
         } catch (Throwable t) {
-            System.err
-                    .println("SLF4J: Failed toString() invocation on an object of type ["
-                            + o.getClass().getName() + ']');
+            System.err.println("SLF4J: Failed toString() invocation on an object of type [" + o.getClass().getName() + ']');
             t.printStackTrace();
             sbuf.append("[FAILED toString()]");
         }
@@ -297,7 +196,7 @@ final class MessageFormatter {
                 sbuf.append(", ");
                 deeplyAppendParameter(sbuf, a[i], seenSet);
             }
-            // allow repeats in siblings
+            //允许重复
             seenSet.remove(a);
         } else {
             sbuf.append("...");
@@ -392,6 +291,5 @@ final class MessageFormatter {
         }
     }
 
-    private MessageFormatter() {
-    }
+
 }

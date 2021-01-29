@@ -11,7 +11,6 @@ import com.gettyio.core.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.SslConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
-import com.gettyio.core.handler.timeout.ReConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
@@ -26,23 +25,20 @@ public class NioClient {
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
 
-        NioClient ac = new NioClient();
-        ac.test(8888);
+        int i = 0;
+        while (i < 1) {
 
-//        int i = 0;
-//        while (i < 10000) {
-//
-//            if(i%2==0){
-//                NioClient ac = new NioClient();
-//                ac.test(8888);
+            //if(i%2==0){
+            NioClient ac = new NioClient();
+            ac.test(8888);
 //            }else {
 //                NioClient ac = new NioClient();
 //                ac.test(8889);
 //            }
-//            i++;
-//            Thread.sleep(2);
-//            System.out.println(i);
-//        }
+            i++;
+            //Thread.sleep(500);
+            System.out.println(i);
+        }
     }
 
 
@@ -53,8 +49,8 @@ public class NioClient {
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-       // aioConfig.setClientChunkSize( 1024);
-       // aioConfig.setBufferWriterQueueSize( 1024);
+        // aioConfig.setClientChunkSize( 1024);
+        // aioConfig.setBufferWriterQueueSize( 1024);
 
 
         NioClientStarter client = new NioClientStarter(aioConfig);
@@ -79,9 +75,7 @@ public class NioClient {
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
                 SslService sSLService = new SslService(sSLConfig);
-               // defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
-
-                //defaultChannelPipeline.addLast(new ReConnectHandler(ch));
+                // defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
@@ -93,16 +87,7 @@ public class NioClient {
             }
         });
 
-
         client.start(ch);
-
-//        try {
-//            Thread.sleep(2000);
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-//        client.shutdown();
-
     }
 
 
@@ -117,9 +102,7 @@ public class NioClient {
 
                 int i = 0;
                 for (; i < 1000000; i++) {
-                    // byte[] msgBody = s.getBytes("utf-8");
                     channel.writeAndFlush(msgBody);
-
                 }
 
                 long lt = System.currentTimeMillis();
@@ -134,7 +117,7 @@ public class NioClient {
 
         @Override
         public void onFailed(Throwable exc) {
-
+            exc.printStackTrace();
         }
     }
 }

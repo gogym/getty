@@ -1,4 +1,4 @@
-# getty  追求极致，理想万岁
+# getty
 
 一个完全基于java 实现的高性能网络框架。
 
@@ -106,7 +106,7 @@ Dependencies are included in the Projects Pom.XML dependencies
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.4.8</version>
+            <version>1.4.9</version>
         </dependency>
 ```
 
@@ -114,7 +114,7 @@ Dependencies are included in the Projects Pom.XML dependencies
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.4.8'
+compile group: 'com.gettyio', name: 'getty-core', version: '1.4.9'
 ```
 
 
@@ -145,7 +145,7 @@ Go to the central repository and download the JAR package into the project
  **email:189155278@qq.com** 
  
  ### getty交流群1 ：708758323       
- 进群希望能star一下哦
+ 进群先star一下哦
 
 
 

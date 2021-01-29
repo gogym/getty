@@ -1,10 +1,5 @@
-package test.udp;/*
- * 类名：UdpClient
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2019/12/17
- */
+package test.udp;
+
 
 import com.gettyio.core.util.ThreadPool;
 
@@ -19,6 +14,13 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.Scanner;
 
+/**
+ * 类名：UdpClient
+ * 版权：Copyright by www.getty.com
+ * 描述：
+ * 修改人：gogym
+ * 时间：2019/12/17
+ */
 public class UdpClient {
 
     public static void main(String[] args) {

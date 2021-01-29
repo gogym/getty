@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -13,473 +13,355 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Copyright (c) 2004-2011 QOS.ch
- * All rights reserved.
- * <p>
- * Permission is hereby granted, free  of charge, to any person obtaining
- * a  copy  of this  software  and  associated  documentation files  (the
- * "Software"), to  deal in  the Software without  restriction, including
- * without limitation  the rights to  use, copy, modify,  merge, publish,
- * distribute,  sublicense, and/or sell  copies of  the Software,  and to
- * permit persons to whom the Software  is furnished to do so, subject to
- * the following conditions:
- * <p>
- * The  above  copyright  notice  and  this permission  notice  shall  be
- * included in all copies or substantial portions of the Software.
- * <p>
- * THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
- * EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
- * MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
 package com.gettyio.core.logging;
 
 /**
- * access this class outside of Netty.
+ * 通过这个类来打印日志
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className InternalLogger.java
+ * @description
+ * @date 2020/12/30
  */
 public interface InternalLogger {
 
+
     /**
-     * Return the name of this {@link InternalLogger} instance.
+     * 返回这个实例的名称。
      *
-     * @return name of this logger instance
+     * @return 此记录器实例的名称
      */
     String name();
 
     /**
-     * Is the logger instance enabled for the TRACE level?
+     * 是否为Trace级别启用了logger实例
      *
-     * @return True if this Logger is enabled for the TRACE level,
-     * false otherwise.
+     * @return True如果该日志记录器为跟踪级别启用，
      */
     boolean isTraceEnabled();
 
     /**
-     * Log a message at the TRACE level.
+     * 以TRACE级别记录消息
      *
-     * @param msg the message string to be logged
+     * @param msg 要记录的消息字符串
      */
     void trace(String msg);
 
     /**
-     * Log a message at the TRACE level according to the specified format
-     * and argument.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the TRACE level.
+     * 根据指定的格式和参数在TRACE级别记录消息
      *
-     * @param format the format string
-     * @param arg    the argument
+     * @param format 格式字符串
+     * @param arg    参数
      */
     void trace(String format, Object arg);
 
     /**
-     * Log a message at the TRACE level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the TRACE level.
+     * 根据指定的格式和参数在TRACE级别记录消息
      *
-     * @param format the format string
-     * @param argA   the first argument
-     * @param argB   the second argument
+     * @param format 格式字符串
+     * @param argA   参数A
+     * @param argB   参数B
      */
     void trace(String format, Object argA, Object argB);
 
     /**
-     * Log a message at the TRACE level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous string concatenation when the logger
-     * is disabled for the TRACE level. However, this variant incurs the hidden
-     * (and relatively small) cost of creating an {@code Object[]} before invoking the method,
-     * even if this logger is disabled for TRACE. The variants taking {@link #trace(String, Object) one} and
-     * {@link #trace(String, Object, Object) two} arguments exist solely in order to avoid this hidden cost.
+     * 根据指定的格式和参数在TRACE级别记录消息
      *
-     * @param format    the format string
-     * @param arguments a list of 3 or more arguments
+     * @param format    格式字符串
+     * @param arguments 包含3个或更多参数的列表
      */
     void trace(String format, Object... arguments);
 
     /**
-     * Log an exception (throwable) at the TRACE level with an
-     * accompanying message.
+     * 在TRACE级别记录一个异常(throwable)并附带一条消息
      *
-     * @param msg the message accompanying the exception
-     * @param t   the exception (throwable) to log
+     * @param msg 伴随异常的消息
+     * @param t   要记录的异常(throwable)
      */
     void trace(String msg, Throwable t);
 
     /**
-     * Log an exception (throwable) at the TRACE level.
+     * 在TRACE级别记录一个异常(throwable)
      *
-     * @param t the exception (throwable) to log
+     * @param t 要记录的异常(throwable)
      */
     void trace(Throwable t);
 
     /**
-     * Is the logger instance enabled for the DEBUG level?
+     * 是否为DEBUG级别启用了logger实例
      *
-     * @return True if this Logger is enabled for the DEBUG level,
-     * false otherwise.
+     * @return 如果启用来DEBUG级别，则为True
      */
     boolean isDebugEnabled();
 
     /**
-     * Log a message at the DEBUG level.
+     * 在DEBUG级别记录一条消息
      *
-     * @param msg the message string to be logged
+     * @param msg 要记录的消息字符串
      */
     void debug(String msg);
 
     /**
-     * Log a message at the DEBUG level according to the specified format
-     * and argument.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the DEBUG level.
+     * 根据指定的格式和参数在DEBUG级别记录消息
      *
-     * @param format the format string
-     * @param arg    the argument
+     * @param format 格式字符串
+     * @param arg    参数
      */
     void debug(String format, Object arg);
 
     /**
-     * Log a message at the DEBUG level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the DEBUG level.
+     * 根据指定的格式和参数在DEBUG级别记录消息
      *
-     * @param format the format string
-     * @param argA   the first argument
-     * @param argB   the second argument
+     * @param format 格式字符串
+     * @param argA   参数
+     * @param argB   参数
      */
     void debug(String format, Object argA, Object argB);
 
     /**
-     * Log a message at the DEBUG level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous string concatenation when the logger
-     * is disabled for the DEBUG level. However, this variant incurs the hidden
-     * (and relatively small) cost of creating an {@code Object[]} before invoking the method,
-     * even if this logger is disabled for DEBUG. The variants taking
-     * {@link #debug(String, Object) one} and {@link #debug(String, Object, Object) two}
-     * arguments exist solely in order to avoid this hidden cost.
+     * 根据指定的格式和参数在DEBUG级别记录消息
      *
-     * @param format    the format string
-     * @param arguments a list of 3 or more arguments
+     * @param format    格式字符串
+     * @param arguments 包含3个或更多参数的列表
      */
     void debug(String format, Object... arguments);
 
     /**
-     * Log an exception (throwable) at the DEBUG level with an
-     * accompanying message.
+     * 在DEBUG级别记录一个异常(throwable)并附带一条消息
      *
-     * @param msg the message accompanying the exception
-     * @param t   the exception (throwable) to log
+     * @param msg 伴随异常的消息
+     * @param t   要记录的异常(throwable)
      */
     void debug(String msg, Throwable t);
 
     /**
-     * Log an exception (throwable) at the DEBUG level.
+     * 在DEBUG级别记录一个异常(throwable)
      *
-     * @param t the exception (throwable) to log
+     * @param t 要记录的异常(throwable)
      */
     void debug(Throwable t);
 
     /**
-     * Is the logger instance enabled for the INFO level?
+     * 是否为INFO级别启用了logger实例
      *
-     * @return True if this Logger is enabled for the INFO level,
-     * false otherwise.
+     * @return 如果启用来INFO级别，则为True
      */
     boolean isInfoEnabled();
 
     /**
-     * Log a message at the INFO level.
+     * 在INFO级别记录一条消息
      *
-     * @param msg the message string to be logged
+     * @param msg 要记录的消息字符串
      */
     void info(String msg);
 
     /**
-     * Log a message at the INFO level according to the specified format
-     * and argument.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the INFO level.
+     * 根据指定的格式和参数在INFO级别记录消息
      *
-     * @param format the format string
-     * @param arg    the argument
+     * @param format 格式字符串
+     * @param arg    参数
      */
     void info(String format, Object arg);
 
     /**
-     * Log a message at the INFO level according to the specified format
-     * and arguments.
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the INFO level.
+     * 根据指定的格式和参数在INFO级别记录消息
      *
-     * @param format the format string
-     * @param argA   the first argument
-     * @param argB   the second argument
+     * @param format 格式字符串
+     * @param argA   参数
+     * @param argB   参数
      */
     void info(String format, Object argA, Object argB);
 
     /**
-     * Log a message at the INFO level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous string concatenation when the logger
-     * is disabled for the INFO level. However, this variant incurs the hidden
-     * (and relatively small) cost of creating an {@code Object[]} before invoking the method,
-     * even if this logger is disabled for INFO. The variants taking
-     * {@link #info(String, Object) one} and {@link #info(String, Object, Object) two}
-     * arguments exist solely in order to avoid this hidden cost.
+     * 根据指定的格式和参数在INFO级别记录消息
      *
-     * @param format    the format string
-     * @param arguments a list of 3 or more arguments
+     * @param format    格式字符串
+     * @param arguments 包含3个或更多参数的列表
      */
     void info(String format, Object... arguments);
 
     /**
-     * Log an exception (throwable) at the INFO level with an
-     * accompanying message.
+     * 在INFO级别记录一个异常(throwable)并附带一条消息
      *
-     * @param msg the message accompanying the exception
-     * @param t   the exception (throwable) to log
+     * @param msg 伴随异常的消息
+     * @param t   要记录的异常(throwable)
      */
     void info(String msg, Throwable t);
 
     /**
-     * Log an exception (throwable) at the INFO level.
+     * 在INFO级别记录一个异常(throwable)
      *
-     * @param t the exception (throwable) to log
+     * @param t 要记录的异常(throwable)
      */
     void info(Throwable t);
 
     /**
-     * Is the logger instance enabled for the WARN level?
+     * 是否为WARN级别启用了logger实例
      *
-     * @return True if this Logger is enabled for the WARN level,
-     * false otherwise.
+     * @return 如果启用来WARN级别，则为True
      */
     boolean isWarnEnabled();
 
     /**
-     * Log a message at the WARN level.
+     * 在WARN级别记录一条消息
      *
-     * @param msg the message string to be logged
+     * @param msg 要记录的消息字符串
      */
     void warn(String msg);
 
     /**
-     * Log a message at the WARN level according to the specified format
-     * and argument.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the WARN level.
+     * 根据指定的格式和参数在WARN级别记录消息
      *
-     * @param format the format string
-     * @param arg    the argument
+     * @param format 格式字符串
+     * @param arg    参数
      */
     void warn(String format, Object arg);
 
     /**
-     * Log a message at the WARN level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous string concatenation when the logger
-     * is disabled for the WARN level. However, this variant incurs the hidden
-     * (and relatively small) cost of creating an {@code Object[]} before invoking the method,
-     * even if this logger is disabled for WARN. The variants taking
-     * {@link #warn(String, Object) one} and {@link #warn(String, Object, Object) two}
-     * arguments exist solely in order to avoid this hidden cost.
+     * 根据指定的格式和参数在WARN级别记录消息
      *
-     * @param format    the format string
-     * @param arguments a list of 3 or more arguments
-     */
-    void warn(String format, Object... arguments);
-
-    /**
-     * Log a message at the WARN level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the WARN level.
-     *
-     * @param format the format string
-     * @param argA   the first argument
-     * @param argB   the second argument
+     * @param format 格式字符串
+     * @param argA   参数
+     * @param argB   参数
      */
     void warn(String format, Object argA, Object argB);
 
     /**
-     * Log an exception (throwable) at the WARN level with an
-     * accompanying message.
+     * 根据指定的格式和参数在WARN级别记录消息
      *
-     * @param msg the message accompanying the exception
-     * @param t   the exception (throwable) to log
+     * @param format    格式字符串
+     * @param arguments 包含3个或更多参数的列表
+     */
+    void warn(String format, Object... arguments);
+
+    /**
+     * 在INFO级别记录一个异常(throwable)并附带一条消息
+     *
+     * @param msg 伴随异常的消息
+     * @param t   要记录的异常(throwable)
      */
     void warn(String msg, Throwable t);
 
     /**
-     * Log an exception (throwable) at the WARN level.
+     * 在INFO级别记录一个异常(throwable)
      *
-     * @param t the exception (throwable) to log
+     * @param t 要记录的异常(throwable)
      */
     void warn(Throwable t);
 
     /**
-     * Is the logger instance enabled for the ERROR level?
+     * 是否为ERROR级别启用了logger实例
      *
-     * @return True if this Logger is enabled for the ERROR level,
-     * false otherwise.
+     * @return 如果启用来ERROR级别，则为True
      */
     boolean isErrorEnabled();
 
     /**
-     * Log a message at the ERROR level.
+     * 在ERROR级别记录一条消息
      *
-     * @param msg the message string to be logged
+     * @param msg 要记录的消息字符串
      */
     void error(String msg);
 
     /**
-     * Log a message at the ERROR level according to the specified format
-     * and argument.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the ERROR level.
+     * 根据指定的格式和参数在ERROR级别记录消息
      *
-     * @param format the format string
-     * @param arg    the argument
+     * @param format 格式字符串
+     * @param arg    参数
      */
     void error(String format, Object arg);
 
     /**
-     * Log a message at the ERROR level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the ERROR level.
+     * 根据指定的格式和参数在ERROR级别记录消息
      *
-     * @param format the format string
-     * @param argA   the first argument
-     * @param argB   the second argument
+     * @param format 格式字符串
+     * @param argA   参数
+     * @param argB   参数
      */
     void error(String format, Object argA, Object argB);
 
     /**
-     * Log a message at the ERROR level according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous string concatenation when the logger
-     * is disabled for the ERROR level. However, this variant incurs the hidden
-     * (and relatively small) cost of creating an {@code Object[]} before invoking the method,
-     * even if this logger is disabled for ERROR. The variants taking
-     * {@link #error(String, Object) one} and {@link #error(String, Object, Object) two}
-     * arguments exist solely in order to avoid this hidden cost.
+     * 根据指定的格式和参数在ERROR级别记录消息
      *
-     * @param format    the format string
-     * @param arguments a list of 3 or more arguments
+     * @param format    格式字符串
+     * @param arguments 包含3个或更多参数的列表
      */
     void error(String format, Object... arguments);
 
     /**
-     * Log an exception (throwable) at the ERROR level with an
-     * accompanying message.
+     * 在INFO级别记录一个异常(throwable)并附带一条消息
      *
-     * @param msg the message accompanying the exception
-     * @param t   the exception (throwable) to log
+     * @param msg 伴随异常的消息
+     * @param t   要记录的异常(throwable)
      */
     void error(String msg, Throwable t);
 
     /**
-     * Log an exception (throwable) at the ERROR level.
+     * 在INFO级别记录一个异常(throwable)
      *
-     * @param t the exception (throwable) to log
+     * @param t 要记录的异常(throwable)
      */
     void error(Throwable t);
 
     /**
-     * Is the logger instance enabled for the specified {@code level}?
+     * 是否为指定的logger实例启用
      *
-     * @param level level
-     * @return True if this Logger is enabled for the specified {@code level},
-     * false otherwise.
+     * @param level 级别
+     * @return 如果启用指定级别，则为True
      */
     boolean isEnabled(InternalLogLevel level);
 
     /**
-     * Log a message at the specified {@code level}.
+     * 在指定的级别记录消息
      *
-     * @param level level
-     * @param msg   the message string to be logged
+     * @param level 级别
+     * @param msg   要记录的消息字符串
      */
     void log(InternalLogLevel level, String msg);
 
     /**
-     * Log a message at the specified {@code level} according to the specified format
-     * and argument.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the specified {@code level}.
-     * @param level level
-     * @param format the format string
-     * @param arg    the argument
+     * 根据指定的格式和参数在指定级别记录消息
+     *
+     * @param level  级别
+     * @param format 格式字符串
+     * @param arg    参数
      */
     void log(InternalLogLevel level, String format, Object arg);
 
     /**
-     * Log a message at the specified {@code level} according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous object creation when the logger
-     * is disabled for the specified {@code level}.
-     * @param level level
-     * @param format the format string
-     * @param argA   the first argument
-     * @param argB   the second argument
+     * 根据指定的格式和参数在指定级别记录消息
+     *
+     * @param level  级别
+     * @param format 格式字符串
+     * @param argA   参数
+     * @param argB   参数
      */
     void log(InternalLogLevel level, String format, Object argA, Object argB);
 
     /**
-     * Log a message at the specified {@code level} according to the specified format
-     * and arguments.
-     * <p>
-     * This form avoids superfluous string concatenation when the logger
-     * is disabled for the specified {@code level}. However, this variant incurs the hidden
-     * (and relatively small) cost of creating an {@code Object[]} before invoking the method,
-     * even if this logger is disabled for the specified {@code level}. The variants taking
-     * {@link #log(InternalLogLevel, String, Object) one} and
-     * {@link #log(InternalLogLevel, String, Object, Object) two} arguments exist solely
-     * in order to avoid this hidden cost.
-     * @param level level
-     * @param format    the format string
-     * @param arguments a list of 3 or more arguments
+     * 根据指定的格式和参数在指定级别记录消息
+     *
+     * @param level     级别
+     * @param format    格式字符串
+     * @param arguments 包含3个或更多参数的列表
      */
     void log(InternalLogLevel level, String format, Object... arguments);
 
     /**
-     * Log an exception (throwable) at the specified {@code level} with an
-     * accompanying message.
-     * @param level level
-     * @param msg the message accompanying the exception
-     * @param t   the exception (throwable) to log
+     * 在指定级别记录一个异常(throwable)并附带一条消息
+     *
+     * @param level 级别
+     * @param msg   伴随异常的消息
+     * @param t     要记录的异常(throwable)
      */
     void log(InternalLogLevel level, String msg, Throwable t);
 
     /**
-     * Log an exception (throwable) at the specified {@code level}.
-     * @param level level
-     * @param t the exception (throwable) to log
+     * 在指定级别记录一个异常(throwable)
+     *
+     * @param level 级别
+     * @param t     要记录的异常(throwable)
      */
     void log(InternalLogLevel level, Throwable t);
 }

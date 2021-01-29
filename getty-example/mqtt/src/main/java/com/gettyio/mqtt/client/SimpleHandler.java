@@ -3,21 +3,21 @@ package com.gettyio.mqtt.client;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.mqtt.MqttMessage;
-import com.gettyio.core.handler.codec.mqtt.MqttPublishMessage;
+import com.gettyio.expansion.handler.codec.mqtt.MqttMessage;
+import com.gettyio.expansion.handler.codec.mqtt.MqttPublishMessage;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<MqttMessage> {
     @Override
     public void channelAdded(SocketChannel aioChannel) {
 
-        System.out.println("连接成功");
+        System.out.println("连接服务器成功");
 
     }
 
     @Override
     public void channelClosed(SocketChannel aioChannel) {
-        System.out.println("客户端连接关闭了");
+        System.out.println("连接关闭了");
     }
 
 

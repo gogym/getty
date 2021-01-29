@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -15,23 +15,33 @@
  */
 package com.gettyio.core.logging;
 
-
 import com.gettyio.core.util.StringUtil;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 
 /**
- * A skeletal implementation of {@link InternalLogger}.  This class implements
- * all methods that have a {@link InternalLogLevel} parameter by default to call
- * specific logger methods such as {@link #info(String)} or {@link #isInfoEnabled()}.
+ * @author gogym
+ * @version 1.0.0
+ * @className AbstractInternalLogger.java
+ * @description
+ * @date 2020/12/30
  */
 public abstract class AbstractInternalLogger implements InternalLogger, Serializable {
 
     private static final long serialVersionUID = -6382972526573193470L;
-
+    /**
+     * 包分割字符
+     */
+    private static final char PACKAGE_SEPARATOR_CHAR = '.';
+    /**
+     * 异常前缀
+     */
     static final String EXCEPTION_MESSAGE = "Unexpected exception:";
 
+    /**
+     * 日志输出类名称
+     */
     private final String name;
 
 
@@ -236,4 +246,6 @@ public abstract class AbstractInternalLogger implements InternalLogger, Serializ
     public String toString() {
         return StringUtil.simpleClassName(this) + '(' + name() + ')';
     }
+
+
 }

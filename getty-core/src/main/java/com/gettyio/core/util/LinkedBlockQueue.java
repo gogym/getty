@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.util;
 
@@ -23,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * LinkedBlockQueue.java
  *
- * @description:
+ * @description:读写mq,元素满时阻塞
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
@@ -38,7 +37,7 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
     /**
      * 初始大小
      */
-    int capacity = 1024;
+    int capacity;
 
     /**
      * 元素个数
@@ -87,7 +86,7 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
      * @throws InterruptedException 异常
      */
     @Override
-    public void put(T t) throws InterruptedException {
+    public T put(T t) throws InterruptedException {
         //检查是否为空
         checkNull(t);
         //获取锁
@@ -106,6 +105,7 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         } finally {
             lock.unlock();
         }
+        return t;
     }
 
     /**

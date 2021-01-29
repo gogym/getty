@@ -8,7 +8,9 @@ import com.gettyio.protobuf.packet.MessageClass;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Message> {
 
-    //实例化一个group保存客户端连接
+    /**
+     * 实例化一个group保存客户端连接
+     */
     DefaultChannelGroup defaultChannelGroup = new DefaultChannelGroup();
 
     int count = 0;
@@ -32,7 +34,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
     @Override
     public void channelRead0(SocketChannel aioChannel, MessageClass.Message str) {
         count++;
-        System.out.println("消息数量：" + count);
+        System.out.println("消息:"+str.getBody()+"-----数量：" + count);
         final MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();
         builder.setBody("123");
         aioChannel.writeAndFlush(builder.build());

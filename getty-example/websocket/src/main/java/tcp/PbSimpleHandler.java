@@ -32,9 +32,6 @@ public class PbSimpleHandler extends SimpleChannelInboundHandler<MessageClass.Me
             e.printStackTrace();
         }
 
-
-
-
 //        try {
 //
 //            MessageClass.Message message1= MessageClass.Message.parseFrom(message);

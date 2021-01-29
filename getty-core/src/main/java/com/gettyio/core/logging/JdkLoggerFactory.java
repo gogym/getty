@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -19,20 +19,17 @@ package com.gettyio.core.logging;
 import java.util.logging.Logger;
 
 /**
- * Logger factory which creates a
- * <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/logging/">java.util.logging</a>
- * logger.
+ * JdkLogger工厂
+ *
+ * @author gogym
+ * @version 1.0.0
+ * @className JdkLoggerFactory.java
+ * @description
+ * @date 2020/12/31
  */
 public class JdkLoggerFactory extends InternalLoggerFactory {
 
     public static final InternalLoggerFactory INSTANCE = new JdkLoggerFactory();
-
-    /**
-     * @deprecated Use {@link #INSTANCE} instead.
-     */
-    @Deprecated
-    public JdkLoggerFactory() {
-    }
 
     @Override
     public InternalLogger newInstance(String name) {

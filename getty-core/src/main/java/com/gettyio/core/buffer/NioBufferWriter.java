@@ -1,18 +1,17 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  */
 package com.gettyio.core.buffer;
 
@@ -26,35 +25,30 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeoutException;
 
+
 /**
- * BufferWriter.java
- *
- * @description:用于控制数据输出
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * 用于控制nio数据输出
+ * @className NioBufferWriter.java
+ * @author gogym
+ * @version 1.0.0
+ * @description
+ * @date 2020/4/8
  */
-public final class NioBufferWriter extends BufferWriter {
+public final class NioBufferWriter extends AbstractBufferWriter<ChannelByteBuffer> {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioBufferWriter.class);
-    /**
-     * 缓冲池
-     */
-    private final ChunkPool chunkPool;
-
-    /**
-     * 内存申请最大阻塞时间
-     */
-    private int chunkPoolBlockTime;
-    /**
-     * 当前是否已关闭
-     */
-    private boolean closed = false;
     /**
      * 阻塞队列
      */
     private final LinkedQueue<ChannelByteBuffer> queue;
 
+
+    /**
+     * 构造函数
+     * @param chunkPool 内存池
+     * @param bufferWriterQueueSize 写出队列大小
+     * @param chunkPoolBlockTime 内存池最大阻塞时间
+     */
     public NioBufferWriter(ChunkPool chunkPool, int bufferWriterQueueSize, int chunkPoolBlockTime) {
         this.chunkPool = chunkPool;
         this.chunkPoolBlockTime = chunkPoolBlockTime;
@@ -76,17 +70,16 @@ public final class NioBufferWriter extends BufferWriter {
             //申请写缓冲
             ByteBuffer chunkPage = chunkPool.allocate(len - off, chunkPoolBlockTime);
             int minSize = chunkPage.remaining();
-            if (minSize == 0) {
+            if (minSize <= 0) {
                 chunkPool.deallocate(chunkPage);
                 throw new RuntimeException("ByteBuffer remaining is 0");
             }
             //写入数据
             chunkPage.put(b, off, b.length);
-            //if (!chunkPage.hasRemaining()) {
+
             chunkPage.flip();
             //已经读取完，写到缓冲队列
             queue.put(new ChannelByteBuffer(socketChannel, chunkPage));
-            // }
 
         } catch (InterruptedException e) {
             LOGGER.error(e);
@@ -97,28 +90,18 @@ public final class NioBufferWriter extends BufferWriter {
 
 
     /**
-     * 刷新缓冲区。
-     *
-     * @param b 数组
+     * @param socketChannel
+     * @param b   待输出数据
      * @throws IOException 抛出异常
      */
     public void writeAndFlush(SocketChannel socketChannel, byte[] b) throws IOException {
         if (b == null) {
             throw new NullPointerException();
         }
-        writeAndFlush(socketChannel, b, 0, b.length);
+        write(socketChannel, b, 0, b.length);
+        //flush();
     }
 
-    /**
-     * @param b   待输出数据
-     * @param off 起始位点
-     * @param len 输出的数据长度
-     * @throws IOException 抛出异常
-     */
-    private void writeAndFlush(SocketChannel socketChannel, byte[] b, int off, int len) throws IOException {
-        write(socketChannel, b, off, len);
-        flush();
-    }
 
     @Override
     public void flush() {
@@ -140,11 +123,12 @@ public final class NioBufferWriter extends BufferWriter {
         }
     }
 
+    @Override
     public boolean isClosed() {
         return closed;
     }
 
-
+    @Override
     public ChannelByteBuffer poll() {
         try {
             return queue.poll();
