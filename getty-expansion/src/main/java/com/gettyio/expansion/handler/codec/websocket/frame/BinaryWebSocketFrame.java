@@ -17,15 +17,11 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
 
 /**
  * Web Socket frame containing binary data.
  */
 public class BinaryWebSocketFrame extends WebSocketFrame {
-
-    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BinaryWebSocketFrame.class);
 
     public BinaryWebSocketFrame() {
         setOpcode(Opcode.BINARY.getCode());

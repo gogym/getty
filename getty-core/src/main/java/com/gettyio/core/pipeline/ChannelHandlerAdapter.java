@@ -18,7 +18,7 @@ package com.gettyio.core.pipeline;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.constant.IdleState;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -59,6 +59,16 @@ public abstract class ChannelHandlerAdapter implements ChannelBoundHandler {
     }
 
     @Override
+    public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
+        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextOutPipe(this);
+        if (channelHandlerAdapter == null) {
+            return;
+        }
+        channelHandlerAdapter.channelWrite(socketChannel, obj);
+    }
+
+
+    @Override
     public void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
@@ -69,7 +79,7 @@ public abstract class ChannelHandlerAdapter implements ChannelBoundHandler {
 
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextInPipe(this);
         if (channelHandlerAdapter == null) {
             return;
@@ -78,30 +88,17 @@ public abstract class ChannelHandlerAdapter implements ChannelBoundHandler {
     }
 
 
-    //------------------------------------------------
-
-    @Override
-    public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextOutPipe(this);
-        if (channelHandlerAdapter == null) {
-            return;
-        }
-        channelHandlerAdapter.channelWrite(socketChannel, obj);
-    }
-
     @Override
     public void encode(SocketChannel socketChannel, Object obj) throws Exception {
         ChannelHandlerAdapter channelHandlerAdapter = socketChannel.getDefaultChannelPipeline().nextOutPipe(this);
         if (channelHandlerAdapter == null) {
-            //注意，encode是输出链。如果是最后一个处理器，要把数据输出到socket
+            //注意，encode是在输出链。如果是最后一个处理器，要把数据输出到socket
             socketChannel.writeToChannel(obj);
             return;
         }
         channelHandlerAdapter.encode(socketChannel, obj);
     }
 
-
-    //-------------------------------------------------------------
 
     @Override
     public void userEventTriggered(SocketChannel socketChannel, IdleState evt) throws Exception {

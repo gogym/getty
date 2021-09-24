@@ -50,6 +50,11 @@ public class AutoByteBuffer {
     private byte[] data;
 
 
+    /**
+     * 获取一个新的实例
+     *
+     * @param capacity
+     */
     private AutoByteBuffer(int capacity) {
         data = new byte[capacity];
     }
@@ -75,31 +80,6 @@ public class AutoByteBuffer {
 
 
     /**
-     * 重置读指针位置,相当于指定下次开始读取的下标
-     * 如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
-     *
-     * @param position 下标
-     * @return AutoByteBuffer
-     */
-    public AutoByteBuffer readerIndex(int position) {
-        if (position <= writerIndex) {
-            readerIndex = position;
-        } else {
-            readerIndex = writerIndex;
-        }
-        return this;
-    }
-
-    /**
-     * 获取未处理byte[]，就是获取原始数组的意思
-     *
-     * @return byte[]
-     */
-    public byte[] array() {
-        return data;
-    }
-
-    /**
      * 清空数据，重置指针
      *
      * @return AutoByteBuffer
@@ -121,6 +101,29 @@ public class AutoByteBuffer {
         writerIndex = 0;
         return this;
     }
+
+    /**
+     * 数组是否有长度
+     *
+     * @return
+     */
+    public boolean hasArray() {
+        if (writerIndex > 0) {
+            return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * 获取未处理byte[]，就是获取原始数组的意思
+     *
+     * @return byte[]
+     */
+    public byte[] array() {
+        return data;
+    }
+
 
     /**
      * 获取剩余未读数据
@@ -157,6 +160,24 @@ public class AutoByteBuffer {
         readerIndex = 0;
         data = newBytes;
     }
+
+
+    /**
+     * 重置读指针位置,相当于指定下次开始读取的下标
+     * 如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
+     *
+     * @param position 下标
+     * @return AutoByteBuffer
+     */
+    public AutoByteBuffer readerIndex(int position) {
+        if (position <= writerIndex) {
+            readerIndex = position;
+        } else {
+            readerIndex = writerIndex;
+        }
+        return this;
+    }
+
 
     /**
      * 读取指针位置
@@ -198,17 +219,6 @@ public class AutoByteBuffer {
         return false;
     }
 
-    /**
-     * 数组是否有长度
-     *
-     * @return
-     */
-    public boolean hasArray() {
-        if (writerIndex > 0) {
-            return true;
-        }
-        return false;
-    }
 
     /**
      * 当前剩余可写入数据长度，每次触发扩容后都不一样
@@ -221,6 +231,18 @@ public class AutoByteBuffer {
 
 
     /**
+     * 复制自身
+     *
+     * @return
+     */
+    public AutoByteBuffer duplicate() {
+        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+        autoByteBuffer.writeBytes(this);
+        return autoByteBuffer;
+    }
+
+
+    /**
      * 当前容量，当写入数据超过当前容量后会自动扩容
      *
      * @return int
@@ -228,6 +250,18 @@ public class AutoByteBuffer {
     public int capacity() {
         return data.length;
     }
+
+    /**
+     * 获取长度下标
+     *
+     * @param length
+     * @return
+     */
+    public AutoByteBuffer skipBytes(int length) {
+        readerIndex += length;
+        return this;
+    }
+
 
     /**
      * 读取一个数据到byte，从readIndex位置开始，每读取一个，指针+1，类似byteBuffer的get方法
@@ -382,7 +416,6 @@ public class AutoByteBuffer {
         data[writerIndex] = b;
         writerIndex++;
         return this;
-
     }
 
     /**
@@ -565,8 +598,8 @@ public class AutoByteBuffer {
      * @param targetPosition 新数组被写入位置
      * @return AutoByteBuffer
      */
-    private AutoByteBuffer writeBytesToBytes(byte[] src, byte[] target, int targetPosition) {
-        return writeBytesToBytes(src, target, targetPosition, src.length);
+    private void writeBytesToBytes(byte[] src, byte[] target, int targetPosition) {
+        writeBytesToBytes(src, target, targetPosition, src.length);
     }
 
     /**
@@ -577,21 +610,40 @@ public class AutoByteBuffer {
      * @param targetPosition 新数组被写入位置
      * @return AutoByteBuffer
      */
-    private AutoByteBuffer writeBytesToBytes(byte[] src, byte[] target, int targetPosition, int dataLength) {
+    private void writeBytesToBytes(byte[] src, byte[] target, int targetPosition, int dataLength) {
         System.arraycopy(src, 0, target, targetPosition, dataLength);
-        return this;
+    }
+
+    /**
+     * 获取指定的数组
+     *
+     * @param start
+     * @param length
+     * @return
+     */
+    private byte[] getBytes(int start, int length) {
+        byte[] bs = new byte[length];
+        System.arraycopy(this, start, bs, 0, length);
+        return bs;
     }
 
 
     /**
-     * 复制自身
+     * 整数转换成数组
      *
-     * @return
+     * @param i 整数
+     * @return byte length=4
      */
-    public AutoByteBuffer duplicate() {
-        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-        autoByteBuffer.writeBytes(this);
-        return autoByteBuffer;
+    private byte[] intToByteArray(int i) {
+        return new byte[]{(byte) ((i >> 24) & 0xFF), (byte) ((i >> 16) & 0xFF), (byte) ((i >> 8) & 0xFF), (byte) (i & 0xFF)};
+    }
+
+
+    private byte[] shortToByte(int s) {
+        byte[] targets = new byte[2];
+        targets[0] = (byte) (s >> 8 & 0xFF);
+        targets[1] = (byte) (s & 0xFF);
+        return targets;
     }
 
 
@@ -615,31 +667,6 @@ public class AutoByteBuffer {
      */
     public String toString(int index, int length, Charset charset) {
         return decodeString(this, index, length, charset);
-    }
-
-
-    /**
-     * 获取指定的数组
-     *
-     * @param start
-     * @param length
-     * @return
-     */
-    public byte[] getBytes(int start, int length) {
-        byte[] bs = new byte[length];
-        System.arraycopy(this, start, bs, 0, length);
-        return bs;
-    }
-
-    /**
-     * 获取长度下标
-     *
-     * @param length
-     * @return
-     */
-    public AutoByteBuffer skipBytes(int length) {
-        readerIndex += length;
-        return this;
     }
 
 
@@ -671,25 +698,6 @@ public class AutoByteBuffer {
             return new String(array, 0, offset, len);
         }
         return new String(array, offset, len, charset);
-    }
-
-
-    /**
-     * 整数转换成数组
-     *
-     * @param i 整数
-     * @return byte length=4
-     */
-    private byte[] intToByteArray(int i) {
-        return new byte[]{(byte) ((i >> 24) & 0xFF), (byte) ((i >> 16) & 0xFF), (byte) ((i >> 8) & 0xFF), (byte) (i & 0xFF)};
-    }
-
-
-    private byte[] shortToByte(int s) {
-        byte[] targets = new byte[2];
-        targets[0] = (byte) (s >> 8 & 0xFF);
-        targets[1] = (byte) (s & 0xFF);
-        return targets;
     }
 
 

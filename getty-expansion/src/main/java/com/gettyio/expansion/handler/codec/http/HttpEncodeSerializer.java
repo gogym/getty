@@ -16,6 +16,8 @@
 package com.gettyio.expansion.handler.codec.http;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.expansion.handler.codec.http.request.HttpRequest;
+import com.gettyio.expansion.handler.codec.http.response.HttpResponse;
 
 import java.io.IOException;
 import java.util.Map;

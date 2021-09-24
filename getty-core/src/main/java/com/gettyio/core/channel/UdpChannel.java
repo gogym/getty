@@ -15,7 +15,8 @@
  */
 package com.gettyio.core.channel;
 
-import com.gettyio.core.buffer.ChunkPool;
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.buffer.ByteBuf;
 import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -29,7 +30,6 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
-import java.util.concurrent.TimeoutException;
 
 /**
  * UdpChannel.java
@@ -53,11 +53,11 @@ public class UdpChannel extends SocketChannel {
     private LinkedBlockQueue<Object> queue;
     private ThreadPool workerThreadPool;
 
-    public UdpChannel(DatagramChannel datagramChannel, Selector selector, BaseConfig config, ChunkPool chunkPool, ChannelPipeline channelPipeline, int workerThreadNum) {
+    public UdpChannel(DatagramChannel datagramChannel, Selector selector, BaseConfig config, ByteBufAllocator byteBufAllocator, ChannelPipeline channelPipeline, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
         this.config = config;
-        this.chunkPool = chunkPool;
+        this.byteBufAllocator = byteBufAllocator;
         this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         queue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
         try {
@@ -66,7 +66,6 @@ public class UdpChannel extends SocketChannel {
         } catch (Exception e) {
             throw new RuntimeException("channelPipeline init exception", e);
         }
-
         //开启写监听线程
         loopWrite();
         //触发责任链回调
@@ -91,32 +90,25 @@ public class UdpChannel extends SocketChannel {
                         while (it.hasNext()) {
                             SelectionKey sk = it.next();
                             if (sk.isReadable()) {
-                                ByteBuffer readBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
+                                ByteBuf readBuffer = byteBufAllocator.ioBuffer(config.getReadBufferSize());
+                                ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
                                 //接收数据
-                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer);
-                                if (null != readBuffer) {
-                                    readBuffer.flip();
-                                    //读取缓冲区数据，输送到责任链
-                                    while (readBuffer.hasRemaining()) {
-                                        byte[] bytes = new byte[readBuffer.remaining()];
-                                        readBuffer.get(bytes, 0, bytes.length);
-                                        //读取的数据封装成DatagramPacket
-                                        DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
-                                        //输出到链条
-                                        UdpChannel.this.readToPipeline(datagramPacket);
-                                    }
-                                    chunkPool.deallocate(readBuffer);
+                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readByteBuf);
+                                //读取缓冲区数据，输送到责任链
+                                readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
+                                while (readBuffer.isReadable()) {
+                                    byte[] bytes = new byte[readBuffer.readableBytes()];
+                                    readBuffer.readBytes(bytes, 0, bytes.length);
+                                    //读取的数据封装成DatagramPacket
+                                    DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
+                                    //输出到链条
+                                    UdpChannel.this.readToPipeline(datagramPacket);
                                 }
+                                readBuffer.release();
                             }
                         }
                         it.remove();
                     }
-                } catch (IOException e) {
-                    logger.error(e);
-                } catch (InterruptedException e) {
-                    logger.error(e);
-                } catch (TimeoutException e) {
-                    logger.error(e);
                 } catch (Exception e) {
                     logger.error(e);
                 }
@@ -134,7 +126,7 @@ public class UdpChannel extends SocketChannel {
             public void run() {
                 try {
                     Object obj;
-                    while ((obj = queue.poll()) != null) {
+                    while ((obj = queue.take()) != null) {
                         UdpChannel.this.send(obj);
                     }
                 } catch (InterruptedException e) {
@@ -177,12 +169,13 @@ public class UdpChannel extends SocketChannel {
     }
 
     @Override
-    public void writeAndFlush(Object obj) {
+    public boolean writeAndFlush(Object obj) {
         try {
             queue.put(obj);
         } catch (InterruptedException e) {
             logger.error(e.getMessage(), e);
         }
+        return true;
     }
 
     @Override
@@ -223,20 +216,15 @@ public class UdpChannel extends SocketChannel {
         try {
             //转换成udp数据包
             DatagramPacket datagramPacket = (DatagramPacket) obj;
-            ByteBuffer byteBuffer = chunkPool.allocate(datagramPacket.getLength(), config.getChunkPoolBlockTime());
-            byteBuffer.put(datagramPacket.getData());
-            byteBuffer.flip();
+            ByteBuf byteBuffer = byteBufAllocator.ioBuffer(datagramPacket.getLength());
+            byteBuffer.writeBytes(datagramPacket.getData());
             //写出到目标地址
-            datagramChannel.send(byteBuffer, datagramPacket.getSocketAddress());
+            datagramChannel.send(byteBuffer.nioBuffer(), datagramPacket.getSocketAddress());
             //释放内存
-            chunkPool.deallocate(byteBuffer);
+            byteBuffer.release();
         } catch (ClassCastException e) {
             logger.error(e.getMessage(), e);
-        } catch (InterruptedException e) {
-            logger.error(e);
         } catch (IOException e) {
-            logger.error(e);
-        } catch (TimeoutException e) {
             logger.error(e);
         }
     }

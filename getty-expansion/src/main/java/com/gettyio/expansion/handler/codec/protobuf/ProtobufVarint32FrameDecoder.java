@@ -18,7 +18,7 @@ package com.gettyio.expansion.handler.codec.protobuf;
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.io.IOException;
 
@@ -35,7 +35,7 @@ public class ProtobufVarint32FrameDecoder extends ObjectToMessageDecoder {
 
     AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
 
         byte[] bytes = (byte[]) obj;
         autoByteBuffer.writeBytes(bytes);

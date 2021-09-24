@@ -37,29 +37,36 @@ public abstract class BaseConfig {
      */
     private int port;
     /**
-     * 消息读取缓存大小，默认2048
+     * 消息读取缓存大小，默认64
      */
-    private int readBufferSize = 2048;
+    private int readBufferSize = 64;
     /**
-     * 内存池最大阻塞时间。默认1s
+     * 输出类队列大小,再大其实意义不大，因为实际写出速度还会收到机器配置已经带宽的限制，设置这个数，已经能满足绝大部分场景需要
      */
-    private int chunkPoolBlockTime = 1000;
+    private int bufferWriterQueueSize = 1024 * 1024 * 8;
+
     /**
-     * 输出类队列大小，默认1024*1024
+     * 是否开启零拷贝,使用堆外内存
      */
-    private int bufferWriterQueueSize = 1024 * 1024;
+    private final Boolean isDirect = true;
+
     /**
-     * 流控阈值
+     * 流控开关，默认不打开
      */
-    private int flowControlSize = 20;
+    private boolean flowControl = false;
     /**
-     * 释放流控阈值
+     * 流控阈值(高水位线)，默认与输出队列一致，则表示不做限制
      */
-    private int releaseFlowControlSize = 10;
+    private int highWaterMark = bufferWriterQueueSize;
+    /**
+     * 释放流控阈值(低水位线)，默认高水位的一半
+     */
+    private int lowWaterMark = highWaterMark / 2;
+
 
     /**
      * 设置Socket的TCP参数配置
-     * AIO客户端的可选为：
+     * AIO服户端的可选为：
      * 套接字发送缓冲区的大小。int
      * 1. StandardSocketOptions.SO_SNDBUF
      * 套接字接收缓冲区的大小。int
@@ -70,18 +77,13 @@ public abstract class BaseConfig {
      * 4. StandardSocketOptions.SO_REUSEADDR
      * 禁用Nagle算法。boolean
      * 5. StandardSocketOptions.TCP_NODELAY
-     *
-     *
+     * <p>
+     * <p>
      * AIO客户端的有效可选范围为：
      * 2. StandardSocketOptions.SO_RCVBUF
      * 4. StandardSocketOptions.SO_REUSEADDR
      */
     private Map<SocketOption<Object>, Object> socketOptions;
-
-    /**
-     * 是否开启零拷贝
-     */
-    private Boolean isDirect = true;
 
 
     //------------------------------------------------------------------------------------------------
@@ -133,25 +135,41 @@ public abstract class BaseConfig {
         return isDirect;
     }
 
-    public int getChunkPoolBlockTime() {
-        return chunkPoolBlockTime;
+
+    public boolean isFlowControl() {
+        return flowControl;
     }
 
-    public void setChunkPoolBlockTime(int chunkPoolBlockTime) {
-        this.chunkPoolBlockTime = chunkPoolBlockTime;
+    public void setFlowControl(boolean flowControl) {
+        this.flowControl = flowControl;
     }
 
+    public int getHighWaterMark() {
+        return highWaterMark;
+    }
+
+    public void setHighWaterMark(int highWaterMark) {
+        this.highWaterMark = highWaterMark;
+    }
+
+    public int getLowWaterMark() {
+        return lowWaterMark;
+    }
+
+    public void setLowWaterMark(int lowWaterMark) {
+        this.lowWaterMark = lowWaterMark;
+    }
 
     @Override
     public String toString() {
-        return "BaseConfig{" +
-                "host='" + host + '\'' +
+        return "{" +
+                "host='" + (host == null ? "localhost" : host) + '\'' +
                 ", port=" + port +
                 ", readBufferSize=" + readBufferSize +
-                ", chunkPoolBlockTime=" + chunkPoolBlockTime +
                 ", bufferWriterQueueSize=" + bufferWriterQueueSize +
-                ", flowControlSize=" + flowControlSize +
-                ", releaseFlowControlSize=" + releaseFlowControlSize +
+                ", flowControl=" + flowControl +
+                ", highWaterMark=" + highWaterMark +
+                ", lowWaterMark=" + lowWaterMark +
                 ", socketOptions=" + socketOptions +
                 ", isDirect=" + isDirect +
                 '}';

@@ -13,6 +13,7 @@ import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.SslService;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.expansion.handler.traffic.ChannelTrafficShapingHandler;
 
 import java.net.StandardSocketOptions;
 
@@ -29,15 +30,12 @@ public class AioServer {
             aioServerConfig.setPort(8888);
             //设置服务器端内存池最大可分配空间大小，默认256mb，内存池空间可以根据吞吐量设置。
             // 尽量可以设置大一点，因为这不会真正的占用系统内存，只有真正使用时才会分配
-            aioServerConfig.setServerChunkSize(512 * 1024 * 1024);
             //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
-            aioServerConfig.setBufferWriterQueueSize(1024 * 1024);
+            //aioServerConfig.setBufferWriterQueueSize(1024 * 1024);
             //设置读取缓存块大小，一般不用设置这个参数，默认128字节
-            aioServerConfig.setReadBufferSize(128);
-            //设置内存池等待分配内存的最大阻塞时间，默认是1秒
-            aioServerConfig.setChunkPoolBlockTime(1000);
+            //aioServerConfig.setReadBufferSize(128);
             //设置SocketOptions
-            aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
+            //aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
             AioServerStarter server = new AioServerStarter(8888);
             server.channelInitializer(new ChannelInitializer() {
@@ -47,8 +45,7 @@ public class AioServer {
                     DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                     //获取证书
-                    String pkPath = getClass().getClassLoader().getResource("serverStore.jks")
-                            .getPath();
+                    String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
                     //ssl配置
                     SslConfig sSLConfig = new SslConfig();
                     sSLConfig.setKeyFile(pkPath);
@@ -59,7 +56,7 @@ public class AioServer {
                     //设置服务器模式
                     sSLConfig.setClientMode(false);
                     //设置单向验证或双向验证
-                    sSLConfig.setClientAuth(ClientAuth.REQUIRE);
+                    sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
                     SslService sSLService = new SslService(sSLConfig);
                     //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));

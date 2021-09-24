@@ -15,6 +15,8 @@
  */
 package com.gettyio.expansion.handler.codec.http;
 
+import com.gettyio.expansion.handler.codec.http.response.HttpResponseStatus;
+
 /**
  * HttpException.java
  *

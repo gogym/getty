@@ -166,7 +166,6 @@ public class Base64 {
 
     /* ********  P U B L I C   F I E L D S  ******** */
 
-
     /**
      * No options specified. Value is zero.
      */

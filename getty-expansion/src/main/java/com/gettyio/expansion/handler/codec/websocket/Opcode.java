@@ -34,7 +34,7 @@ public enum Opcode {
      */
     CONTINUATION((byte) 0), TEXT((byte) 1), BINARY((byte) 2), CLOSE((byte) 8), PING((byte) 9), PONG((byte) 10);
 
-    private static Map<Byte, Opcode> map = new HashMap<>();
+    private static final Map<Byte, Opcode> map = new HashMap<>();
 
     static {
         for (Opcode opcode : values()) {
@@ -46,7 +46,7 @@ public enum Opcode {
         return map.get(code);
     }
 
-    private byte code;
+    private final byte code;
 
     private Opcode(byte code) {
         this.code = code;

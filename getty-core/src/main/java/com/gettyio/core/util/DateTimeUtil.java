@@ -16,14 +16,7 @@
 package com.gettyio.core.util;
 
 
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
-
-
-import java.text.ParseException;
-
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
 
@@ -37,8 +30,6 @@ import java.util.Date;
  */
 public class DateTimeUtil {
 
-    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(DateTimeUtil.class);
-
     /**
      * 获取当前系统时间
      *
@@ -48,176 +39,7 @@ public class DateTimeUtil {
         // 设置日期格式
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         // new Date()为获取当前系统时间
-        String time = df.format(new Date());
-        return time;
+        return df.format(new Date());
     }
-
-    /**
-     * Description: 获取当前系统日期
-     *
-     * @return
-     * @see
-     */
-    public static String getCurrentDate() {
-        // 设置日期格式
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-        // new Date()为获取当前系统时间
-        String time = df.format(new Date());
-        return time;
-    }
-
-    /**
-     * 获取当前系统时间
-     *
-     * @return
-     */
-    public static Long getCurrentLongTime() {
-        Long time = System.currentTimeMillis();
-        return time;
-    }
-
-    /**
-     * date类型转String类型
-     *
-     * @param date
-     * @return
-     */
-    public static String convertDateToString(Date date) {
-        // 设置日期格式
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return df.format(date);
-
-    }
-
-    /**
-     * date类型转String类型
-     *
-     * @param date
-     * @return
-     */
-    public static String convertLongToString(Long date) {
-        // 设置日期格式
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return df.format(new Date(date));
-
-    }
-
-    /**
-     * String类型转date类型
-     *
-     * @param time
-     * @return
-     */
-    public static Date convertStringToDate(String time) {
-        // 设置日期格式
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        try {
-            return df.parse(time);
-        } catch (ParseException e) {
-            LOGGER.error(e);
-        }
-        return null;
-    }
-
-
-    /**
-     * 获得指定时间的前一天
-     *
-     * @param specifiedDay
-     * @return
-     * @throws Exception
-     */
-    public static String getSpecifiedDayBefore(String specifiedDay) {
-        Calendar c = Calendar.getInstance();
-        Date date = null;
-        try {
-            date = new SimpleDateFormat("yy-MM-dd HH:mm:ss").parse(specifiedDay);
-        } catch (ParseException e) {
-            LOGGER.error(e);
-        }
-        c.setTime(date);
-        int day = c.get(Calendar.DATE);
-        c.set(Calendar.DATE, day - 1);
-
-        String dayBefore = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(c.getTime());
-        return dayBefore;
-    }
-
-    /**
-     * 获得指定时间的后一天
-     *
-     * @param specifiedDay
-     * @return
-     */
-    public static String getSpecifiedDayAfter(String specifiedDay) {
-        Calendar c = Calendar.getInstance();
-        Date date = null;
-
-        try {
-            date = new SimpleDateFormat("yy-MM-dd HH:mm:ss").parse(specifiedDay);
-        } catch (ParseException e) {
-            LOGGER.error(e);
-        }
-
-        c.setTime(date);
-        int day = c.get(Calendar.DATE);
-        c.set(Calendar.DATE, day + 1);
-
-        String dayAfter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(c.getTime());
-        return dayAfter;
-    }
-
-    /**
-     * 获得指定时间的前一天
-     *
-     * @param specifiedDay
-     * @return
-     * @throws Exception
-     */
-    public static String getSpecifiedDayBefore(Date specifiedDay) {
-        Calendar c = Calendar.getInstance();
-        Date date = specifiedDay;
-        c.setTime(date);
-        int day = c.get(Calendar.DATE);
-        c.set(Calendar.DATE, day - 1);
-
-        String dayBefore = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(c.getTime());
-        return dayBefore;
-    }
-
-    /**
-     * 获得指定时间的后一天
-     *
-     * @param specifiedDay
-     * @return
-     */
-    public static String getSpecifiedDayAfter(Date specifiedDay) {
-        Calendar c = Calendar.getInstance();
-        Date date = specifiedDay;
-
-        c.setTime(date);
-        int day = c.get(Calendar.DATE);
-        c.set(Calendar.DATE, day + 1);
-
-        String dayAfter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(c.getTime());
-        return dayAfter;
-    }
-
-    /**
-     * 获得当天0点时间
-     *
-     * @author：gj
-     * @date: 2017/3/10
-     * @time: 12:29
-     **/
-    public static Long getTimesMorning() {
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        return cal.getTimeInMillis();
-    }
-
 
 }

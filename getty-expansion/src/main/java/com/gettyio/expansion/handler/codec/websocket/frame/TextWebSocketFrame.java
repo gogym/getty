@@ -37,9 +37,9 @@ public class TextWebSocketFrame extends WebSocketFrame {
     public TextWebSocketFrame(String text) {
         setOpcode(Opcode.TEXT.getCode());
         try {
-            byte[] bytes = text.getBytes("utf-8");
+            byte[] bytes = text.getBytes(CharsetUtil.UTF_8);
             setPayloadData(bytes);
-        } catch (UnsupportedEncodingException e) {
+        } catch (Exception e) {
             LOGGER.error(e);
         }
     }

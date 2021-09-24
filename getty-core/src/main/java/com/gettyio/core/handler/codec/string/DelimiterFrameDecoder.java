@@ -18,7 +18,7 @@ package com.gettyio.core.handler.codec.string;
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -51,7 +51,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
 
         byte[] bytes = (byte[]) obj;
         int index = 0;
@@ -62,7 +62,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
                 exceptIndex = 0;
             } else if (++exceptIndex == endFLag.length) {
                 //传递到下一个解码器
-                super.decode(socketChannel, preBuffer.array(), out);
+                super.decode(socketChannel, preBuffer.allWriteBytesArray(), out);
                 preBuffer.clear();
                 exceptIndex = 0;
             }

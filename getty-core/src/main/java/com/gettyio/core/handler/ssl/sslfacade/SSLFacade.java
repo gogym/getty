@@ -14,8 +14,7 @@ public class SSLFacade implements ISSLFacade {
     private final Worker _worker;
     private boolean _clientMode;
 
-    public SSLFacade(SSLContext context, boolean client,
-                     boolean clientAuthRequired, ITaskHandler taskHandler) {
+    public SSLFacade(SSLContext context, boolean client, boolean clientAuthRequired, ITaskHandler taskHandler) {
         //Currently there is no support for SSL session reuse,
         // so no need to take a peerHost or port from the host application
         final String who = client ? "client" : "server";

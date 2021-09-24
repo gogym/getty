@@ -16,7 +16,6 @@
 package com.gettyio.core.channel;
 
 
-import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
@@ -28,9 +27,11 @@ import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
 import com.gettyio.core.util.ConcurrentSafeMap;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -69,13 +70,18 @@ public abstract class SocketChannel {
     /**
      * 是否已经握手
      */
-    protected boolean handShak = false;
+    protected boolean handShake = false;
+
+    /**
+     * 当前通道是否可写入
+     */
+    protected boolean writeable = true;
 
 
     /**
      * 内存池
      */
-    protected ChunkPool chunkPool;
+    protected ByteBufAllocator byteBufAllocator;
 
     /**
      * 会话当前状态
@@ -99,7 +105,7 @@ public abstract class SocketChannel {
     /**
      * 用于保存以及decode的消息
      */
-    private LinkedNonReadBlockQueue<Object> outList = new LinkedNonReadBlockQueue<>();
+    private final LinkedBlockQueue<Object> outList = new LinkedBlockQueue<>();
 
     /**
      * 用于方便设置随通道传播的属性
@@ -154,7 +160,7 @@ public abstract class SocketChannel {
      *
      * @param obj 写入的数组
      */
-    public abstract void writeAndFlush(Object obj);
+    public abstract boolean writeAndFlush(Object obj);
 
     /**
      * 写到BufferWriter输出器，不经过责任链
@@ -299,11 +305,13 @@ public abstract class SocketChannel {
         return null;
     }
 
-
-    public ChunkPool getChunkPool() {
-        return chunkPool;
+    public ByteBufAllocator getByteBufAllocator() {
+        return byteBufAllocator;
     }
 
+    public ThreadPool getWorkerThreadPool() {
+        return null;
+    }
 
     public ChannelPipeline getChannelPipeline() {
         return null;
@@ -326,10 +334,12 @@ public abstract class SocketChannel {
         return null;
     }
 
+    public IHandshakeCompletedListener getSslHandshakeCompletedListener() {
+        return null;
+    }
 
     public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
     }
-
 
     public BaseConfig getConfig() {
         return this.config;
@@ -338,7 +348,6 @@ public abstract class SocketChannel {
     public void setChannelFutureListener(ChannelFutureListener channelFutureListener) {
         this.channelFutureListener = channelFutureListener;
     }
-
 
     public ConcurrentSafeMap<String, Object> getChannelAttribute() {
         return channelAttribute;
@@ -351,11 +360,9 @@ public abstract class SocketChannel {
         return channelAttribute.get(key);
     }
 
-
     public void setChannelAttribute(String key, Object obj) {
         this.channelAttribute.put(key, obj);
     }
-
 
     public void removeChannelAttribute(String key) {
         if (StringUtil.isEmpty(key)) {
@@ -363,7 +370,6 @@ public abstract class SocketChannel {
         }
         this.channelAttribute.remove(key);
     }
-
 
     public void setKeepAlive(boolean keepAlive) {
         this.keepAlive = keepAlive;
@@ -377,11 +383,15 @@ public abstract class SocketChannel {
         return initiateClose;
     }
 
-    public boolean isHandShak() {
-        return handShak;
+    public boolean isHandShake() {
+        return handShake;
     }
 
-    public void setHandShak(boolean handShak) {
-        this.handShak = handShak;
+    public void setHandShake(boolean handShake) {
+        this.handShake = handShake;
+    }
+
+    public boolean isWriteable() {
+        return writeable;
     }
 }

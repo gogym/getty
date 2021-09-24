@@ -15,10 +15,10 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.constant.Banner;
 import com.gettyio.core.constant.Version;
-import com.gettyio.core.util.Time;
+import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.util.PlatformDependent;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -48,6 +48,7 @@ import java.util.concurrent.*;
  * @copyright: Copyright by gettyio.com
  */
 public class AioServerStarter extends AioStarter {
+
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioServerStarter.class);
 
     /**
@@ -66,7 +67,7 @@ public class AioServerStarter extends AioStarter {
     /**
      * aio服务端通道
      */
-    private AsynchronousServerSocketChannel serverSocketChannel = null;
+    private AsynchronousServerSocketChannel serverSocketChannel;
 
     /**
      * 服务线程运行标志
@@ -100,13 +101,6 @@ public class AioServerStarter extends AioStarter {
      * @param config 配置
      */
     public AioServerStarter(ServerConfig config) {
-        if (config == null) {
-            throw new NullPointerException("AioServerConfig can't null");
-        }
-
-        if (config.getPort() == 0) {
-            throw new NullPointerException("AioServerConfig port can't null");
-        }
         this.config = config;
     }
 
@@ -135,6 +129,12 @@ public class AioServerStarter extends AioStarter {
         return this;
     }
 
+    /**
+     * 设置worker线程数
+     *
+     * @param threadNum
+     * @return
+     */
     public AioServerStarter workerThreadNum(int threadNum) {
         if (threadNum >= 3) {
             this.workerThreadNum = threadNum;
@@ -151,101 +151,26 @@ public class AioServerStarter extends AioStarter {
     public void start() throws Exception {
         //打印框架信息
         LOGGER.info("\r\n" + Banner.BANNER + "\r\n  getty version:(" + Version.VERSION + ")");
+        //启动检查
+        startCheck();
 
-        if (channelPipeline == null) {
-            throw new RuntimeException("ChannelPipeline can't be null");
-        }
-
-        if (chunkPool == null) {
-            //实例化内存池
-            this.chunkPool = new ChunkPool(config.getServerChunkSize(), new Time(), config.isDirect());
-        }
+        //实例化内存池
+        this.byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && config.isDirect());
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-        //启动
-        //startTcp();
-        startTcpAsyn();
+
+        startTcp();
     }
 
     /**
-     * 启动TCP
+     * 启动非阻塞式的TCP
      *
-     * @throws IOException 异常
+     * @throws IOException
      */
     private final void startTcp() throws IOException {
-        try {
-
-            //实例化读写回调
-            readCompletionHandler = new ReadCompletionHandler(workerThreadPool);
-            writeCompletionHandler = new WriteCompletionHandler();
-
-            //IO线程分组
-            asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, new ThreadFactory() {
-                @Override
-                public Thread newThread(Runnable target) {
-                    return new Thread(target);
-                }
-            });
-
-            //打开服务通道
-            this.serverSocketChannel = AsynchronousServerSocketChannel.open(asynchronousChannelGroup);
-            //设置socket参数
-            if (config.getSocketOptions() != null) {
-                for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
-                    this.serverSocketChannel.setOption(entry.getKey(), entry.getValue());
-                }
-            }
-
-            //绑定端口
-            if (config.getHost() != null) {
-                //服务端socket处理客户端socket连接是需要一定时间的。ServerSocket有一个队列，存放还没有来得及处理的客户端Socket，这个队列的容量就是backlog的含义。
-                // 如果队列已经被客户端socket占满了，如果还有新的连接过来，那么ServerSocket会拒绝新的连接。
-                // 也就是说backlog提供了容量限制功能，避免太多的客户端socket占用太多服务器资源
-                serverSocketChannel.bind(new InetSocketAddress(config.getHost(), config.getPort()), 1000);
-            } else {
-                serverSocketChannel.bind(new InetSocketAddress(config.getPort()), 1000);
-            }
-
-            //开启线程，开始接收客户端的连接
-            bossThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    //循环监听客户端的连接
-                    while (running) {
-                        //调用该方法返回的Future对象的get()方法
-                        Future<AsynchronousSocketChannel> future = serverSocketChannel.accept();
-                        try {
-                            //get方法会阻塞该线程，直到有客户端连接过来，有点类似MQ，所以这种方式是阻塞式的异步IO
-                            final AsynchronousSocketChannel channel = future.get();
-
-                            //通过线程池创建客户端连接通道
-                            bossThreadPool.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    //开始创建客户端会话
-                                    AioServerStarter.this.createTcpChannel(channel);
-                                }
-                            });
-                        } catch (Exception e) {
-                            LOGGER.error("AsynchronousSocketChannel accept Exception", e);
-                        }
-                    }
-                }
-            });
-
-        } catch (IOException e) {
-            shutdown();
-            throw e;
-        }
-        LOGGER.info("getty server started TCP on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
-        LOGGER.info("getty server config is {}", config.toString());
-    }
-
-
-    private final void startTcpAsyn() throws IOException {
         try {
 
             //实例化读写回调
@@ -288,19 +213,17 @@ public class AioServerStarter extends AioStarter {
                         @Override
                         public void completed(AsynchronousSocketChannel result, Object attachment) {
                             AioServerStarter.this.createTcpChannel(result);
-                            serverSocketChannel.accept(null,this);
+                            serverSocketChannel.accept(null, this);
                         }
 
                         @Override
                         public void failed(Throwable exc, Object attachment) {
-                            if(serverSocketChannel!=null){
-                                LOGGER.error("accept failed at time:"+ DateTimeUtil.getCurrentTime(),exc);
-                                serverSocketChannel.accept(null,this);
+                            if (serverSocketChannel != null) {
+                                LOGGER.error("accept failed at time:" + DateTimeUtil.getCurrentTime(), exc);
+                                serverSocketChannel.accept(null, this);
                             }
                         }
                     });
-
-
                 }
             });
 
@@ -309,10 +232,52 @@ public class AioServerStarter extends AioStarter {
             throw e;
         }
         LOGGER.info("getty server started TCP on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
-        LOGGER.info("getty server config is {}", config.toString());
+        LOGGER.info("getty server config : {}", config.toString());
     }
 
+    /**
+     * 停止服务
+     */
+    public final void shutdown() {
+        //接收线程标志置为false
+        running = false;
+        if (serverSocketChannel != null) {
+            try {
+                serverSocketChannel.close();
+            } catch (IOException e) {
+                LOGGER.error(" serverSocketChannel.close()", e);
+            }
+            serverSocketChannel = null;
+        }
 
+        if (!bossThreadPool.isShutDown()) {
+            bossThreadPool.shutdownNow();
+        }
+        if (!workerThreadPool.isShutDown()) {
+            workerThreadPool.shutdownNow();
+        }
+
+        if (!asynchronousChannelGroup.isShutdown()) {
+            try {
+                asynchronousChannelGroup.shutdownNow();
+            } catch (IOException e) {
+                LOGGER.error("asynchronousChannelGroup.shutdownNow()", e);
+            }
+        }
+
+        try {
+            //该方法必须在shutdown或shutdownNow后执行,才会生效。否则会造成死锁
+            //大概意思是这样的：该方法调用会被阻塞，并且在以下几种情况任意一种发生时都会导致该方法的执行:
+            // 即shutdown方法被调用之后，或者参数中定义的timeout时间到达或者当前线程被打断，这几种情况任意一个发生了都会导致该方法在所有任务完成之后才执行。
+            boolean b = asynchronousChannelGroup.awaitTermination(5, TimeUnit.SECONDS);
+            if (b) {
+                LOGGER.info("asynchronousChannelGroup shutdown success at " + new Date());
+            }
+        } catch (InterruptedException e) {
+            LOGGER.error("asynchronousChannelGroup.awaitTermination()", e);
+        }
+        LOGGER.info("server shutdown at " + new Date());
+    }
 
     /**
      * 为每个新连接创建AioChannel对象
@@ -322,7 +287,7 @@ public class AioServerStarter extends AioStarter {
     private void createTcpChannel(AsynchronousSocketChannel channel) {
         SocketChannel aioChannel = null;
         try {
-            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, chunkPool, channelPipeline);
+            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufAllocator, channelPipeline);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {
@@ -358,51 +323,26 @@ public class AioServerStarter extends AioStarter {
     }
 
     /**
-     * 停止服务
+     * 启动检查
      */
-    public final void shutdown() {
-        //接收线程标志置为false
-        running = false;
-        if (serverSocketChannel != null) {
-            try {
-                serverSocketChannel.close();
-            } catch (IOException e) {
-                LOGGER.error(" serverSocketChannel.close()",e);
+    private void startCheck() {
+        if (config == null) {
+            throw new NullPointerException("AioServerConfig can't null");
+        }
+
+        if (config.getPort() == 0) {
+            throw new NullPointerException("AioServerConfig port can't null");
+        }
+        if (channelPipeline == null) {
+            throw new RuntimeException("ChannelPipeline can't be null");
+        }
+        if (config.isFlowControl()) {
+            if (config.getLowWaterMark() >= config.getHighWaterMark()) {
+                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
             }
-            serverSocketChannel = null;
-        }
-
-        if (!bossThreadPool.isShutDown()) {
-            bossThreadPool.shutdownNow();
-        }
-        if (!workerThreadPool.isShutDown()) {
-            workerThreadPool.shutdownNow();
-        }
-
-        if (!asynchronousChannelGroup.isShutdown()) {
-            try {
-                asynchronousChannelGroup.shutdownNow();
-            } catch (IOException e) {
-                LOGGER.error("asynchronousChannelGroup.shutdownNow()",e);
+            if (config.getHighWaterMark() >= config.getBufferWriterQueueSize()) {
+                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
             }
         }
-
-        try {
-            //该方法必须在shutdown或shutdownNow后执行,才会生效。否则会造成死锁
-            //大概意思是这样的：该方法调用会被阻塞，并且在以下几种情况任意一种发生时都会导致该方法的执行:
-            // 即shutdown方法被调用之后，或者参数中定义的timeout时间到达或者当前线程被打断，这几种情况任意一个发生了都会导致该方法在所有任务完成之后才执行。
-            boolean b=asynchronousChannelGroup.awaitTermination(5, TimeUnit.SECONDS);
-            if(b){
-                LOGGER.info("asynchronousChannelGroup shutdown success at " + new Date());
-            }
-
-        } catch (InterruptedException e) {
-            LOGGER.error("asynchronousChannelGroup.awaitTermination()",e);
-        }
-
-        LOGGER.info("server shutdown at " + new Date());
     }
-
-
-
 }

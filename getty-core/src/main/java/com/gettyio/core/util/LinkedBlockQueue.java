@@ -116,25 +116,42 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
      */
     @Override
     public T poll() throws InterruptedException {
-        T t;
+
+        lock.lock();
+        try {
+            // 如果队列没有元素则返回null，否则出队
+            return (count == 0) ? null : dequeue();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public T take() throws InterruptedException {
+
         lock.lock();
         try {
             while (count == 0) {
                 //出队阻塞
                 notEmpty.await();
             }
-            t = this.items[removeIndex];
-            this.items[removeIndex] = null;
-            if (++removeIndex == items.length) {
-                removeIndex = 0;
-            }
-            count--;
-            notFull.signal();
+            return dequeue();
         } finally {
             lock.unlock();
         }
+    }
+
+    private T dequeue() {
+        T t = this.items[removeIndex];
+        this.items[removeIndex] = null;
+        if (++removeIndex == items.length) {
+            removeIndex = 0;
+        }
+        count--;
+        notFull.signal();
         return t;
     }
+
 
     private void checkNull(T t) {
         if (t == null) {
@@ -152,8 +169,6 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
     public int getCount() {
         return count;
     }
-
-
 
 
 }

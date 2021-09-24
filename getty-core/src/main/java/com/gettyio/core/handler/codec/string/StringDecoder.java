@@ -17,7 +17,8 @@ package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.CharsetUtil;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -31,9 +32,9 @@ import com.gettyio.core.util.LinkedNonReadBlockQueue;
 public class StringDecoder extends ObjectToMessageDecoder {
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
 
-        String str = new String((byte[]) obj, "utf-8");
+        String str = new String((byte[]) obj, CharsetUtil.UTF_8);
         out.put(str);
         super.decode(socketChannel, obj, out);
     }

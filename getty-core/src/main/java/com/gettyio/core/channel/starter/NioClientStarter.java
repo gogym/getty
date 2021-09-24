@@ -15,8 +15,8 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.util.Time;
+import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.util.PlatformDependent;
 import com.gettyio.core.channel.*;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
@@ -146,15 +146,13 @@ public class NioClientStarter extends NioStarter {
      * @throws Exception
      */
     private void start0(ConnectHandler connectHandler) throws Exception {
-        if (this.channelPipeline == null) {
-            throw new NullPointerException("The ChannelPipeline is null.");
-        }
+        startCheck();
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
         //初始化内存池
-        chunkPool = new ChunkPool(clientConfig.getClientChunkSize(), new Time(), clientConfig.isDirect());
+        byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && clientConfig.isDirect());
         //调用内部启动
-        nioEventLoop = new NioEventLoop(clientConfig, chunkPool);
+        nioEventLoop = new NioEventLoop(clientConfig, byteBufAllocator);
         nioEventLoop.run();
         if (socketMode == SocketMode.TCP) {
             startTcp(connectHandler);
@@ -175,7 +173,7 @@ public class NioClientStarter extends NioStarter {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
-
+        //设为非阻塞
         socketChannel.configureBlocking(false);
         /*
          * 连接到指定的服务地址
@@ -201,8 +199,8 @@ public class NioClientStarter extends NioStarter {
                     if (channel.isConnectionPending()) {
                         channel.finishConnect();
                         try {
-                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, channelPipeline);
-                            if (null != connectHandler) {
+                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, byteBufAllocator, workerThreadPool, channelPipeline);
+                            if (connectHandler != null) {
                                 if (null != nioChannel.getSslHandler()) {
                                     nioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
                                         @Override
@@ -231,18 +229,21 @@ public class NioClientStarter extends NioStarter {
             }
             it.remove();
         }
-
-
     }
 
-
+    /**
+     * 启动udp
+     *
+     * @param connectHandler
+     * @throws IOException
+     */
     private final void startUdp(ConnectHandler connectHandler) throws IOException {
 
         DatagramChannel datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
         Selector selector = Selector.open();
         datagramChannel.register(selector, SelectionKey.OP_READ);
-        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, chunkPool, channelPipeline, 3);
+        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, byteBufAllocator, channelPipeline, 3);
         nioChannel.starRead();
         if (null != connectHandler) {
             connectHandler.onCompleted(nioChannel);
@@ -254,12 +255,6 @@ public class NioClientStarter extends NioStarter {
      * 停止客户端
      */
     public final void shutdown() {
-        showdown0(false);
-    }
-
-
-    private void showdown0(boolean flag) {
-
         if (nioChannel != null) {
             nioChannel.close();
             nioChannel = null;
@@ -277,6 +272,7 @@ public class NioClientStarter extends NioStarter {
             nioEventLoop.shutdown();
         }
     }
+
 
     /**
      * 关闭客户端连接通道
@@ -302,25 +298,26 @@ public class NioClientStarter extends NioStarter {
     }
 
     /**
-     * 获取AioChannel
-     *
-     * @return AioChannel
-     * @since 1.3.5
-     * @deprecated 该方法已过时，请使用ConnectHandler回调获取channel
+     * 启动检查
      */
-    @Deprecated
-    public SocketChannel getNioChannel() {
-        if (nioChannel != null) {
-            if ((nioChannel.getSslHandler()) != null && socketMode != SocketMode.UDP) {
-                //如果开启了ssl,要先判断是否已经完成握手
-                if (nioChannel.getSslHandler().getSslService().getSsl().isHandshakeCompleted()) {
-                    return nioChannel;
-                }
-                nioChannel.close();
-                throw new RuntimeException("The SSL handshcke is not yet complete");
-            }
-            return nioChannel;
+    private void startCheck() {
+        if (null == clientConfig.getHost() || "".equals(clientConfig.getHost())) {
+            throw new NullPointerException("The connection host is null.");
         }
-        throw new NullPointerException("AioChannel was null");
+        if (0 == clientConfig.getPort()) {
+            throw new NullPointerException("The connection port is null.");
+        }
+        if (channelPipeline == null) {
+            throw new RuntimeException("ChannelPipeline can't be null");
+        }
+        if (clientConfig.isFlowControl()) {
+            if (clientConfig.getLowWaterMark() >= clientConfig.getHighWaterMark()) {
+                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
+            }
+            if (clientConfig.getHighWaterMark() >= clientConfig.getBufferWriterQueueSize()) {
+                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
+            }
+        }
     }
+
 }

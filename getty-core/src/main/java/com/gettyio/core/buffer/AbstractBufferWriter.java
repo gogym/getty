@@ -31,14 +31,6 @@ import java.io.OutputStream;
 public abstract class AbstractBufferWriter<T> extends OutputStream {
 
     /**
-     * 内存池
-     */
-    ChunkPool chunkPool;
-    /**
-     * 内存申请最大阻塞时间
-     */
-    int chunkPoolBlockTime;
-    /**
      * 当前是否已关闭
      */
     boolean closed = false;
@@ -55,10 +47,6 @@ public abstract class AbstractBufferWriter<T> extends OutputStream {
     public void flush() throws IOException {
     }
 
-    @Override
-    public void close() throws IOException {
-    }
-
     /**
      * 写入队列，并刷新
      *
@@ -67,6 +55,11 @@ public abstract class AbstractBufferWriter<T> extends OutputStream {
      */
     public void writeAndFlush(byte[] b) throws IOException {
     }
+
+    @Override
+    public void close() throws IOException {
+    }
+
 
     /**
      * 是否已经关闭
@@ -81,5 +74,12 @@ public abstract class AbstractBufferWriter<T> extends OutputStream {
      * @return
      */
     public abstract T poll();
+
+    /**
+     * 获取队列数量
+     *
+     * @return
+     */
+    public abstract int getCount();
 
 }

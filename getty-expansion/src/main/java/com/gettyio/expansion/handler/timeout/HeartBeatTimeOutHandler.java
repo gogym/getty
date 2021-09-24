@@ -20,7 +20,7 @@ import com.gettyio.core.constant.IdleState;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -50,7 +50,7 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
 
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         loss_connect_time = 0;
         super.decode(socketChannel, obj, out);
     }

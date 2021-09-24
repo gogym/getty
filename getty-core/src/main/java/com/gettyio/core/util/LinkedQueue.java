@@ -28,6 +28,7 @@ public interface LinkedQueue<T> {
 
     /**
      * 获取mq底层数组对象
+     *
      * @param componentType
      * @param length
      * @param <T>
@@ -37,27 +38,38 @@ public interface LinkedQueue<T> {
 
     /**
      * 加入一个元素
+     *
      * @param t
-     * @throws InterruptedException
      * @return t
+     * @throws InterruptedException
      */
     T put(T t) throws InterruptedException;
 
     /**
-     * 从队列获取一个元素
+     *
+     *从队列获取一个元素,如果没有返回null
      * @return
      * @throws InterruptedException
      */
     T poll() throws InterruptedException;
 
     /**
+     * 从队列获取一个元素,如果没有则阻塞
+     * @return
+     * @throws InterruptedException
+     */
+    T take() throws InterruptedException;
+
+    /**
      * 获取当前队列的元素数量
+     *
      * @return
      */
     int getCount();
 
     /**
      * 获取队列初始化大小
+     *
      * @return
      */
     int getCapacity();

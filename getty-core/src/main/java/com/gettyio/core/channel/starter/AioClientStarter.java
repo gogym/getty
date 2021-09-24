@@ -15,8 +15,8 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.util.Time;
+import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.util.PlatformDependent;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ClientConfig;
@@ -57,7 +57,6 @@ public class AioClientStarter extends AioStarter {
      */
     private SocketChannel aioChannel;
 
-
     /**
      * 简单启动
      *
@@ -76,12 +75,6 @@ public class AioClientStarter extends AioStarter {
      * @param clientConfig 配置
      */
     public AioClientStarter(ClientConfig clientConfig) {
-        if (null == clientConfig.getHost() || "".equals(clientConfig.getHost())) {
-            throw new NullPointerException("The connection host is null.");
-        }
-        if (0 == clientConfig.getPort()) {
-            throw new NullPointerException("The connection port is null.");
-        }
         this.clientConfig = clientConfig;
     }
 
@@ -112,9 +105,8 @@ public class AioClientStarter extends AioStarter {
         }
     }
 
-
     /**
-     * 启动客户端,连接成功回调
+     * 启动客户端,回调
      *
      * @param connectHandler
      * @throws Exception
@@ -125,7 +117,6 @@ public class AioClientStarter extends AioStarter {
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
             connectHandler.onFailed(e);
-            return;
         }
     }
 
@@ -136,14 +127,11 @@ public class AioClientStarter extends AioStarter {
      * @param connectHandler
      */
     private void start0(ConnectHandler connectHandler) throws Exception {
-        if (this.channelPipeline == null) {
-            throw new NullPointerException("The ChannelPipeline is null.");
-        }
+        startCheck();
         //初始化worker线程池
         workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
         //初始化内存池
-        chunkPool = new ChunkPool(clientConfig.getClientChunkSize(), new Time(), clientConfig.isDirect());
-
+        byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && clientConfig.isDirect());
 
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
@@ -178,22 +166,33 @@ public class AioClientStarter extends AioStarter {
             public void completed(Void result, AsynchronousSocketChannel attachment) {
                 LOGGER.info("connect aio server success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), chunkPool, channelPipeline);
+                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), byteBufAllocator, channelPipeline);
+                //开始读
+                aioChannel.starRead();
 
-                if (null != connectHandler) {
-                    if (null != aioChannel.getSslHandler()) {
+                if (connectHandler != null) {
+                    if (aioChannel.getSslHandler() != null) {
                         aioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
                             @Override
                             public void onComplete() {
-                                LOGGER.info("Ssl Handshake Completed");
-                                connectHandler.onCompleted(aioChannel);
+                                LOGGER.info("ssl Handshake Completed");
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        connectHandler.onCompleted(aioChannel);
+                                    }
+                                }).start();
                             }
                         });
                     } else {
-                        connectHandler.onCompleted(aioChannel);
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                connectHandler.onCompleted(aioChannel);
+                            }
+                        }).start();
                     }
                 }
-                aioChannel.starRead();
             }
 
             @Override
@@ -211,13 +210,8 @@ public class AioClientStarter extends AioStarter {
      * 停止客户端
      */
     public final void shutdown() {
-        showdown0(false);
-    }
-
-
-    private void showdown0(boolean flag) {
         if (aioChannel != null) {
-            aioChannel.close(flag);
+            aioChannel.close(true);
             aioChannel = null;
         }
         //仅Client内部创建的ChannelGroup需要shutdown
@@ -225,20 +219,15 @@ public class AioClientStarter extends AioStarter {
             asynchronousChannelGroup.shutdown();
             asynchronousChannelGroup = null;
         }
-
-        LOGGER.info("getty shutdown at "+new Date());
+        LOGGER.info("getty shutdown at " + new Date());
     }
 
-
     /**
-     * 获取AioChannel
+     * 获取通道
      *
-     * @return AioChannel
-     * @since 1.3.5
-     * @deprecated 该方法已过期，请使用ConnectHandler回调来获取channel
+     * @return
      */
-    @Deprecated
-    public SocketChannel getAioChannel() {
+    public SocketChannel getChannel() {
         if (aioChannel != null) {
             if (aioChannel.getSslHandler() != null) {
                 //如果开启了ssl,要先判断是否已经完成握手
@@ -250,6 +239,30 @@ public class AioClientStarter extends AioStarter {
             }
             return aioChannel;
         }
-        throw new NullPointerException("AioChannel was null");
+        throw new NullPointerException("aioChannel is null");
+    }
+
+
+    /**
+     * 启动检查
+     */
+    private void startCheck() {
+        if (null == clientConfig.getHost() || "".equals(clientConfig.getHost())) {
+            throw new NullPointerException("The connection host is null.");
+        }
+        if (0 == clientConfig.getPort()) {
+            throw new NullPointerException("The connection port is null.");
+        }
+        if (channelPipeline == null) {
+            throw new RuntimeException("ChannelPipeline can't be null");
+        }
+        if (clientConfig.isFlowControl()) {
+            if (clientConfig.getLowWaterMark() >= clientConfig.getHighWaterMark()) {
+                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
+            }
+            if (clientConfig.getHighWaterMark() >= clientConfig.getBufferWriterQueueSize()) {
+                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
+            }
+        }
     }
 }

@@ -73,11 +73,11 @@ public class WebSocketEncoder extends MessageToByteEncoder {
 
     @Override
     public void encode(SocketChannel aioChannel, Object obj) throws Exception {
-        if (aioChannel.isHandShak()) {
+        if (WebSocketHandShake.isHandShake()) {
             byte[] bytes;
             if (obj instanceof WebSocketFrame) {
                 bytes = ((WebSocketFrame) obj).getPayloadData();
-                if (Integer.valueOf(WebSocketDecoder.protocolVersion) <= WebSocketConstants.SPLITVERSION0) {
+                if (WebSocketDecoder.protocolVersion <= WebSocketConstants.SPLIT_VERSION0) {
                     AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
                     autoByteBuffer.writeBytes(WebSocketConstants.BEGIN_MSG.getBytes(CharsetUtil.UTF_8));
                     autoByteBuffer.writeBytes(bytes);

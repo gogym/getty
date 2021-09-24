@@ -4,6 +4,9 @@ package test.http;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.expansion.handler.codec.http.*;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
+import com.gettyio.expansion.handler.codec.http.request.HttpRequest;
+import com.gettyio.expansion.handler.codec.http.response.HttpResponse;
+import com.gettyio.expansion.handler.codec.http.response.HttpResponseStatus;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
     @Override
@@ -21,7 +24,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
     @Override
     public void channelRead0(SocketChannel aioChannel, HttpRequest request) {
-        System.out.println("读取消息了:" + request.getHttpVersion());
+        System.out.println("version:" + request.getHttpVersion()+"---header:"+request.getHeader("Connection")+"---body:"+ request.getParameter("id"));
         //设置keep-alive为false
         //aioChannel.setKeepAlive(false);
 
@@ -30,7 +33,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
         response.getHttpHeaders().setHeader(HttpHeaders.Names.CONTENT_TYPE, "text/plain;charset=utf-8");
         //response.getHttpHeaders().setHeader(HttpHeaders.Names.TRANSFER_ENCODING,"chunked");
         //response.getHttpHeaders().setHeader(HttpHeaders.Names.CONTENT_ENCODING,HttpHeaders.Values.GZIP);
-        //response.getHttpHeaders().setHeader(HttpHeaders.Names.CONTENT_LENGTH,"111".getBytes().length);
+        response.getHttpHeaders().setHeader(HttpHeaders.Names.CONTENT_LENGTH,"111".getBytes().length);
         response.getHttpBody().setContent("111".getBytes());
         aioChannel.writeAndFlush(response);
     }

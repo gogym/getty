@@ -17,8 +17,6 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
 
 
 
@@ -26,8 +24,6 @@ import com.gettyio.core.logging.InternalLoggerFactory;
  * Web Socket frame containing binary data.
  */
 public class PongWebSocketFrame extends WebSocketFrame {
-
-    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TextWebSocketFrame.class);
 
     public PongWebSocketFrame() {
         setOpcode(Opcode.PONG.getCode());

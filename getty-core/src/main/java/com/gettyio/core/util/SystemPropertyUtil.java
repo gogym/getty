@@ -16,9 +16,6 @@
 package com.gettyio.core.util;
 
 
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
-
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.regex.Pattern;
@@ -33,35 +30,22 @@ import java.util.regex.Pattern;
  * @copyright: Copyright by gettyio.com
  */
 public final class SystemPropertyUtil {
+    private static final Pattern INTEGER_PATTERN = Pattern.compile("-?[0-9]+");
 
-    private static boolean initializedLogger;
-    private final static InternalLogger logger = InternalLoggerFactory.getInstance(SystemPropertyUtil.class);
-
-    private static boolean loggedException;
-
-    static {
-        initializedLogger = false;
-        initializedLogger = true;
+    private SystemPropertyUtil() {
     }
 
     /**
-     * 当且仅当具有指定的{@code key}的系统属性存在时，返回{@code true}
-     */
-    public static boolean contains(String key) {
-        return get(key) != null;
-    }
-
-    /**
-     * 返回指定的Java系统属性的值
-     * {@code key}, 如果属性访问失败，则返回指定的默认值
+     * 返回带有指定的{@code key}的Java系统属性的值，如果属性访问失败则返回{@code null}。
+     *
+     * @return属性值或{@code null}
      */
     public static String get(String key) {
         return get(key, null);
     }
 
     /**
-     * 返回指定的Java系统属性的值
-     * {@code key}, 如果属性访问失败，则返回指定的默认值
+     * 返回带有指定的{@code键}的Java系统属性的值，如果属性访问失败则返回指定的默认值。
      */
     public static String get(final String key, String def) {
         if (key == null) {
@@ -84,23 +68,14 @@ public final class SystemPropertyUtil {
                 });
             }
         } catch (Exception e) {
-            if (!loggedException) {
-                log("Unable to retrieve a system property '" + key + "'; default values will be used.", e);
-                loggedException = true;
-            }
-        }
 
+        }
         if (value == null) {
             return def;
         }
-
         return value;
     }
 
-    /**
-     * 返回指定的Java系统属性的值
-     * {@code key}, 如果属性访问失败，则返回指定的默认值
-     */
     public static boolean getBoolean(String key, boolean def) {
         String value = get(key);
         if (value == null) {
@@ -119,24 +94,14 @@ public final class SystemPropertyUtil {
         if ("false".equals(value) || "no".equals(value) || "0".equals(value)) {
             return false;
         }
-
-        log("Unable to parse the boolean system property '" + key + "':" + value + " - " + "using the default value: " + def);
-
         return def;
     }
 
-    private static final Pattern INTEGER_PATTERN = Pattern.compile("-?[0-9]+");
-
-    /**
-     * 返回指定的Java系统属性的值
-     * {@code key}, 如果属性访问失败，则返回指定的默认值
-     */
     public static int getInt(String key, int def) {
         String value = get(key);
         if (value == null) {
             return def;
         }
-
         value = value.trim().toLowerCase();
         if (INTEGER_PATTERN.matcher(value).matches()) {
             try {
@@ -145,47 +110,7 @@ public final class SystemPropertyUtil {
                 // Ignore
             }
         }
-
-        log("Unable to parse the integer system property '" + key + "':" + value + " - " + "using the default value: " + def);
-
         return def;
     }
 
-    /**
-     * 返回指定的Java系统属性的值
-     * {@code key}, 如果属性访问失败，则返回指定的默认值
-     */
-    public static long getLong(String key, long def) {
-        String value = get(key);
-        if (value == null) {
-            return def;
-        }
-
-        value = value.trim().toLowerCase();
-        if (INTEGER_PATTERN.matcher(value).matches()) {
-            try {
-                return Long.parseLong(value);
-            } catch (Exception e) {
-                // Ignore
-            }
-        }
-        log("Unable to parse the long integer system property '" + key + "':" + value + " - " + "using the default value: " + def);
-        return def;
-    }
-
-    private static void log(String msg) {
-        if (initializedLogger) {
-            logger.warn(msg);
-        }
-    }
-
-    private static void log(String msg, Exception e) {
-        if (initializedLogger) {
-            logger.warn(msg, e);
-        }
-    }
-
-    private SystemPropertyUtil() {
-        // Unused
-    }
 }

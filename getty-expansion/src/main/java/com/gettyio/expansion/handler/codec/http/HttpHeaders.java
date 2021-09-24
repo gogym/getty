@@ -15,8 +15,6 @@
  */
 package com.gettyio.expansion.handler.codec.http;
 
-import com.gettyio.core.util.CaseIgnoringComparator;
-
 import java.util.*;
 
 
@@ -547,65 +545,6 @@ public class HttpHeaders {
         message.addHeader(name, value);
     }
 
-    /**
-     * Returns the integer header value with the specified header name.  If
-     * there are more than one header value for the specified header name, the
-     * first value is returned.
-     *
-     * @return the header value
-     * @throws NumberFormatException if there is no such header or the header value is not a number
-     */
-    public static int getIntHeader(HttpMessage message, String name) {
-        String value = getHeader(message, name);
-        if (value == null) {
-            throw new NumberFormatException("null");
-        }
-        return Integer.parseInt(value);
-    }
-
-    /**
-     * Returns the integer header value with the specified header name.  If
-     * there are more than one header value for the specified header name, the
-     * first value is returned.
-     *
-     * @return the header value or the {@code defaultValue} if there is no such
-     * header or the header value is not a number
-     */
-    public static int getIntHeader(HttpMessage message, String name, int defaultValue) {
-        String value = getHeader(message, name);
-        if (value == null) {
-            return defaultValue;
-        }
-
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
-
-    /**
-     * Sets a new integer header with the specified name and value.  If there
-     * is an existing header with the same name, the existing header is removed.
-     */
-    public static void setIntHeader(HttpMessage message, String name, int value) {
-        message.setHeader(name, value);
-    }
-
-    /**
-     * Sets a new integer header with the specified name and values.  If there
-     * is an existing header with the same name, the existing header is removed.
-     */
-    public static void setIntHeader(HttpMessage message, String name, Iterable<Integer> values) {
-        message.setHeader(name, values);
-    }
-
-    /**
-     * Adds a new integer header with the specified name and value.
-     */
-    public static void addIntHeader(HttpMessage message, String name, int value) {
-        message.addHeader(name, value);
-    }
 
     /**
      * Returns the length of the content.  Please note that this value is
@@ -634,25 +573,6 @@ public class HttpHeaders {
         if (contentLength != null) {
             return Long.parseLong(contentLength);
         }
-
-        // WebSockset messages have constant content-lengths.
-        /*
-        if (message instanceof HttpMessage) {
-            HttpMessage req = (HttpMessage) message;
-            if (HttpMethod.GET.equals(req.getMethod()) &&
-                req.containsHeader(Names.SEC_WEBSOCKET_KEY1) &&
-                req.containsHeader(Names.SEC_WEBSOCKET_KEY2)) {
-                return 8;
-            }
-        } else if (message instanceof HttpResponse) {
-            HttpResponse res = (HttpResponse) message;
-            if (res.getStatus().getCode() == 101 &&
-                res.containsHeader(Names.SEC_WEBSOCKET_ORIGIN) &&
-                res.containsHeader(Names.SEC_WEBSOCKET_LOCATION)) {
-                return 16;
-            }
-        }
-        */
 
         return defaultValue;
     }
@@ -686,62 +606,7 @@ public class HttpHeaders {
         message.setHeader(Names.HOST, value);
     }
 
-    /**
-     * Returns {@code true} if and only if the specified message contains the
-     * {@code "Expect: 100-continue"} header.
-     */
-    public static boolean is100ContinueExpected(HttpMessage message) {
-        // Expect: 100-continue is for requests only.
-        if (!(message instanceof HttpMessage)) {
-            return false;
-        }
 
-        // It works only on HTTP/1.1 or later.
-        if (message.getHttpVersion().compareTo(HttpVersion.HTTP_1_1) < 0) {
-            return false;
-        }
-
-        // In most cases, there will be one or zero 'Expect' header.
-        String value = message.getHeader(Names.EXPECT);
-        if (value == null) {
-            return false;
-        }
-        if (Values.CONTINUE.equalsIgnoreCase(value)) {
-            return true;
-        }
-
-        // Multiple 'Expect' headers.  Search through them.
-        for (String v : message.getHeaders(Names.EXPECT)) {
-            if (Values.CONTINUE.equalsIgnoreCase(v)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Sets the {@code "Expect: 100-continue"} header to the specified message.
-     * If there is any existing {@code "Expect"} header, they are replaced with
-     * the new one.
-     */
-    public static void set100ContinueExpected(HttpMessage message) {
-        set100ContinueExpected(message, true);
-    }
-
-    /**
-     * Sets or removes the {@code "Expect: 100-continue"} header to / from the
-     * specified message.  If the specified {@code value} is {@code true},
-     * the {@code "Expect: 100-continue"} header is set and all other previous
-     * {@code "Expect"} headers are removed.  Otherwise, all {@code "Expect"}
-     * headers are removed completely.
-     */
-    public static void set100ContinueExpected(HttpMessage message, boolean set) {
-        if (set) {
-            message.setHeader(Names.EXPECT, Values.CONTINUE);
-        } else {
-            message.removeHeader(Names.EXPECT);
-        }
-    }
 
     private static final int BUCKET_SIZE = 17;
 

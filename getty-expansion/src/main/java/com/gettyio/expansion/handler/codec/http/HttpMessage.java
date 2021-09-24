@@ -29,10 +29,21 @@ import java.util.Map;
 
 public class HttpMessage {
 
+    /**
+     * http版本
+     */
     protected HttpVersion httpVersion;
+    /**
+     * http headers
+     */
     protected HttpHeaders httpHeaders = new HttpHeaders();
+    /**
+     * http body
+     */
     protected HttpBody httpBody = new HttpBody();
-
+    /**
+     * 读取状态
+     */
     private int readStatus;
 
     public HttpVersion getHttpVersion() {

@@ -24,16 +24,4 @@ package com.gettyio.core.channel.config;
  */
 public final class ServerConfig extends BaseConfig {
 
-    /**
-     * 服务器端最大可用内存池大小上限,默认1G
-     */
-    private Integer serverChunkSize = 1024 * 1024 * 1024;
-
-    public Integer getServerChunkSize() {
-        return serverChunkSize;
-    }
-
-    public void setServerChunkSize(Integer serverChunkSize) {
-        this.serverChunkSize = serverChunkSize;
-    }
 }

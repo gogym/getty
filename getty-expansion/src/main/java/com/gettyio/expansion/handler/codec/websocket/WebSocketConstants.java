@@ -52,22 +52,22 @@ public class WebSocketConstants {
     /**
      * 版本0
      */
-    public static final int SPLITVERSION0 = 0;
+    public static final int SPLIT_VERSION0 = 0;
     /**
      * 版本6
      */
-    public static final int SPLITVERSION6 = 6;
+    public static final int SPLIT_VERSION6 = 6;
     /**
      * 版本7
      */
-    public static final int SPLITVERSION7 = 7;
+    public static final int SPLIT_VERSION7 = 7;
     /**
      * 版本8
      */
-    public static final int SPLITVERSION8 = 8;
+    public static final int SPLIT_VERSION8 = 8;
     /**
      * 版本9
      */
-    public static final int SPLITVERSION13 = 13;
+    public static final int SPLIT_VERSION13 = 13;
 
 }

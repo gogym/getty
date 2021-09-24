@@ -16,6 +16,8 @@
 package com.gettyio.core.channel.starter;
 
 
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 
 /**
@@ -34,12 +36,11 @@ public abstract class Starter {
     /**
      * Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
      */
-    private int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
+    private final int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
     /**
      * Worker线程数
      */
     protected int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
-
 
     /**
      * boss线程池
@@ -47,8 +48,17 @@ public abstract class Starter {
     protected ThreadPool bossThreadPool;
 
     /**
-     * 线程池
+     * worker线程池
      */
     protected ThreadPool workerThreadPool;
+
+    /**
+     * 内存池构造器
+     */
+    protected ByteBufAllocator byteBufAllocator;
+    /**
+     * 责任链对象
+     */
+    protected ChannelPipeline channelPipeline;
 
 }

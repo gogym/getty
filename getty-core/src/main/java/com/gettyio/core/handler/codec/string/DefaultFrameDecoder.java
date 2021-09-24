@@ -17,7 +17,7 @@ package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -31,7 +31,7 @@ import com.gettyio.core.util.LinkedNonReadBlockQueue;
 public class DefaultFrameDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         super.decode(socketChannel, obj, out);
     }
 

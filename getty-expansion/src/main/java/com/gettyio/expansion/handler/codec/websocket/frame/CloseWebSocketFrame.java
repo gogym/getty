@@ -17,8 +17,6 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
 
 
 
@@ -26,8 +24,6 @@ import com.gettyio.core.logging.InternalLoggerFactory;
  * 关闭帧，这个帧不能主动发送。由websocket自身控制，一般用于接收判断即可
  */
 public class CloseWebSocketFrame extends WebSocketFrame {
-
-    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(TextWebSocketFrame.class);
 
     public CloseWebSocketFrame() {
         setOpcode(Opcode.CLOSE.getCode());

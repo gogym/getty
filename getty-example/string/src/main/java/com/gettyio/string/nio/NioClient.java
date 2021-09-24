@@ -17,6 +17,7 @@ import com.gettyio.core.util.ThreadPool;
 import com.gettyio.string.aio.AioClient;
 
 import java.io.IOException;
+import java.net.StandardSocketOptions;
 import java.util.concurrent.ExecutionException;
 
 public class NioClient {
@@ -36,8 +37,6 @@ public class NioClient {
 //                ac.test(8889);
 //            }
             i++;
-            //Thread.sleep(500);
-            System.out.println(i);
         }
     }
 
@@ -49,8 +48,8 @@ public class NioClient {
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-        // aioConfig.setClientChunkSize( 1024);
-        // aioConfig.setBufferWriterQueueSize( 1024);
+        //aioConfig.setBufferWriterQueueSize(1024 * 1024);
+        aioConfig.setOption(StandardSocketOptions.SO_SNDBUF, 1024);
 
 
         NioClientStarter client = new NioClientStarter(aioConfig);
@@ -62,8 +61,7 @@ public class NioClient {
 
 
                 //获取证书
-                String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
-                        .getPath();
+                String pkPath = getClass().getClassLoader().getResource("clientStore.jks").getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
                 sSLConfig.setKeyFile(pkPath);
@@ -74,7 +72,7 @@ public class NioClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                SslService sSLService = new SslService(sSLConfig);
+                //SslService sSLService = new SslService(sSLConfig);
                 // defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 defaultChannelPipeline.addLast(new StringEncoder());
@@ -93,7 +91,8 @@ public class NioClient {
 
     class ConnectHandlerImp implements ConnectHandler {
         @Override
-        public void onCompleted(SocketChannel channel) {
+        public void onCompleted(final SocketChannel channel) {
+
 
             try {
                 String s = "12\r\n";
@@ -101,7 +100,7 @@ public class NioClient {
                 long ct = System.currentTimeMillis();
 
                 int i = 0;
-                for (; i < 1000000; i++) {
+                for (; i < 10; i++) {
                     channel.writeAndFlush(msgBody);
                 }
 

@@ -324,6 +324,7 @@ public class FastArrayList<T> implements Iterable<T> {
 
     /**
      * 返回集合的对象地址，修改会影响集合本身
+     *
      * @return
      */
     public T[] arrays() {
@@ -332,6 +333,7 @@ public class FastArrayList<T> implements Iterable<T> {
 
     /**
      * 获取集合内数组对象。不会影响集合本身
+     *
      * @return
      */
     public T[] toArray() {

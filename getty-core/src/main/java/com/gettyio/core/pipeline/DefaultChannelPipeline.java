@@ -21,7 +21,6 @@ import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
-import com.gettyio.core.util.FastArrayList;
 import com.gettyio.core.util.FastCopyOnWriteArrayList;
 
 /**
@@ -33,49 +32,28 @@ import com.gettyio.core.util.FastCopyOnWriteArrayList;
  * @copyright: Copyright by gettyio.com
  */
 public class DefaultChannelPipeline {
+
     /**
      * 入栈链
      */
-    FastCopyOnWriteArrayList<ChannelHandlerAdapter> inPipeList;
+    FastCopyOnWriteArrayList<ChannelHandlerAdapter> inPipeList = new FastCopyOnWriteArrayList<>();
     /**
      * 出栈链
      */
-    FastCopyOnWriteArrayList<ChannelHandlerAdapter> outPipeList;
-
+    FastCopyOnWriteArrayList<ChannelHandlerAdapter> outPipeList = new FastCopyOnWriteArrayList<>();
 
     /**
-     * channel包装
+     * channel
      */
-    SocketChannel socketChannel;
+    private final SocketChannel socketChannel;
 
+    /**
+     * 构造方法
+     *
+     * @param socketChannel
+     */
     public DefaultChannelPipeline(SocketChannel socketChannel) {
         this.socketChannel = socketChannel;
-        if (inPipeList == null) {
-            inPipeList = new FastCopyOnWriteArrayList<>();
-        }
-        if (outPipeList == null) {
-            outPipeList = new FastCopyOnWriteArrayList<>();
-        }
-    }
-
-
-    /**
-     * 获取入栈责任链
-     *
-     * @return
-     */
-    public FastCopyOnWriteArrayList<ChannelHandlerAdapter> getInPipeList() {
-        return inPipeList;
-    }
-
-
-    /**
-     * 获取出栈责任链
-     *
-     * @return
-     */
-    public FastCopyOnWriteArrayList<ChannelHandlerAdapter> getOutPipeList() {
-        return outPipeList;
     }
 
 
@@ -85,7 +63,7 @@ public class DefaultChannelPipeline {
      * @return ChannelHandlerAdapter
      */
     public ChannelHandlerAdapter inPipeFirst() {
-        if (inPipeList != null && inPipeList.size() > 0) {
+        if (inPipeList.size() > 0) {
             return inPipeList.getFirst();
         }
         return null;
@@ -97,7 +75,7 @@ public class DefaultChannelPipeline {
      * @return ChannelHandlerAdapter
      */
     public ChannelHandlerAdapter outPipeFirst() {
-        if (outPipeList != null && outPipeList.size() > 0) {
+        if (outPipeList.size() > 0) {
             return outPipeList.getLast();
         }
         return null;
@@ -122,6 +100,7 @@ public class DefaultChannelPipeline {
 
     /**
      * 获取下一个出栈处理器
+     * 注意：出栈是倒序
      *
      * @param channelHandlerAdapter 当前处理器
      * @return ChannelHandlerAdapter
@@ -176,7 +155,6 @@ public class DefaultChannelPipeline {
         }
 
     }
-
 
     /**
      * 清理责任链

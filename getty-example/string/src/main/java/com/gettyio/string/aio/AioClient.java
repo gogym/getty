@@ -18,7 +18,6 @@ import java.util.concurrent.ExecutionException;
 
 public class AioClient {
 
-
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
         int i = 0;
@@ -32,16 +31,16 @@ public class AioClient {
 
     private void test(int port) {
 
-        final ConnectHandler ch = new ConnectHandlerImp();
 
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-        aioConfig.setClientChunkSize(256 * 1024 * 1024);
-        aioConfig.setBufferWriterQueueSize(1024);
-        //aioConfig.setReadBufferSize(256);
+        aioConfig.setFlowControl(false);
+        aioConfig.setHighWaterMark(2);
+        aioConfig.setLowWaterMark(1);
 
-        AioClientStarter client = new AioClientStarter(aioConfig);
+
+        final AioClientStarter client = new AioClientStarter(aioConfig);
         client.channelInitializer(new ChannelInitializer() {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
@@ -50,8 +49,7 @@ public class AioClient {
 
 
                 //获取证书
-                String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
-                        .getPath();
+                String pkPath = getClass().getClassLoader().getResource("clientStore.jks").getPath();
                 //ssl配置
                 SslConfig sSLConfig = new SslConfig();
                 sSLConfig.setKeyFile(pkPath);
@@ -76,38 +74,47 @@ public class AioClient {
             }
         });
 
-        client.start(ch);
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(final SocketChannel socketChannel) {
 
-    }
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            String s = "12\r\n";
+                            byte[] msgBody = s.getBytes("utf-8");
+                            long ct = System.currentTimeMillis();
+
+                            int i = 0;
+                            while (i < 100) {
+                                boolean flag = socketChannel.writeAndFlush(msgBody);
+                                System.out.printf(flag + " ");
+                                if (flag) {
+                                    i++;
+                                }
+                            }
+
+                            long lt = System.currentTimeMillis();
+                            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+                            System.out.printf("发送消息数量：" + i + "条\r\n");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
 
 
-    class ConnectHandlerImp implements ConnectHandler {
-        @Override
-        public void onCompleted(SocketChannel channel) {
-
-            try {
-                String s = "12\r\n";
-                byte[] msgBody = s.getBytes("utf-8");
-                long ct = System.currentTimeMillis();
-
-                int i = 0;
-                for (; i < 1000000; i++) {
-                    channel.writeAndFlush(msgBody);
-                }
-
-                long lt = System.currentTimeMillis();
-                System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                System.out.printf("发送消息数量：" + i + "条\r\n");
-            } catch (Exception e) {
-                e.printStackTrace();
             }
 
+            @Override
+            public void onFailed(Throwable exc) {
 
-        }
+            }
+        });
 
-        @Override
-        public void onFailed(Throwable exc) {
-            exc.printStackTrace();
-        }
+
     }
+
+
 }

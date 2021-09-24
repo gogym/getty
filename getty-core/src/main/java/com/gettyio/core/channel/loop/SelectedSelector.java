@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
  * 版权：Copyright by www.getty.com
  * 描述：
  * 时间：2020/6/16
+ *
  * @author gogym
  */
 public class SelectedSelector extends Selector {
@@ -46,17 +47,17 @@ public class SelectedSelector extends Selector {
     /**
      * 如果空轮询的次数超过了512次，就认为其触发了空轮询bug
      */
-    private final int SELECTOR_AUTO_REBUILD_THRESHOLD=512;
+    private final int SELECTOR_AUTO_REBUILD_THRESHOLD = 512;
 
     /**
      * 空轮询计数器
      */
-    private int selectCnt=1;
+    private int selectCnt = 1;
 
     /**
      * 默认超时时间1s
      */
-    private final long timeoutMillis=1000;
+    private final long timeoutMillis = 1000;
 
     /**
      * 多路复用器
@@ -128,10 +129,10 @@ public class SelectedSelector extends Selector {
     @Override
     public int select() throws IOException {
         //当前纳秒
-        long currentTimeNanos=System.nanoTime();
+        long currentTimeNanos = System.nanoTime();
 
         for (; ; ) {
-            if (mark == true) {
+            if (mark) {
                 continue;
             }
             int select = selector.select(timeoutMillis);
@@ -152,6 +153,7 @@ public class SelectedSelector extends Selector {
             }
         }
     }
+
 
     @Override
     public Selector wakeup() {
@@ -178,7 +180,7 @@ public class SelectedSelector extends Selector {
         final Selector oldSelector = selector;
 
         //新建一个selector
-        Selector  newSelectorTuple = null;
+        Selector newSelectorTuple;
         try {
             newSelectorTuple = Selector.open();
         } catch (IOException e) {
@@ -188,17 +190,17 @@ public class SelectedSelector extends Selector {
 
         // 将旧的selector的channel全部拿出来注册到新的selector上
         int nChannels = 0;
-        for (SelectionKey key: oldSelector.keys()) {
+        for (SelectionKey key : oldSelector.keys()) {
             Object a = key.attachment();
-            try{
+            try {
                 if (!key.isValid() || key.channel().keyFor(newSelectorTuple) != null) {
                     continue;
                 }
                 int interestOps = key.interestOps();
                 key.cancel();
                 SelectionKey newKey = key.channel().register(newSelectorTuple, interestOps, a);
-                nChannels ++;
-            }catch (Exception e){
+                nChannels++;
+            } catch (Exception e) {
                 logger.warn("Failed to re-register a Channel to the new Selector.", e);
             }
 

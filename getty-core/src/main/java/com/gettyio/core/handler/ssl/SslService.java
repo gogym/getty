@@ -47,7 +47,7 @@ public class SslService {
     /**
      * 配置文件
      */
-    private SslConfig config;
+    private final SslConfig config;
 
     private ISSLFacade ssl;
 

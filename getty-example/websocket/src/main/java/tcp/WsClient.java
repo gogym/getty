@@ -27,8 +27,7 @@ public class WsClient {
         WebSocketClientInst chatclient = new WebSocketClientInst(new URI("ws://localhost:8888/echo"));
 
         //获取证书
-        String pkPath = WsClient.class.getClassLoader().getResource("clientStore.jks")
-                .getPath();
+        String pkPath = WsClient.class.getClassLoader().getResource("clientStore.jks").getPath();
         //ssl配置
         SslConfig sSLConfig = new SslConfig();
         sSLConfig.setKeyFile(pkPath);
@@ -40,10 +39,10 @@ public class WsClient {
         sSLConfig.setClientMode(true);
         SSLContext sslContext = init(sSLConfig);
         SSLSocketFactory factory = sslContext.getSocketFactory();
-        //chatclient.setSocketFactory(factory);
+        chatclient.setSocketFactory(factory);
 
         chatclient.connectBlocking();
-        boolean loop = false;
+        boolean loop = true;
         int times = 0;
         while (loop) {
             times++;

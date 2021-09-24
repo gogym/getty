@@ -38,8 +38,7 @@ public class UdpClient {
         ClientConfig aioConfig = new ClientConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
-        aioConfig.setClientChunkSize(512 * 1024 * 1024);
-        aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);
+        //aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);
 
 
         NioClientStarter client = new NioClientStarter(aioConfig);

@@ -32,18 +32,18 @@ import java.nio.channels.CompletionHandler;
 public class ReadCompletionHandler implements CompletionHandler<Integer, AioChannel> {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReadCompletionHandler.class);
     /**
-     * 线程池
+     * worker线程池
      */
-    private ThreadPool executorService;
+    private final ThreadPool workerExecutorService;
 
     public ReadCompletionHandler(ThreadPool executorService) {
-        this.executorService = executorService;
+        this.workerExecutorService = executorService;
     }
 
     @Override
     public void completed(final Integer result, final AioChannel aioChannel) {
         //通过多线程形式读取，提高处理效率
-        executorService.execute(new Runnable() {
+        workerExecutorService.execute(new Runnable() {
             @Override
             public void run() {
                 aioChannel.readFromChannel(result == -1);

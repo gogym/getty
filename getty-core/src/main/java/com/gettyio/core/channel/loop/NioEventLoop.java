@@ -15,11 +15,12 @@
  */
 package com.gettyio.core.channel.loop;
 
-import com.gettyio.core.buffer.*;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.buffer.ByteBuf;
 import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
@@ -49,7 +50,7 @@ public class NioEventLoop implements EventLoop {
     /**
      * 配置
      */
-    private BaseConfig config;
+    private final BaseConfig config;
 
     /**
      * selector包装
@@ -57,40 +58,30 @@ public class NioEventLoop implements EventLoop {
     private SelectedSelector selector;
 
     /**
-     * 创建一个2个线程的线程池，负责读和写
+     * 创建一个1个线程的线程池，负责读
      */
-    private ThreadPool workerThreadPool;
+    private final ThreadPool workerThreadPool;
     /**
      * 内存池
      */
-    protected ChunkPool chunkPool;
-
-    /**
-     * 数据输出类
-     */
-    protected NioBufferWriter nioBufferWriter;
-
-    /**
-     * 写缓冲
-     */
-    protected ChannelByteBuffer writeByteBuffer;
+    protected ByteBufAllocator byteBufAllocator;
 
 
     /**
      * 构造方法
+     *
      * @param config
-     * @param chunkPool
+     * @param byteBufAllocator
      */
-    public NioEventLoop(BaseConfig config, ChunkPool chunkPool) {
+    public NioEventLoop(BaseConfig config, ByteBufAllocator byteBufAllocator) {
         this.config = config;
-        this.chunkPool = chunkPool;
-        this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 2);
-        //初始化数据输出类
-        nioBufferWriter = new NioBufferWriter(chunkPool, config.getBufferWriterQueueSize(), config.getChunkPoolBlockTime());
+        this.byteBufAllocator = byteBufAllocator;
+        this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+
         try {
             selector = new SelectedSelector(Selector.open());
         } catch (IOException e) {
-            LOGGER.error("selector init exception",e);
+            LOGGER.error("selector init exception", e);
         }
     }
 
@@ -100,7 +91,7 @@ public class NioEventLoop implements EventLoop {
         workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
-                while (true && !shutdown) {
+                while (!shutdown) {
                     try {
                         selector.select();
                     } catch (IOException e) {
@@ -127,37 +118,36 @@ public class NioEventLoop implements EventLoop {
                                 }
                             } else if (sk.isReadable()) {
 
-                                ByteBuffer readBuffer = null;
+                                ByteBuf readBuffer = null;
                                 //接收数据
                                 try {
-                                    readBuffer = chunkPool.allocate(config.getReadBufferSize(), config.getChunkPoolBlockTime());
-                                    int reccount = channel.read(readBuffer);
-                                    if (reccount == -1) {
-                                        chunkPool.deallocate(readBuffer);
+                                    readBuffer = byteBufAllocator.ioBuffer(config.getReadBufferSize());
+                                    ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
+                                    int recCount = channel.read(readByteBuf);
+                                    readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
+
+                                    if (recCount == -1) {
+                                        readBuffer.release();
                                         nioChannel.close();
                                         break;
                                     }
                                 } catch (Exception e) {
                                     LOGGER.error(e);
                                     if (null != readBuffer) {
-                                        chunkPool.deallocate(readBuffer);
+                                        readBuffer.release();
                                     }
                                     nioChannel.close();
                                     break;
                                 }
 
-                                //读取缓冲区数据到管道
-                                if (null != readBuffer) {
-                                    readBuffer.flip();
-                                    //读取缓冲区数据，输送到责任链
-                                    while (readBuffer.hasRemaining()) {
-                                        byte[] bytes = new byte[readBuffer.remaining()];
-                                        readBuffer.get(bytes, 0, bytes.length);
-                                        nioChannel.doRead(bytes);
-                                    }
+                                //读取缓冲区数据，输送到责任链
+                                while (readBuffer.isReadable()) {
+                                    byte[] bytes = new byte[readBuffer.readableBytes()];
+                                    readBuffer.readBytes(bytes, 0, bytes.length);
+                                    nioChannel.doRead(bytes);
                                 }
                                 //触发读取完成，清理缓冲区
-                                chunkPool.deallocate(readBuffer);
+                                readBuffer.release();
                             }
                         }
                     }
@@ -165,65 +155,11 @@ public class NioEventLoop implements EventLoop {
                 }
             }
         });
-
-        //循环写
-        workerThreadPool.execute(new Runnable() {
-            @Override
-            public void run() {
-
-                while (true && !shutdown) {
-                    if (writeByteBuffer == null) {
-                        writeByteBuffer = nioBufferWriter.poll();
-                    } else if (!writeByteBuffer.getByteBuffer().hasRemaining()) {
-                        //写完及时释放
-                        chunkPool.deallocate(writeByteBuffer.getByteBuffer());
-                        writeByteBuffer = nioBufferWriter.poll();
-                    }
-
-                    if (writeByteBuffer != null) {
-                        //再次写
-                        try {
-                            if (writeByteBuffer.getNioChannel().isInvalid()) {
-                                chunkPool.deallocate(writeByteBuffer.getByteBuffer());
-                                writeByteBuffer = null;
-                                continue;
-                            }
-                            writeByteBuffer.getNioChannel().getSocketChannel().write(writeByteBuffer.getByteBuffer());
-                        } catch (IOException e) {
-                            writeByteBuffer.getNioChannel().close();
-                            chunkPool.deallocate(writeByteBuffer.getByteBuffer());
-                            writeByteBuffer = null;
-                            continue;
-                        }
-
-                        if (!writeByteBuffer.getNioChannel().isKeepAlive()) {
-                            writeByteBuffer.getNioChannel().close();
-                            chunkPool.deallocate(writeByteBuffer.getByteBuffer());
-                            writeByteBuffer = null;
-                            continue;
-                        }
-                    }
-
-                }
-            }
-        });
-
     }
 
     @Override
     public void shutdown() {
-
         shutdown = true;
-
-        if (nioBufferWriter != null) {
-            try {
-                nioBufferWriter.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-
         if (!workerThreadPool.isShutDown()) {
             workerThreadPool.shutdown();
         }
@@ -232,11 +168,6 @@ public class NioEventLoop implements EventLoop {
     @Override
     public SelectedSelector getSelector() {
         return selector;
-    }
-
-    @Override
-    public NioBufferWriter getBufferWriter() {
-        return nioBufferWriter;
     }
 
 

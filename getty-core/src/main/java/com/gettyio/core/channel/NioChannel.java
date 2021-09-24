@@ -15,16 +15,23 @@
  */
 package com.gettyio.core.channel;
 
+import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
+import com.gettyio.core.function.Function;
 import com.gettyio.core.handler.ssl.SslHandler;
 import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
 import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.buffer.ByteBuf;
+import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
+import java.util.concurrent.Semaphore;
 
 /**
  * NioChannel.java
@@ -34,9 +41,9 @@ import java.nio.channels.SelectionKey;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class NioChannel extends SocketChannel {
+public class NioChannel extends SocketChannel implements Function<BufferWriter, Void> {
 
-    private java.nio.channels.SocketChannel channel;
+    private final java.nio.channels.SocketChannel channel;
     /**
      * SSL服务
      */
@@ -46,18 +53,34 @@ public class NioChannel extends SocketChannel {
     /**
      * 责任链对象
      */
-    private ChannelPipeline channelPipeline;
+    private final ChannelPipeline channelPipeline;
 
     /**
      * loop
      */
-    private NioEventLoop nioEventLoop;
+    private final NioEventLoop nioEventLoop;
 
-    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ChannelPipeline channelPipeline) {
+    /**
+     * 数据输出类
+     */
+    protected BufferWriter nioBufferWriter;
+
+    private ThreadPool workerThreadPool;
+
+    /**
+     * 输出信号量
+     */
+    private final Semaphore semaphore = new Semaphore(1);
+
+    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ByteBufAllocator byteBufAllocator, ThreadPool workerThreadPool, ChannelPipeline channelPipeline) {
         this.config = config;
         this.channel = channel;
         this.channelPipeline = channelPipeline;
         this.nioEventLoop = nioEventLoop;
+        this.byteBufAllocator = byteBufAllocator;
+        this.nioBufferWriter = new BufferWriter(byteBufAllocator, this, config.getBufferWriterQueueSize());
+        this.workerThreadPool = workerThreadPool;
+
         try {
             //注意该方法可能抛异常
             channelPipeline.initChannel(this);
@@ -77,6 +100,7 @@ public class NioChannel extends SocketChannel {
 
     /**
      * 注册事件
+     *
      * @throws ClosedChannelException
      */
     public void register() throws ClosedChannelException {
@@ -90,6 +114,7 @@ public class NioChannel extends SocketChannel {
 
     /**
      * 读取
+     *
      * @param bytes
      */
     public void doRead(byte[] bytes) {
@@ -160,19 +185,29 @@ public class NioChannel extends SocketChannel {
 
 
     @Override
-    public void writeAndFlush(Object obj) {
+    public boolean writeAndFlush(Object obj) {
         try {
+            if (config.isFlowControl()) {
+                if (nioBufferWriter.getCount() >= config.getHighWaterMark()) {
+                    super.writeable = false;
+                    return false;
+                }
+                if (nioBufferWriter.getCount() <= config.getLowWaterMark()) {
+                    super.writeable = true;
+                }
+            }
             reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
         } catch (Exception e) {
             logger.error(e);
         }
+        return true;
     }
 
     @Override
     public void writeToChannel(Object obj) {
         try {
             byte[] bytes = (byte[]) obj;
-            nioEventLoop.getBufferWriter().writeAndFlush(this, bytes);
+            nioBufferWriter.writeAndFlush(bytes);
         } catch (Exception e) {
             logger.error(e);
         }
@@ -220,6 +255,11 @@ public class NioChannel extends SocketChannel {
         return channelPipeline;
     }
 
+    @Override
+    public ThreadPool getWorkerThreadPool() {
+        return workerThreadPool;
+    }
+
     /**
      * 设置SSLHandler
      *
@@ -240,7 +280,55 @@ public class NioChannel extends SocketChannel {
     }
 
     @Override
+    public IHandshakeCompletedListener getSslHandshakeCompletedListener() {
+        return this.handshakeCompletedListener;
+    }
+
+    @Override
     public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
         this.handshakeCompletedListener = handshakeCompletedListener;
+    }
+
+    @Override
+    public Void apply(BufferWriter input) {
+
+        //获取信息量
+        if (semaphore.tryAcquire()) {
+            workerThreadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+
+                    ByteBuf byteBuf;
+                    while ((byteBuf = input.poll()) != null) {
+
+                        if (!byteBuf.isReadable()) {
+                            //写完及时释放
+                            byteBuf.release();
+                        }
+                        try {
+                            if (NioChannel.this.isInvalid()) {
+                                byteBuf.release();
+                                throw new IOException("NioChannel is Invalid");
+                            }
+                            while (byteBuf.isReadable()) {
+                                ByteBuffer buffer = byteBuf.getNioBuffer();
+                                NioChannel.this.getSocketChannel().write(buffer);
+                                byteBuf.readerIndex(buffer.position());
+                            }
+                        } catch (IOException e) {
+                            NioChannel.this.close();
+                        }
+                        byteBuf.release();
+                    }
+
+                    if (!NioChannel.this.isKeepAlive()) {
+                        NioChannel.this.close();
+                    }
+                    //flush完毕后释放信号量
+                    semaphore.release();
+                }
+            });
+        }
+        return null;
     }
 }

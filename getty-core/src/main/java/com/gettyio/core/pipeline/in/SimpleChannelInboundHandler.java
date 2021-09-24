@@ -18,7 +18,7 @@ package com.gettyio.core.pipeline.in;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.DatagramPacketHandler;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 /**
  * SimpleChannelInboundHandler.java
@@ -32,12 +32,10 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
 
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
-
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         while (out.getCount() > 0) {
             channelRead(socketChannel, out.poll());
         }
-
     }
 
 

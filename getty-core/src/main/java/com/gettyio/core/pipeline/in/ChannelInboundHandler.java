@@ -18,7 +18,7 @@ package com.gettyio.core.pipeline.in;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.ChannelBoundHandler;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 /**
  * ChannelInboundHandler.java
@@ -77,6 +77,6 @@ public interface ChannelInboundHandler extends ChannelBoundHandler {
      * @throws Exception 异常
      */
     @Override
-    void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception;
+    void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception;
 
 }

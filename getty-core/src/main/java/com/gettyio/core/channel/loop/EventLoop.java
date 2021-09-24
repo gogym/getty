@@ -15,12 +15,11 @@
  */
 package com.gettyio.core.channel.loop;
 
-import com.gettyio.core.buffer.AbstractBufferWriter;
-
 /**
  * 事件循环
- * @ClassName EventLoop.java
+ *
  * @author gogym.ggj
+ * @ClassName EventLoop.java
  * @Description
  * @createTime 2020/12/15 13:59:32
  */
@@ -38,13 +37,9 @@ public interface EventLoop {
 
     /**
      * 获取selector
+     *
      * @return
      */
     SelectedSelector getSelector();
 
-    /**
-     * 获取数据输出组件
-     * @return
-     */
-    AbstractBufferWriter getBufferWriter();
 }

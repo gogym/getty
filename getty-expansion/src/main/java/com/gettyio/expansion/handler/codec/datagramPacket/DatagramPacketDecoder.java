@@ -18,7 +18,7 @@ package com.gettyio.expansion.handler.codec.datagramPacket;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
 import com.gettyio.core.pipeline.DatagramPacketHandler;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.net.DatagramPacket;
 
@@ -32,7 +32,7 @@ import java.net.DatagramPacket;
 public class DatagramPacketDecoder extends ObjectToMessageDecoder implements DatagramPacketHandler {
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         DatagramPacket datagramPacket = (DatagramPacket) obj;
         out.put(datagramPacket);
         super.decode(socketChannel, obj, out);

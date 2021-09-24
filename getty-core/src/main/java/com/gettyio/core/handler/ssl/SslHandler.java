@@ -22,12 +22,13 @@ import com.gettyio.core.handler.ssl.sslfacade.ISessionClosedListener;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.nio.ByteBuffer;
 
 /**
  * SslHandler.java
+ *
  * @description:SSL 编解码器
  * @author:gogym
  * @date:2020/4/9
@@ -37,9 +38,9 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(SslHandler.class);
 
-    private SslService sslService;
-    private SocketChannel socketChannel;
-    LinkedNonReadBlockQueue<Object> out;
+    private final SslService sslService;
+    private final SocketChannel socketChannel;
+    LinkedBlockQueue<Object> out;
 
     public SslHandler(SocketChannel socketChannel, SslService sslService) {
         this.socketChannel = socketChannel;
@@ -60,10 +61,7 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
             //握手
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
             try {
-                //byteBuffer.compact();
-                //byteBuffer.flip();
                 sslService.getSsl().decrypt(byteBuffer);
-
                 byte[] b = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bytes, 0, b.length);
                 socketChannel.writeToChannel(b);
@@ -74,36 +72,28 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
         } else if (bytes != null) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
             //SSL doUnWard
-            //byteBuffer.compact();
-            // byteBuffer.flip();
             sslService.getSsl().encrypt(byteBuffer);
         }
     }
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
         this.out = out;
         byte[] bytes = (byte[]) obj;
         if (!sslService.getSsl().isHandshakeCompleted() && obj != null) {
             //握手
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
             try {
-                //byteBuffer.compact();
-                //byteBuffer.flip();
                 sslService.getSsl().decrypt(byteBuffer);
                 byte[] b = new byte[byteBuffer.remaining()];
                 byteBuffer.get(bytes, 0, b.length);
                 socketChannel.writeToChannel(b);
             } catch (Exception e) {
-                logger.error(e.getMessage(), e);
                 sslService.getSsl().close();
-                return;
             }
         } else if (bytes != null) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
             //SSL doUnWard
-            //byteBuffer.compact();
-            // byteBuffer.flip();
             sslService.getSsl().decrypt(byteBuffer);
         }
     }
@@ -115,8 +105,12 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
     class handshakeCompletedListener implements IHandshakeCompletedListener {
         @Override
         public void onComplete() {
-            logger.info("Handshake Completed");
-            socketChannel.setHandShak(true);
+            logger.info("ssl handshake completed");
+            socketChannel.setHandShake(true);
+            IHandshakeCompletedListener iHandshakeCompletedListener = socketChannel.getSslHandshakeCompletedListener();
+            if (iHandshakeCompletedListener != null) {
+                iHandshakeCompletedListener.onComplete();
+            }
         }
     }
 
@@ -125,13 +119,11 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
      * 握手关闭回调
      */
     class sessionClosedListener implements ISessionClosedListener {
-
         @Override
         public void onSessionClosed() {
-            logger.info("Handshake failure");
+            logger.info("ssl handshake failure");
             //当握手失败时，关闭当前客户端连接
             socketChannel.close();
-            return;
         }
     }
 
@@ -144,8 +136,6 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
         @Override
         public void onWrappedData(ByteBuffer wrappedBytes) {
             try {
-//                wrappedBytes.compact();
-//                wrappedBytes.flip();
                 byte[] b = new byte[wrappedBytes.remaining()];
                 wrappedBytes.get(b, 0, b.length);
                 //回调父类方法

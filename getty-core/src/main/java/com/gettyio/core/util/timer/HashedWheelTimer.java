@@ -17,10 +17,8 @@ package com.gettyio.core.util.timer;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.PlatformDependent;
-import com.gettyio.core.util.detector.ResourceLeakDetector;
-import com.gettyio.core.util.detector.ResourceLeakTracker;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -76,11 +74,11 @@ public class HashedWheelTimer implements Timer {
     /**
      * 待执行任务队列
      */
-    private final LinkedNonReadBlockQueue<HashedWheelTimeout> timeouts = new LinkedNonReadBlockQueue<>();
+    private final LinkedBlockQueue<HashedWheelTimeout> timeouts = new LinkedBlockQueue<>();
     /**
      * 待取消任务队列
      */
-    private final LinkedNonReadBlockQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedNonReadBlockQueue<>();
+    private final LinkedBlockQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedBlockQueue<>();
     /**
      * 等待处理计数器
      */
@@ -128,13 +126,6 @@ public class HashedWheelTimer implements Timer {
      * 实例数限制
      */
     private static final int INSTANCE_COUNT_LIMIT = 64;
-
-    /*****************************************************************/
-    /**
-     * 内存泄露检测器
-     */
-    private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = new ResourceLeakDetector(HashedWheelTimer.class, 1);
-    private final ResourceLeakTracker<HashedWheelTimer> leak;
 
     /*****************************************************************/
 
@@ -188,9 +179,6 @@ public class HashedWheelTimer implements Timer {
         }
         //创建 worker 线程
         workerThread = threadFactory.newThread(worker);
-
-        //这里默认是启动内存泄露检测：当HashedWheelTimer实例超过当前cpu可用核数 *4的时候，将发出警告
-        leak = leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;
 
         //设置最大等待处理次数
         this.maxPendingTimeouts = maxPendingTimeouts;
@@ -355,10 +343,6 @@ public class HashedWheelTimer implements Timer {
             if (WORKER_STATE_UPDATER.getAndSet(this, WORKER_STATE_SHUTDOWN) != WORKER_STATE_SHUTDOWN) {
                 //实例计数器减一
                 INSTANCE_COUNTER.decrementAndGet();
-                if (leak != null) {
-                    boolean closed = leak.close(this);
-                    assert closed;
-                }
             }
             return Collections.emptySet();
         }
@@ -391,10 +375,6 @@ public class HashedWheelTimer implements Timer {
         } finally {
             //实例计数器加一
             INSTANCE_COUNTER.decrementAndGet();
-            if (leak != null) {
-                boolean closed = leak.close(this);
-                assert closed;
-            }
         }
 
         // 返回未处理的任务
@@ -553,7 +533,7 @@ public class HashedWheelTimer implements Timer {
             for (; ; ) {
                 HashedWheelTimeout timeout = null;
                 try {
-                    timeout = timeouts.poll();
+                    timeout = timeouts.take();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -581,7 +561,7 @@ public class HashedWheelTimer implements Timer {
             for (int i = 0; i < 100000; i++) {
                 HashedWheelTimeout timeout = null;
                 try {
-                    timeout = timeouts.poll();
+                    timeout = timeouts.take();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -596,7 +576,6 @@ public class HashedWheelTimer implements Timer {
 
                 //如果动态开关打开，直接调用执行任务，不进入格子
                 if (dynamicOpen) {
-//                    logger.info("-----未进格子node-----:" + timeout);
                     timeout.expire();
                     continue;
                 }
@@ -614,7 +593,6 @@ public class HashedWheelTimer implements Timer {
                 //将任务加入到相应的格子中
                 HashedWheelBucket bucket = wheel[stopIndex];
                 bucket.addTimeout(timeout);
-//                logger.info("=====进入格子node=====:" + timeout);
             }
         }
 
@@ -623,7 +601,7 @@ public class HashedWheelTimer implements Timer {
             for (; ; ) {
                 HashedWheelTimeout timeout = null;
                 try {
-                    timeout = cancelledTimeouts.poll();
+                    timeout = cancelledTimeouts.take();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -645,7 +623,6 @@ public class HashedWheelTimer implements Timer {
         private long waitForNextTick() {
             //下次 tick 的时间点，用于计算需要 sleep 的时间
             long deadline = tickDuration * (tick + 1);
-//            System.out.println("tick=" + tick + ", deadline=" + deadline);
 
             for (; ; ) {
                 //计算需要 sleep 的时间，之所以加 999999 后再除以 1000000，是为了保证足够的 sleep 时间
@@ -653,7 +630,7 @@ public class HashedWheelTimer implements Timer {
                 //而 2ms 其实是未达到 deadline 这个时间点的，所以为了使上述情况能 sleep 足够的时间，加上999999后，会多睡1ms
                 final long currentTime = System.nanoTime() - startTime;
                 long sleepTimeMs = (deadline - currentTime + 999999) / 1000000;//毫秒
-//                System.out.println("deadline=" + deadline + ",currentTime=" + currentTime + ",sleepTimeMs=" + sleepTimeMs);
+
                 if (sleepTimeMs <= 0) {
                     if (currentTime == Long.MIN_VALUE) {
                         return -Long.MAX_VALUE;
@@ -971,7 +948,8 @@ public class HashedWheelTimer implements Timer {
                     .toString();
         }
 
-    } //HashedWheelTimeout end
+    }
+    //HashedWheelTimeout end
 
 
 }

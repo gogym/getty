@@ -123,7 +123,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     public void run(Timeout timeout) throws Exception {
 
         final BaseConfig clientConfig = channel.getConfig();
-        final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+        final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 2);
 
         if (channel instanceof AioChannel) {
             AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
@@ -146,7 +146,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                 public void completed(Void result, AsynchronousSocketChannel attachment) {
                     logger.info("connect aio server success");
                     //连接成功则构造AIOSession对象
-                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getChunkPool(), channel.getChannelPipeline());
+                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufAllocator(), channel.getChannelPipeline());
 
                     if (null != connectHandler) {
                         if (null != channel.getSslHandler()) {
@@ -206,7 +206,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         if (channels.isConnectionPending()) {
                             try {
                                 channels.finishConnect();
-                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getChannelPipeline());
+                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(),channel.getByteBufAllocator(),channel.getWorkerThreadPool(), channel.getChannelPipeline());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
                                         channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {

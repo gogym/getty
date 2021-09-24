@@ -15,10 +15,6 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.ChunkPool;
-import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
-
 import java.nio.channels.AsynchronousChannelGroup;
 
 /**
@@ -32,17 +28,7 @@ import java.nio.channels.AsynchronousChannelGroup;
 public abstract class AioStarter extends Starter {
 
     /**
-     * 内存池
-     */
-    protected ChunkPool chunkPool;
-
-    /**
      * aio线程组
      */
     protected AsynchronousChannelGroup asynchronousChannelGroup;
-
-    /**
-     * 责任链对象
-     */
-    protected ChannelPipeline channelPipeline;
 }

@@ -16,10 +16,7 @@
 
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
 
 /**
  * NioStarter.java
@@ -36,13 +33,4 @@ public abstract class NioStarter extends Starter {
      */
     protected SocketMode socketMode = SocketMode.TCP;
 
-    /**
-     * 内存池
-     */
-    protected ChunkPool chunkPool;
-
-    /**
-     * 责任链对象
-     */
-    protected ChannelPipeline channelPipeline;
 }

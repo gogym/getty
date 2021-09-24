@@ -28,8 +28,7 @@ import java.util.regex.Pattern;
  */
 public class HttpVersion implements Comparable<HttpVersion> {
 
-    private static final Pattern VERSION_PATTERN =
-            Pattern.compile("(\\S+)/(\\d+)\\.(\\d+)");
+    private static final Pattern VERSION_PATTERN = Pattern.compile("(\\S+)/(\\d+)\\.(\\d+)");
 
     private static final String HTTP_1_0_STRING = "HTTP/1.0";
     private static final String HTTP_1_1_STRING = "HTTP/1.1";
@@ -100,7 +99,6 @@ public class HttpVersion implements Comparable<HttpVersion> {
         this.text = protocolName + '/' + majorVersion + '.' + minorVersion;
         this.keepAliveDefault = keepAliveDefault;
     }
-
 
     /**
      * Returns the name of the protocol such as {@code "HTTP"} in {@code "HTTP/1.0"}.

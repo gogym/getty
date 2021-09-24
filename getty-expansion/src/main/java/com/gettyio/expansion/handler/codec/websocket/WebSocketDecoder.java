@@ -17,13 +17,10 @@ package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.DecoderException;
 import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.expansion.handler.codec.websocket.frame.*;
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.CharsetUtil;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.expansion.handler.codec.websocket.frame.*;
 
 /**
  * WebSocketDecoder.java
@@ -35,28 +32,32 @@ import com.gettyio.core.util.LinkedNonReadBlockQueue;
  */
 public class WebSocketDecoder extends ObjectToMessageDecoder {
 
-    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(WebSocketDecoder.class);
+
     /**
      * 协议版本,默认0
      */
-    public static String protocolVersion = String.valueOf(WebSocketConstants.SPLITVERSION0);
-
+    public static int protocolVersion = WebSocketConstants.SPLIT_VERSION0;
+    /**
+     * websocket数据帧
+     */
     WebSocketFrame messageFrame;
+    /**
+     * 用于保存握手信息
+     */
+    AutoByteBuffer shakeByteBuffer = AutoByteBuffer.newByteBuffer();
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception {
-        if (socketChannel.isHandShak()) {
+    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+        if (WebSocketHandShake.isHandShake()) {
             // 已经握手处理
-            if (Integer.valueOf(protocolVersion) >= WebSocketConstants.SPLITVERSION6) {
-                AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
+            if (protocolVersion >= WebSocketConstants.SPLIT_VERSION6) {
+                AutoByteBuffer frameByteBuffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
                 //解析数据帧
-                WebSocketFrame frame = parserVersion6(autoByteBuffer);
+                WebSocketFrame frame = parserVersion6(frameByteBuffer);
                 messageFrame = null;
                 if (frame != null) {
                     out.put(frame);
                     super.decode(socketChannel, obj, out);
-                } else {
-                    throw new DecoderException("frame is null , close the connection");
                 }
             } else {
                 out.put(obj);
@@ -64,10 +65,14 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             }
         } else {
             // 进行握手处理
-            String msg = new String((byte[]) obj, CharsetUtil.UTF_8);
-            WebSocketRequest requestInfo = WebSocketHandShak.parserRequest(msg);
+            shakeByteBuffer.writeBytes((byte[]) obj);
+            String msg = new String(shakeByteBuffer.allWriteBytesArray(), CharsetUtil.UTF_8);
+            WebSocketRequest requestInfo = WebSocketHandShake.parserRequest(msg);
+            if (requestInfo == null) {
+                return;
+            }
             //写出握手信息到客户端
-            byte[] bytes = WebSocketHandShak.generateHandshake(requestInfo, socketChannel).getBytes();
+            byte[] bytes = WebSocketHandShake.generateHandshake(requestInfo, socketChannel).getBytes();
             if (socketChannel.getSslHandler() == null) {
                 socketChannel.writeToChannel(bytes);
             } else {
@@ -75,8 +80,9 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                 //为了避免握手信息经过其他的encoder，所以直接指定通过sslHandler输出
                 socketChannel.getSslHandler().encode(socketChannel, bytes);
             }
-            protocolVersion = requestInfo.getSecVersion().toString();
-            socketChannel.setHandShak(true);
+            protocolVersion = requestInfo.getSecVersion();
+            WebSocketHandShake.setHandShake(true);
+            shakeByteBuffer.clear();
         }
 
     }
@@ -144,7 +150,6 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             if (messageFrame.isReadFinish()) {
                 return messageFrame;
             }
-
         } while (buffer.hasRemaining());
         return null;
     }
@@ -152,9 +157,10 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
     @Override
     public void channelClosed(SocketChannel socketChannel) throws Exception {
-        socketChannel.setHandShak(false);
-        protocolVersion = "0";
+        WebSocketHandShake.setHandShake(false);
+        protocolVersion = 0;
         messageFrame = null;
+        shakeByteBuffer.clear();
         super.channelClosed(socketChannel);
     }
 }

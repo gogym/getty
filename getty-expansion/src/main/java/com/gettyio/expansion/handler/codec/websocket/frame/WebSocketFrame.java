@@ -276,7 +276,7 @@ public class WebSocketFrame {
      * 计算获取数据的长度
      */
     public int computeCount(AutoByteBuffer buffer, int count) {
-        return (buffer.readableBytes() >= count) ? count : buffer.readableBytes();
+        return Math.min(buffer.readableBytes(), count);
     }
 
     /**

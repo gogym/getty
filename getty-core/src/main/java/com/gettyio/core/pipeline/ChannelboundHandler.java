@@ -18,7 +18,7 @@ package com.gettyio.core.pipeline;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.constant.IdleState;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -84,7 +84,7 @@ public interface ChannelBoundHandler {
      * @param out           消息队列
      * @throws Exception 异常
      */
-    void decode(SocketChannel socketChannel, Object obj, LinkedNonReadBlockQueue<Object> out) throws Exception;
+    void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception;
 
 
     /**
@@ -97,7 +97,7 @@ public interface ChannelBoundHandler {
     void encode(SocketChannel socketChannel, Object obj) throws Exception;
 
     /**
-     * 该方法类似一个心态起搏器，执行读或写操作会被触发
+     * 该方法类是一个心跳起搏器，执行读或写操作会被触发
      *
      * @param socketChannel 通道
      * @param evt           IdleState

@@ -15,10 +15,10 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.ChunkPool;
 import com.gettyio.core.constant.Banner;
 import com.gettyio.core.constant.Version;
-import com.gettyio.core.util.Time;
+import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.util.PlatformDependent;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketMode;
@@ -73,14 +73,14 @@ public class NioServerStarter extends NioStarter {
     private DatagramChannel datagramChannel;
 
     /**
-     * 多路复用
+     * 多路复用选择器
      */
     private Selector selector;
 
     /**
      * loop集合
      */
-    private FastArrayList<NioEventLoop> nioEventLoopFastArrayList = new FastArrayList<>(NioEventLoop.class);
+    private final FastArrayList<NioEventLoop> nioEventLoopFastArrayList = new FastArrayList<>(NioEventLoop.class);
 
     /**
      * 简单启动
@@ -108,13 +108,6 @@ public class NioServerStarter extends NioStarter {
      * @param config 配置
      */
     public NioServerStarter(ServerConfig config) {
-        if (config == null) {
-            throw new NullPointerException("serverConfig can't null");
-        }
-
-        if (config.getPort() == 0) {
-            throw new NullPointerException("serverConfig port can't null");
-        }
         this.serverConfig = config;
     }
 
@@ -143,6 +136,12 @@ public class NioServerStarter extends NioStarter {
         return this;
     }
 
+    /**
+     * 设置work线程数
+     *
+     * @param threadNum
+     * @return
+     */
     public NioServerStarter workerThreadNum(int threadNum) {
         if (threadNum >= 3) {
             this.workerThreadNum = threadNum;
@@ -150,6 +149,12 @@ public class NioServerStarter extends NioStarter {
         return this;
     }
 
+    /**
+     * 设置socket类型
+     *
+     * @param socketMode
+     * @return
+     */
     public NioServerStarter socketMode(SocketMode socketMode) {
         this.socketMode = socketMode;
         return this;
@@ -164,22 +169,18 @@ public class NioServerStarter extends NioStarter {
     public void start() throws Exception {
         //打印框架信息
         LOGGER.info("\r\n" + Banner.BANNER + "\r\n  getty version:(" + Version.VERSION + ")");
-
-        if (channelPipeline == null) {
-            throw new RuntimeException("ChannelPipeline can't be null");
-        }
-
-        if (chunkPool == null) {
-            //实例化内存池
-            this.chunkPool = new ChunkPool(serverConfig.getServerChunkSize(), new Time(), serverConfig.isDirect());
-        }
+        startCheck();
+        //实例化内存池
+        this.byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && serverConfig.isDirect());
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
+        //初始化worker线程池
+        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
 
         //创建loop集合
         for (int i = 0; i < workerThreadNum; i++) {
-            NioEventLoop nioEventLoop = new NioEventLoop(serverConfig, chunkPool);
+            NioEventLoop nioEventLoop = new NioEventLoop(serverConfig, byteBufAllocator);
             nioEventLoop.run();
             nioEventLoopFastArrayList.add(nioEventLoop);
         }
@@ -196,13 +197,10 @@ public class NioServerStarter extends NioStarter {
      *
      * @throws IOException 异常
      */
-    private final void startTcp() throws IOException {
-
-        /*
-         *开启一个服务channel，
-         *A selectable channel for stream-oriented listening sockets.
-         */
+    private void startTcp() throws IOException {
+        //开启一个服务channel，
         serverSocketChannel = ServerSocketChannel.open();
+        //设为非阻塞
         serverSocketChannel.configureBlocking(false);
 
         //绑定端口
@@ -215,13 +213,10 @@ public class NioServerStarter extends NioStarter {
             serverSocketChannel.bind(new InetSocketAddress(serverConfig.getPort()), 1000);
         }
 
-        /*
-         * 创建一个selector
-         */
+
+        //创建一个selector
         selector = Selector.open();
-        /*
-         * 将创建的serverChannel注册到selector选择器上，指定这个channel只关心OP_ACCEPT事件
-         */
+        //将创建的serverChannel注册到selector选择器上，指定这个channel只关心OP_ACCEPT事件
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         //开启线程，开始接收客户端的连接
@@ -230,23 +225,19 @@ public class NioServerStarter extends NioStarter {
             public void run() {
                 //循环监听客户端的连接
                 while (running) {
-
                     try {
-                        /*
-                         * select()操作，默认是阻塞模式的，即，当没有accept或者read时间到来时，将一直阻塞不往下面继续执行。
-                         */
+                        //select()操作，默认是阻塞模式的，即，当没有accept或者read时间到来时，将一直阻塞不往下面继续执行。
                         int readyChannels = selector.select();
                         if (readyChannels <= 0) {
                             continue;
                         }
-                        /*
-                         * 从selector上获取到了IO事件，可能是accept，也有可能是read，这里只关注可能是accept
-                         */
+                        //从selector上获取到了IO事件，可能是accept，也有可能是read，这里只关注可能是accept
                         Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
 
                         while (iterator.hasNext()) {
                             SelectionKey key = iterator.next();
-                            if (key.isAcceptable()) {          //处理OP_ACCEPT事件
+                            if (key.isAcceptable()) {
+                                //处理OP_ACCEPT事件
                                 final java.nio.channels.SocketChannel socketChannel = ((ServerSocketChannel) key.channel()).accept();
                                 socketChannel.configureBlocking(false);
                                 //通过线程池创建客户端连接通道
@@ -268,7 +259,7 @@ public class NioServerStarter extends NioStarter {
      *
      * @throws IOException 异常
      */
-    private final void startUdp() throws IOException {
+    private void startUdp() throws IOException {
 
         datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
@@ -281,6 +272,7 @@ public class NioServerStarter extends NioStarter {
         }
         selector = Selector.open();
         datagramChannel.register(selector, SelectionKey.OP_READ);
+        //创建udp通道
         createUdpChannel(datagramChannel, selector);
 
         LOGGER.info("getty server started UDP on port {},bossThreadNum:{} ,workerThreadNum:{}", serverConfig.getPort(), bossThreadNum, workerThreadNum);
@@ -295,12 +287,11 @@ public class NioServerStarter extends NioStarter {
     private void createTcpChannel(java.nio.channels.SocketChannel channel) {
         SocketChannel socketChannel = null;
         try {
-            //轮询获取loop
+            //获取loop
             NioEventLoop nioEventLoop = nioEventLoopFastArrayList.round();
-            socketChannel = new NioChannel(serverConfig, channel, nioEventLoop, channelPipeline);
+            socketChannel = new NioChannel(serverConfig, channel, nioEventLoop, byteBufAllocator, workerThreadPool, channelPipeline);
             //注册事件
             ((NioChannel) socketChannel).register();
-
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
             if (socketChannel != null) {
@@ -309,7 +300,6 @@ public class NioServerStarter extends NioStarter {
         }
     }
 
-
     /**
      * 创建Udp通道
      *
@@ -317,7 +307,7 @@ public class NioServerStarter extends NioStarter {
      * @params [datagramChannel, selector]
      */
     private void createUdpChannel(DatagramChannel datagramChannel, Selector selector) {
-        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, serverConfig, chunkPool, channelPipeline, workerThreadNum);
+        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, serverConfig, byteBufAllocator, channelPipeline, workerThreadNum);
         udpChannel.starRead();
     }
 
@@ -383,8 +373,30 @@ public class NioServerStarter extends NioStarter {
         for (NioEventLoop nioEventLoop : nioEventLoopFastArrayList) {
             nioEventLoop.shutdown();
         }
-
-
         LOGGER.info("getty server is shutdown in " + new Date());
+    }
+
+
+    /**
+     * 启动检查
+     */
+    private void startCheck() {
+        if (serverConfig == null) {
+            throw new NullPointerException("AioServerConfig can't null");
+        }
+        if (serverConfig.getPort() == 0) {
+            throw new NullPointerException("AioServerConfig port can't null");
+        }
+        if (channelPipeline == null) {
+            throw new RuntimeException("ChannelPipeline can't be null");
+        }
+        if (serverConfig.isFlowControl()) {
+            if (serverConfig.getLowWaterMark() >= serverConfig.getHighWaterMark()) {
+                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
+            }
+            if (serverConfig.getHighWaterMark() >= serverConfig.getBufferWriterQueueSize()) {
+                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
+            }
+        }
     }
 }
