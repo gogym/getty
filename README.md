@@ -106,7 +106,7 @@ Dependencies are included in the Projects Pom.XML dependencies
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>1.4.9</version>
+            <version>2.0.0-beta1</version>
         </dependency>
 ```
 
@@ -114,8 +114,41 @@ Dependencies are included in the Projects Pom.XML dependencies
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '1.4.9'
+compile group: 'com.gettyio', name: 'getty-core', version: '2.0.0-beta1'
 ```
+
+
+**本次更新**
+
+新增
+
+1、内存池的重新实现优化，大大降低了内存的占用和减少内存碎片产生，提高了缓冲区分配的效率
+
+2、新增channel流量控制，新增最高水位和最低水平的配置
+
+优化
+
+1、nio性能优化
+
+2、加强启动时配置检查，提高健壮性
+
+3、优化了若干代码，提高易用性
+
+4、去除了部分冗余，提高代码可读性
+
+修复
+
+1、修复了超高并发时，可能出现消息丢失的bug
+
+2、修复DelimiterFrameDecoder 消息截取不对的问题
+
+3、修复http 偶尔握手失败问题
+
+4、修复websocket握手失败问题
+
+5、修复其他若干bug
+
+
 
 
  **非Maven项目 (No Maven)** 
