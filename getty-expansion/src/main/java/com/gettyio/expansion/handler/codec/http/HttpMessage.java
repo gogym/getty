@@ -46,6 +46,8 @@ public class HttpMessage {
      */
     private int readStatus;
 
+    public StringBuilder sb = new StringBuilder();
+
     public HttpVersion getHttpVersion() {
         return httpVersion;
     }
@@ -105,5 +107,9 @@ public class HttpMessage {
 
     public void setReadStatus(int readStatus) {
         this.readStatus = readStatus;
+    }
+
+    public StringBuilder getSb() {
+        return sb;
     }
 }

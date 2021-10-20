@@ -60,6 +60,13 @@ class WebSocketRequest {
      */
     private Integer secVersion = 0;
 
+    /**
+     * 读取状态
+     */
+    private int readStatus;
+
+    private final StringBuilder sb = new StringBuilder();
+
     public Boolean getConnection() {
         return connection;
     }
@@ -140,4 +147,15 @@ class WebSocketRequest {
         this.secVersion = secVersion;
     }
 
+    public int getReadStatus() {
+        return readStatus;
+    }
+
+    public void setReadStatus(int readStatus) {
+        this.readStatus = readStatus;
+    }
+
+    public StringBuilder getSb() {
+        return sb;
+    }
 }

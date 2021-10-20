@@ -42,6 +42,36 @@ public final class StringUtil {
         }
     }
 
+    public static int findNonWhitespace(String sb, int offset) {
+        int result;
+        for (result = offset; result < sb.length(); result++) {
+            if (!Character.isWhitespace(sb.charAt(result))) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    public static int findWhitespace(String sb, int offset) {
+        int result;
+        for (result = offset; result < sb.length(); result++) {
+            if (Character.isWhitespace(sb.charAt(result))) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    public static int findEndOfString(String sb) {
+        int result;
+        for (result = sb.length(); result > 0; result--) {
+            if (!Character.isWhitespace(sb.charAt(result - 1))) {
+                break;
+            }
+        }
+        return result;
+    }
+
 
     public static boolean isEmpty(String str) {
 

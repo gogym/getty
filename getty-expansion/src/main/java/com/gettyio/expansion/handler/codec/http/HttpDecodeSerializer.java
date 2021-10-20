@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.http;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.util.StringUtil;
 import com.gettyio.expansion.handler.codec.http.request.HttpRequest;
 import com.gettyio.expansion.handler.codec.http.response.HttpResponse;
 import com.gettyio.expansion.handler.codec.http.response.HttpResponseStatus;
@@ -41,7 +42,7 @@ public class HttpDecodeSerializer {
 
     private static final String SP = " ";
 
-    static StringBuilder sb = new StringBuilder();
+
 
     /**
      * 解析请求
@@ -86,15 +87,15 @@ public class HttpDecodeSerializer {
                 nextByte = autoByteBuffer.readByte();
                 if (nextByte == HttpConstants.LF) {
                     if (httpMessage instanceof HttpRequest) {
-                        decodeQueryString(sb.toString(), (HttpRequest) httpMessage);
+                        decodeQueryString(httpMessage.getSb().toString(), (HttpRequest) httpMessage);
                     } else if (httpMessage instanceof HttpResponse) {
-                        decodeResponseLine(sb.toString(), (HttpResponse) httpMessage);
+                        decodeResponseLine(httpMessage.getSb().toString(), (HttpResponse) httpMessage);
                     }
-                    sb.setLength(0);
+                    httpMessage.getSb().setLength(0);
                     return true;
                 }
             } else {
-                sb.append((char) nextByte);
+                httpMessage.getSb().append((char) nextByte);
             }
         }
         return false;
@@ -198,9 +199,9 @@ public class HttpDecodeSerializer {
                 nextByte = buffer.readByte();
                 if (nextByte == HttpConstants.LF) {
                     nextByte = buffer.readByte();
-                    readHeader(httpMessage, sb.toString());
+                    readHeader(httpMessage, httpMessage.getSb().toString());
                     //清空sb
-                    sb.setLength(0);
+                    httpMessage.getSb().setLength(0);
 
                     if (nextByte == HttpConstants.CR) {
                         nextByte = buffer.readByte();
@@ -208,11 +209,11 @@ public class HttpDecodeSerializer {
                             return true;
                         }
                     } else {
-                        sb.append((char) nextByte);
+                        httpMessage.getSb().append((char) nextByte);
                     }
                 }
             } else {
-                sb.append((char) nextByte);
+                httpMessage.getSb().append((char) nextByte);
             }
         }
         return false;
@@ -231,7 +232,7 @@ public class HttpDecodeSerializer {
         int valueStart;
         int valueEnd;
 
-        nameStart = findNonWhitespace(sb, 0);
+        nameStart = StringUtil.findNonWhitespace(sb, 0);
         for (nameEnd = nameStart; nameEnd < length; nameEnd++) {
             char ch = sb.charAt(nameEnd);
             if (ch == ':' || Character.isWhitespace(ch)) {
@@ -246,7 +247,7 @@ public class HttpDecodeSerializer {
             }
         }
 
-        valueStart = findNonWhitespace(sb, colonEnd);
+        valueStart = StringUtil.findNonWhitespace(sb, colonEnd);
         if (valueStart == length) {
             return new String[]{
                     sb.substring(nameStart, nameEnd),
@@ -254,7 +255,7 @@ public class HttpDecodeSerializer {
             };
         }
 
-        valueEnd = findEndOfString(sb);
+        valueEnd = StringUtil.findEndOfString(sb);
         return new String[]{
                 sb.substring(nameStart, nameEnd),
                 sb.substring(valueStart, valueEnd)
@@ -416,35 +417,6 @@ public class HttpDecodeSerializer {
         return false;
     }
 
-    private static int findNonWhitespace(String sb, int offset) {
-        int result;
-        for (result = offset; result < sb.length(); result++) {
-            if (!Character.isWhitespace(sb.charAt(result))) {
-                break;
-            }
-        }
-        return result;
-    }
-
-    private static int findWhitespace(String sb, int offset) {
-        int result;
-        for (result = offset; result < sb.length(); result++) {
-            if (Character.isWhitespace(sb.charAt(result))) {
-                break;
-            }
-        }
-        return result;
-    }
-
-    private static int findEndOfString(String sb) {
-        int result;
-        for (result = sb.length(); result > 0; result--) {
-            if (!Character.isWhitespace(sb.charAt(result - 1))) {
-                break;
-            }
-        }
-        return result;
-    }
 
     private static String getSubAttribute(String str, String name) {
         int index = str.indexOf(name + "=");

@@ -70,4 +70,13 @@ public class WebSocketConstants {
      */
     public static final int SPLIT_VERSION13 = 13;
 
+    /**
+     * 握手标记
+     */
+    public static final String WEB_SOCKET_HAND_SHAKE = "webSocketHandShake";
+    /**
+     * 版本标记
+     */
+    public static final String WEB_SOCKET_PROTOCOL_VERSION = "webSocketProtocolVersion";
+
 }
