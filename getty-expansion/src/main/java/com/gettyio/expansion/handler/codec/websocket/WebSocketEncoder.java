@@ -108,7 +108,7 @@ public class WebSocketEncoder extends MessageToByteEncoder {
 
         AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
         WebSocketFrame messageFrame = new WebSocketFrame();
-        messageFrame.setDateLength(msg.length);
+        messageFrame.setPayloadLen(msg.length);
 
         byte[] headers = new byte[2];
         headers[0] = WebSocketFrame.FIN;

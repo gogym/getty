@@ -27,11 +27,11 @@ import java.io.IOException;
 
 
 /**
- * aio模式下控制数据输出
+ * 控制数据输出
  *
  * @author gogym
  * @version 1.0.0
- * @className AioBufferWriter.java
+ * @className BufferWriter.java
  * @description
  * @date 2020/4/8
  */

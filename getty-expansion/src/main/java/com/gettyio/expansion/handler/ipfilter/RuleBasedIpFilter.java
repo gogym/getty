@@ -31,7 +31,7 @@ import java.util.List;
  * @copyright: Copyright by gettyio.com
  * @see RuleBasedIpFilter
  */
-public class RuleBasedIpFilter implements IpFilterRule {
+class RuleBasedIpFilter implements IpFilterRule {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(RuleBasedIpFilter.class);
 
     List<IpRange> ips;

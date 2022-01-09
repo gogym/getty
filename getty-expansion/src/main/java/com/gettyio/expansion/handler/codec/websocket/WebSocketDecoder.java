@@ -48,10 +48,12 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
      */
     WebSocketFrame messageFrame;
     /**
-     * 用于保存握手信息
+     * 用于保存数据帧
      */
-    AutoByteBuffer shakeByteBuffer = AutoByteBuffer.newByteBuffer();
-
+    AutoByteBuffer byteBuffer = AutoByteBuffer.newByteBuffer();
+    /**
+     * 请求信息
+     */
     WebSocketRequest requestInfo = new WebSocketRequest();
 
     @Override
@@ -59,13 +61,13 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
         if (handShake) {
             // 已经握手处理
             if (protocolVersion >= WebSocketConstants.SPLIT_VERSION6) {
-                AutoByteBuffer frameByteBuffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
+                byteBuffer.writeBytes((byte[]) obj);
                 //解析数据帧
-                WebSocketFrame frame = parserVersion6(frameByteBuffer);
-                messageFrame = null;
+                WebSocketFrame frame = parserVersion6(byteBuffer);
                 if (frame != null) {
                     out.put(frame);
                     super.decode(socketChannel, obj, out);
+                    messageFrame = null;
                 }
             } else {
                 out.put(obj);
@@ -73,8 +75,8 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             }
         } else {
             // 进行握手处理
-            shakeByteBuffer.writeBytes((byte[]) obj);
-            WebSocketHandShake.parserRequest(shakeByteBuffer, requestInfo);
+            byteBuffer.writeBytes((byte[]) obj);
+            WebSocketHandShake.parserRequest(byteBuffer, requestInfo);
             if (requestInfo.getReadStatus() != WebSocketHandShake.READ_CONTENT) {
                 return;
             }
@@ -91,9 +93,8 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
             handShake = true;
             socketChannel.setChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE, true);
             socketChannel.setChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION, protocolVersion);
-            shakeByteBuffer.clear();
         }
-
+        byteBuffer.clear();
     }
 
 
@@ -138,24 +139,9 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
                         return null;
                 }
             }
-            if (!messageFrame.isReadFinish()) {
-                // 读取解析消息头
-                messageFrame.parseMessageHeader(buffer);
-            }
-            int bufferDataLength = buffer.readableBytes();
-            int dataLength = bufferDataLength > messageFrame.getDateLength() ? new Long(messageFrame.getDateLength()).intValue() : bufferDataLength;
-            byte[] bytes = new byte[dataLength];
-            if (dataLength > 0) {
-                buffer.readBytes(bytes);
-                if (messageFrame.isMask()) {
-                    // 做加密处理
-                    for (int i = 0; i < dataLength; i++) {
-                        bytes[i] ^= messageFrame.getMaskingKey()[(i % 4)];
-                    }
-                }
-                messageFrame.setPayloadData(bytes);
-            }
 
+            //解析消息
+            messageFrame.parseMessage(buffer);
             if (messageFrame.isReadFinish()) {
                 return messageFrame;
             }
@@ -169,7 +155,7 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
         handShake = false;
         protocolVersion = 0;
         messageFrame = null;
-        shakeByteBuffer.clear();
+        byteBuffer.clear();
         requestInfo = new WebSocketRequest();
         super.channelClosed(socketChannel);
     }

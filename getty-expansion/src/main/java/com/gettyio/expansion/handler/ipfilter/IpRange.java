@@ -23,7 +23,7 @@ package com.gettyio.expansion.handler.ipfilter;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class IpRange {
+ class IpRange {
 
     /**
      * 开始ip

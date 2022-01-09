@@ -139,7 +139,6 @@ public class SslHandler extends ChannelAllBoundHandlerAdapter {
                 byte[] b = new byte[wrappedBytes.remaining()];
                 wrappedBytes.get(b, 0, b.length);
                 //回调父类方法
-                //aioChannel.writeToChannel(b);
                 SslHandler.super.encode(socketChannel, b);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);

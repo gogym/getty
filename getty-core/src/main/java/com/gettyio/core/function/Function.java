@@ -18,7 +18,7 @@ package com.gettyio.core.function;
 /**
  * Function.java
  *
- * @description:函数式编程，基于一个输入值确定一个输出值，参考于google Guava
+ * @description:函数式编程，基于一个输入值确定一个输出值
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com

@@ -339,7 +339,6 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * 需要同步控制
      */
     public void writeCompleted() {
-
         writeByteBuffer.readerIndex(writeByteBuffer.getNioBuffer().position());
         if (!writeByteBuffer.isReadable()) {
             //写完及时释放内存

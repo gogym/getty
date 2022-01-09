@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -446,7 +446,7 @@ public final class MqttDecoder extends ObjectToMessageDecoder {
             numberOfBytesConsumed += size;
             return new Result<String>(null, numberOfBytesConsumed);
         }
-        String s = buffer.toString(buffer.readerIndex(), size, CharsetUtil.UTF_8);
+        String s = buffer.decodeString(buffer.readerIndex(), size, CharsetUtil.UTF_8);
         buffer.skipBytes(size);
         numberOfBytesConsumed += size;
         return new Result<String>(s, numberOfBytesConsumed);

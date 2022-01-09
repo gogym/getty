@@ -50,7 +50,7 @@ public class UdpChannel extends SocketChannel {
     /**
      * 阻塞队列
      */
-    private LinkedBlockQueue<Object> queue;
+    private LinkedBlockQueue<DatagramPacket> queue;
     private ThreadPool workerThreadPool;
 
     public UdpChannel(DatagramChannel datagramChannel, Selector selector, BaseConfig config, ByteBufAllocator byteBufAllocator, ChannelPipeline channelPipeline, int workerThreadNum) {
@@ -125,9 +125,9 @@ public class UdpChannel extends SocketChannel {
             @Override
             public void run() {
                 try {
-                    Object obj;
-                    while ((obj = queue.take()) != null) {
-                        UdpChannel.this.send(obj);
+                    DatagramPacket datagramPacket;
+                    while ((datagramPacket = queue.take()) != null) {
+                        UdpChannel.this.send(datagramPacket);
                     }
                 } catch (InterruptedException e) {
                     logger.error(e.getMessage(), e);
@@ -171,7 +171,9 @@ public class UdpChannel extends SocketChannel {
     @Override
     public boolean writeAndFlush(Object obj) {
         try {
-            queue.put(obj);
+            if(obj instanceof DatagramPacket) {
+                queue.put((DatagramPacket)obj);
+            }
         } catch (InterruptedException e) {
             logger.error(e.getMessage(), e);
         }
@@ -182,7 +184,9 @@ public class UdpChannel extends SocketChannel {
     @Deprecated
     public void writeToChannel(Object obj) {
         try {
-            queue.put(obj);
+            if(obj instanceof DatagramPacket) {
+                queue.put((DatagramPacket)obj);
+            }
         } catch (InterruptedException e) {
             logger.error(e.getMessage(), e);
         }
@@ -210,12 +214,11 @@ public class UdpChannel extends SocketChannel {
      * 往目标地址发送消息
      *
      * @return void
-     * @params [obj]
+     * @params [datagramPacket]
      */
-    private void send(Object obj) {
+    private void send(DatagramPacket datagramPacket) {
         try {
             //转换成udp数据包
-            DatagramPacket datagramPacket = (DatagramPacket) obj;
             ByteBuf byteBuffer = byteBufAllocator.ioBuffer(datagramPacket.getLength());
             byteBuffer.writeBytes(datagramPacket.getData());
             //写出到目标地址

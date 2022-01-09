@@ -38,7 +38,6 @@ public final class EmptyByteBuf extends ByteBuf {
      */
     private static final long EMPTY_BYTE_BUFFER_ADDRESS;
 
-
     static {
         long emptyByteBufferAddress = 0;
         try {
@@ -167,7 +166,6 @@ public final class EmptyByteBuf extends ByteBuf {
     public byte getByte(int index) {
         throw new IndexOutOfBoundsException();
     }
-
 
 
     @Override

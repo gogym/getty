@@ -665,7 +665,7 @@ public class AutoByteBuffer {
      * @param charset
      * @return
      */
-    public String toString(int index, int length, Charset charset) {
+    public String decodeString(int index, int length, Charset charset) {
         return decodeString(this, index, length, charset);
     }
 

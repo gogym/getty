@@ -19,6 +19,8 @@ import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.expansion.handler.codec.websocket.frame.PingWebSocketFrame;
 import com.gettyio.core.util.ObjectUtil;
 
+import java.math.BigDecimal;
+
 /**
  * WebSocketMessage.java
  *
@@ -99,10 +101,11 @@ public class WebSocketFrame {
      * 是否读取完毕，默认否
      */
     private boolean readFinish = false;
+
     /**
      * 数据帧的头部信息
      */
-    private byte[] headers = new byte[8];
+    private final byte[] headers = new byte[8];
     /**
      * 表示数据长度的字节数量
      */
@@ -111,7 +114,7 @@ public class WebSocketFrame {
     /**
      * 已经解析的数据
      */
-    private AutoByteBuffer payloadData = AutoByteBuffer.newByteBuffer();
+    private final AutoByteBuffer payloadData = AutoByteBuffer.newByteBuffer();
 
     public WebSocketFrame() {
 
@@ -125,17 +128,8 @@ public class WebSocketFrame {
         this.readFinish = readFinish;
     }
 
-
     public byte getFin() {
         return fin;
-    }
-
-    public void setFin(byte fin) {
-        this.fin = fin;
-    }
-
-    public byte getMask() {
-        return mask;
     }
 
     public boolean isMask() {
@@ -175,92 +169,59 @@ public class WebSocketFrame {
         }
     }
 
-    public byte getPayloadLen() {
-        return payloadLen;
-    }
-
-    public void setPayloadLen(byte payloadLen) {
-        this.payloadLen = payloadLen;
-    }
-
     public short getPayloadLenExtended() {
         return payloadLenExtended;
-    }
-
-    public void setPayloadLenExtended(short payloadLenExtended) {
-        this.payloadLenExtended = payloadLenExtended;
     }
 
     public long getPayloadLenExtendedContinued() {
         return payloadLenExtendedContinued;
     }
 
-    public void setPayloadLenExtendedContinued(long payloadLenExtendedContinued) {
-        this.payloadLenExtendedContinued = payloadLenExtendedContinued;
-    }
-
     public byte getRsv1() {
         return rsv1;
-    }
-
-    public void setRsv1(byte rsv1) {
-        this.rsv1 = rsv1;
     }
 
     public byte getRsv2() {
         return rsv2;
     }
 
-    public void setRsv2(byte rsv2) {
-        this.rsv2 = rsv2;
-    }
-
     public byte getRsv3() {
         return rsv3;
     }
 
-    public void setRsv3(byte rsv3) {
-        this.rsv3 = rsv3;
-    }
+    public long getPayloadLen() {
 
-    /**
-     * <li>方法名：getDateLength
-     * <li>@return
-     * <li>返回类型：long
-     * <li>说明：获取数据长度
-     */
-    public long getDateLength() {
-        if (this.getPayloadLenExtendedContinued() > 0) {
+        if (this.payloadLen == HAS_EXTEND_DATA_CONTINUE) {
             return this.getPayloadLenExtendedContinued();
         }
-
-        if (this.getPayloadLenExtended() > 0) {
-            return this.getPayloadLenExtended();
+        if (this.payloadLen == HAS_EXTEND_DATA) {
+            if (this.getPayloadLenExtended() < 0) {
+                return 65535 + 1 + this.getPayloadLenExtended();
+            } else {
+                return new BigDecimal(this.getPayloadLenExtended()).intValue();
+            }
         }
-        if (this.getPayloadLen() == HAS_EXTEND_DATA || this.getPayloadLen() == HAS_EXTEND_DATA_CONTINUE) {
-            return 0L;
-        }
-
-        return this.getPayloadLen();
+        return this.payloadLen;
     }
 
     /**
-     * 方法名：setDateLength
+     * 方法名：setPayloadLen
      *
      * @param len 长度
      *            设置数据长度
      */
-    public void setDateLength(long len) {
+    public void setPayloadLen(long len) {
         if (len < HAS_EXTEND_DATA) {
             this.payloadLen = (byte) len;
             this.payloadLenExtended = 0;
             this.payloadLenExtendedContinued = 0;
-        } else if (len < 1 * Short.MAX_VALUE * 2) {
-            // UNSIGNED
+        } else if (len < Short.MAX_VALUE * 2) {
+            // 如果数据长度为126到65535(2的16次方)之间，该7位值固定为126
             this.payloadLen = HAS_EXTEND_DATA;
             this.payloadLenExtended = (short) len;
             this.payloadLenExtendedContinued = 0;
         } else {
+            //如果数据长度大于65535， 该7位的值固定为127，也就是 1111111
             this.payloadLen = HAS_EXTEND_DATA_CONTINUE;
             this.payloadLenExtended = 0;
             this.payloadLenExtendedContinued = len;
@@ -279,14 +240,31 @@ public class WebSocketFrame {
         return Math.min(buffer.readableBytes(), count);
     }
 
+
+    public void parseMessage(AutoByteBuffer buffer) throws Exception {
+        parseMessageHeader(buffer);
+        parsePayloadData(buffer);
+        if (this.getPayloadLen() == this.payloadData.readableBytes()) {
+            setReadFinish(true);
+            if (isMask()) {
+                // 做加密处理
+                byte[] bytes = this.payloadData.readableBytesArray();
+                for (int i = 0; i < this.getPayloadData().length; i++) {
+                    bytes[i] ^= getMaskingKey()[(i % 4)];
+                }
+                this.payloadData.reset();
+                setPayloadData(bytes);
+            }
+        }
+    }
+
     /**
      * 解析消息头部信息
      *
      * @param buffer 数据
      */
-    public void parseMessageHeader(AutoByteBuffer buffer) throws Exception {
+    private void parseMessageHeader(AutoByteBuffer buffer) throws Exception {
         int bt, b2;
-
         switch (this.readCount) {
             case 0:
                 //没有读取过字节
@@ -294,15 +272,15 @@ public class WebSocketFrame {
                     bt = buffer.read();
                     ++this.readCount;
                     // 后面是否有续帧数据标识
-                    this.setFin((byte) (bt & FIN));
+                    this.fin = ((byte) (bt & FIN));
                     // 保留标识1
-                    this.setRsv1((byte) (bt & RSV1));
+                    this.rsv1 = ((byte) (bt & RSV1));
                     // 保留标识2
-                    this.setRsv2((byte) (bt & RSV2));
+                    this.rsv2 = ((byte) (bt & RSV2));
                     // 保留标识3
-                    this.setRsv3((byte) (bt & RSV3));
+                    this.rsv3 = ((byte) (bt & RSV3));
                     //标识数据的格式，以及帧的控制，如：01标识数据内容是 文本，08标识：要求远端去关闭当前连接。
-                    this.setOpcode((byte) (bt & OPCODE));
+                    this.opcode = ((byte) (bt & OPCODE));
                 } else {
                     return;
                 }
@@ -317,7 +295,7 @@ public class WebSocketFrame {
 				/*如果小于126 表示后面的数据长度是 [Payload len] 的值。（最大125byte）
 			          等于 126 表示之后的16 bit位的数据值标识数据的长度。（最大65535byte）
 			          等于 127 表示之后的64 bit位的数据值标识数据的长度。（一个有符号长整型的最大值）*/
-                    this.setDateLength(bt & PAYLOAD_LEN);
+                    this.setPayloadLen(bt & PAYLOAD_LEN);
                 } else {
                     return;
                 }
@@ -325,7 +303,7 @@ public class WebSocketFrame {
                 //读取过2个字节
             case 3:
                 // read next 16 bit
-                if (this.getDateLength() == HAS_EXTEND_DATA) {
+                if (this.getPayloadLen() == HAS_EXTEND_DATA) {
                     // 数据字节长度为2个字节
                     this.dataLengthByte = 2;
                     // 2个字节 减去（总共读取的字节数-2个字节）
@@ -333,14 +311,14 @@ public class WebSocketFrame {
                     if (count <= 0) {
                         return;
                     }
-                    // 读取2位数字
+                    // 读取2位
                     buffer.readBytes(headers, (this.readCount - 2), count);
 
                     this.readCount += count;
                     if (this.readCount - 2 >= 2) {
                         bt = headers[0];
                         b2 = headers[1];
-                        this.setDateLength(ObjectUtil.toLong((byte) bt, (byte) b2));
+                        this.setPayloadLen(ObjectUtil.toLong((byte) bt, (byte) b2));
                     } else {
                         return;
                     }
@@ -352,7 +330,7 @@ public class WebSocketFrame {
             case 8:
             case 9:
                 // read next 32 bit
-                if (this.getDateLength() == HAS_EXTEND_DATA_CONTINUE) {
+                if (this.getPayloadLen() == HAS_EXTEND_DATA_CONTINUE) {
                     // 数据字节长度为2个字节
                     this.dataLengthByte = 8;
                     // 2个字节 减去（总共读取的字节数-2个字节）
@@ -365,14 +343,14 @@ public class WebSocketFrame {
 
                     this.readCount += count;
                     if (this.readCount - 2 >= 8) {
-                        this.setDateLength(ObjectUtil.toLong(headers));
+                        this.setPayloadLen(ObjectUtil.toLong(headers));
                     } else {
                         return;
                     }
                 }
             case 10:
             default:
-                if (this.isMask()) {
+                if (this.isMask() && maskingKey == null) {
                     // 2个字节 减去（总共读取的字节数-2个字节）
                     int count = this.computeCount(buffer, (4 - (this.readCount - 2 - this.dataLengthByte)));
                     if (count <= 0) {
@@ -384,7 +362,6 @@ public class WebSocketFrame {
                     this.readCount += count;
                     if ((this.readCount - 2 - this.dataLengthByte) >= 4) {
                         this.setMaskingKey(headers[0], headers[1], headers[2], headers[3]);
-                        //this.readFinish = true;
                     } else {
                         return;
                     }
@@ -392,4 +369,16 @@ public class WebSocketFrame {
         }
     }
 
+
+    /**
+     * 解析parsePayloadData
+     *
+     * @param buffer
+     * @throws Exception
+     */
+    private void parsePayloadData(AutoByteBuffer buffer) {
+        if (buffer.hasRemaining()) {
+            this.payloadData.writeBytes(buffer);
+        }
+    }
 }
