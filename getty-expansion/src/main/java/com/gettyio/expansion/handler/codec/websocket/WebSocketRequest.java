@@ -16,6 +16,9 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * WebSocketRequest.java
  *
@@ -59,6 +62,11 @@ class WebSocketRequest {
      * 版本，默认为0
      */
     private Integer secVersion = 0;
+
+    /**
+     * 请求头
+     */
+    private Map<String,String> headers=new HashMap<>(8);
 
     /**
      * 读取状态
@@ -157,5 +165,13 @@ class WebSocketRequest {
 
     public StringBuilder getSb() {
         return sb;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    public void putHeader(String key,String value){
+        this.headers.put(key,value);
     }
 }

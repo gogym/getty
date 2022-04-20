@@ -164,7 +164,7 @@ public class WebSocketFrame {
         this.payloadData.writeBytes(payloadData);
         if (getPayloadLenExtended() > 0 && this.payloadData.readableBytes() == getPayloadLenExtended()) {
             this.readFinish = true;
-        } else if (this.payloadData.readableBytes() == getPayloadLen()) {
+        } else if (this.payloadData.readableBytes() == getPayloadDataLen()) {
             this.readFinish = true;
         }
     }
@@ -189,7 +189,7 @@ public class WebSocketFrame {
         return rsv3;
     }
 
-    public long getPayloadLen() {
+    public long getPayloadDataLen() {
 
         if (this.payloadLen == HAS_EXTEND_DATA_CONTINUE) {
             return this.getPayloadLenExtendedContinued();
@@ -228,6 +228,10 @@ public class WebSocketFrame {
         }
     }
 
+    public byte getPayloadLen() {
+        return this.payloadLen;
+    }
+
     /**
      * 方法名：computeCount
      *
@@ -240,11 +244,16 @@ public class WebSocketFrame {
         return Math.min(buffer.readableBytes(), count);
     }
 
-
+    /**
+     * 解析消息
+     *
+     * @param buffer
+     * @throws Exception
+     */
     public void parseMessage(AutoByteBuffer buffer) throws Exception {
         parseMessageHeader(buffer);
         parsePayloadData(buffer);
-        if (this.getPayloadLen() == this.payloadData.readableBytes()) {
+        if (this.getPayloadDataLen() == this.payloadData.readableBytes()) {
             setReadFinish(true);
             if (isMask()) {
                 // 做加密处理

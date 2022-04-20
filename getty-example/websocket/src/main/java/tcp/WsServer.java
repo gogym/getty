@@ -49,7 +49,7 @@ public class WsServer {
                     sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
                     SslService sslService = new SslService(sSLConfig);
-                    defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
+                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
 
                     defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());

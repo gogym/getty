@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>2.0.0-beta3</version>
+    <version>2.0.0-beta4</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
@@ -31,6 +31,11 @@
             <dependency>
                 <groupId>com.gettyio</groupId>
                 <artifactId>getty-core</artifactId>
+                <version>${getty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.gettyio</groupId>
+                <artifactId>getty-expansion</artifactId>
                 <version>${getty.version}</version>
             </dependency>
 
@@ -128,7 +133,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--  必须配置GPG插件用于使用以下配置对组件进行签名-->
+              <!--必须配置GPG插件用于使用以下配置对组件进行签名-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
@@ -197,8 +202,8 @@
                                 </execution>
                             </executions>
                         </plugin>
-                        <!--  必须配置GPG插件用于使用以下配置对组件进行签名 -->
-                        <!-- mvn clean deploy -projects getty-core,getty-expansion -am -P ossrh -->
+                          <!--必须配置GPG插件用于使用以下配置对组件进行签名-->
+                         <!--mvn clean deploy -projects getty-core,getty-expansion -am -P ossrh-->
                         <plugin>
                             <groupId>org.apache.maven.plugins</groupId>
                             <artifactId>maven-gpg-plugin</artifactId>

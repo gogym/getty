@@ -144,16 +144,15 @@ public class WebSocketHandShake {
         StringBuilder sb = new StringBuilder();
         if (requestInfo.getSecVersion() < 4) {
             // 版本0--3
-            sb.append("HTTP/1.1 101 WebSocket Protocol Handshake").append("\r\n")
-                    .append("Upgrade: WebSocket").append("\r\n")
-                    .append("Connection: Upgrade").append("\r\n")
-                    .append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
+            sb.append("HTTP/1.1 101 WebSocket Protocol Handshake").append("\r\n");
+            sb.append("Upgrade: WebSocket").append("\r\n");
+            sb.append("Connection: Upgrade").append("\r\n");
+            sb.append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
             if (aioChannel.getSslHandler() == null) {
                 sb.append("Sec-WebSocket-Location: ws://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
             } else {
                 sb.append("Sec-WebSocket-Location: wss://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
             }
-
             if (requestInfo.getCookie() != null) {
                 sb.append("cookie: ").append(requestInfo.getCookie()).append("\r\n");
             }
@@ -161,17 +160,16 @@ public class WebSocketHandShake {
             sb.append(requestInfo.getDigest());
         } else {
             // 大于等于版本4
-            sb.append("HTTP/1.1 101 Switching Protocols").append("\r\n")
-                    .append("Upgrade: websocket").append("\r\n")
-                    .append("Connection: Upgrade").append("\r\n")
-                    .append("Sec-WebSocket-Accept: ").append(requestInfo.getDigest()).append("\r\n")
-                    .append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
+            sb.append("HTTP/1.1 101 Switching Protocols").append("\r\n");
+            sb.append("Upgrade: websocket").append("\r\n");
+            sb.append("Connection: Upgrade").append("\r\n");
+            sb.append("Sec-WebSocket-Accept: ").append(requestInfo.getDigest()).append("\r\n");
+            sb.append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
             if (aioChannel.getSslHandler() == null) {
                 sb.append("Sec-WebSocket-Location: ws://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
             } else {
                 sb.append("Sec-WebSocket-Location: wss://").append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
             }
-            //.append("Sec-WebSocket-Protocol: chat").append("\r\n");
             // 写入换行
             sb.append("\r\n");
         }
@@ -237,11 +235,13 @@ public class WebSocketHandShake {
             if (nextByte == HttpConstants.CR) {
                 nextByte = buffer.readByte();
                 if (nextByte == HttpConstants.LF) {
-                    nextByte = buffer.readByte();
                     readHeader(webSocketRequest, webSocketRequest.getSb().toString());
                     //清空sb
                     webSocketRequest.getSb().setLength(0);
-
+                    if (!buffer.hasRemaining()) {
+                        return false;
+                    }
+                    nextByte = buffer.readByte();
                     if (nextByte == HttpConstants.CR) {
                         nextByte = buffer.readByte();
                         if (nextByte == HttpConstants.LF) {
@@ -263,6 +263,7 @@ public class WebSocketHandShake {
 
         String name = kv[0].toLowerCase();
         String value = kv[1].toLowerCase();
+        webSocketRequest.putHeader(name, value);
 
         if ("upgrade".equals(name)) {
             if (!"websocket".equals(value)) {
@@ -303,8 +304,6 @@ public class WebSocketHandShake {
             webSocketRequest.setSecVersion(Integer.valueOf(value));
         } else if ("sec-websocket-extensions".equals(name)) {
             LOGGER.info(value);
-        } else {
-            LOGGER.info("Unexpected header field: " + name);
         }
     }
 

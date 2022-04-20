@@ -117,7 +117,6 @@ public class WebSocketEncoder extends MessageToByteEncoder {
         headers[1] |= 0x00 | messageFrame.getPayloadLen();
         // 头部控制信息
         autoByteBuffer.writeBytes(headers);
-
         if (messageFrame.getPayloadLen() == WebSocketFrame.HAS_EXTEND_DATA) {
             // 处理数据长度为126位的情况
             autoByteBuffer.writeBytes(ObjectUtil.shortToByte(messageFrame.getPayloadLenExtended()));
@@ -125,6 +124,18 @@ public class WebSocketEncoder extends MessageToByteEncoder {
             // 处理数据长度为127位的情况
             autoByteBuffer.writeBytes(ObjectUtil.longToByte(messageFrame.getPayloadLenExtendedContinued()));
         }
+
+        //写到客户端不需要做掩码处理
+//        if (messageFrame.isMask()) {
+//            // 做了掩码处理的，需要传递掩码的key
+//            byte[] keys = messageFrame.getMaskingKey();
+//            autoByteBuffer.writeBytes(messageFrame.getMaskingKey());
+//            for (int i = 0; i < autoByteBuffer.array().length; ++i) {
+//                //进行掩码处理
+//                autoByteBuffer.array()[i] ^= keys[i % 4];
+//            }
+//        }
+
         autoByteBuffer.writeBytes(msg);
 
         return autoByteBuffer.readableBytesArray();
