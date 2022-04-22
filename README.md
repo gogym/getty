@@ -106,7 +106,7 @@ Dependencies are included in the Projects Pom.XML dependencies
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>2.0.0-beta3</version>
+            <version>2.0.0-beta4</version>
         </dependency>
 ```
 
@@ -114,7 +114,7 @@ Dependencies are included in the Projects Pom.XML dependencies
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '2.0.0-beta3'
+compile group: 'com.gettyio', name: 'getty-core', version: '2.0.0-beta4'
 ```
 
 
