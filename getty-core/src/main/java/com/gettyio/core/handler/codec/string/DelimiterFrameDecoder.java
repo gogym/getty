@@ -16,9 +16,8 @@
 package com.gettyio.core.handler.codec.string;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 
 
 /**
@@ -29,7 +28,7 @@ import com.gettyio.core.util.LinkedBlockQueue;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
+public class DelimiterFrameDecoder extends ByteToMessageDecoder {
 
     /**
      * 默认分隔符
@@ -40,7 +39,7 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
     /**
      * 消息结束标志
      */
-    private byte[] endFLag;
+    private final byte[] endFLag;
     /**
      * 本次校验的结束标索引位
      */
@@ -50,10 +49,14 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
         this.endFLag = endFLag;
     }
 
-    @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
 
-        byte[] bytes = (byte[]) obj;
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
+        decode(ctx, in);
+    }
+
+    private void decode(ChannelHandlerContext ctx, Object in) throws Exception {
+        byte[] bytes = (byte[]) in;
         int index = 0;
         while (index < bytes.length) {
             byte data = bytes[index];
@@ -62,12 +65,11 @@ public class DelimiterFrameDecoder extends ChannelInboundHandlerAdapter {
                 exceptIndex = 0;
             } else if (++exceptIndex == endFLag.length) {
                 //传递到下一个解码器
-                super.decode(socketChannel, preBuffer.allWriteBytesArray(), out);
+                super.channelRead(ctx, preBuffer.allWriteBytesArray());
                 preBuffer.clear();
                 exceptIndex = 0;
             }
             index++;
         }
-
     }
 }

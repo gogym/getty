@@ -19,12 +19,14 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.channel.starter.ConnectHandler;
-import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
+import com.gettyio.core.handler.ssl.IHandshakeListener;
+import com.gettyio.core.handler.ssl.SSLException;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.ThreadPool;
 import com.gettyio.core.util.timer.HashedWheelTimer;
 import com.gettyio.core.util.timer.Timeout;
 import com.gettyio.core.util.timer.TimerTask;
@@ -63,68 +65,62 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
      * 创建一个定时器
      */
     private final HashedWheelTimer timer = new HashedWheelTimer();
-
+    /**
+     * channel
+     */
     private SocketChannel channel;
-
     /**
      * 连接回调
      */
     private ConnectHandler connectHandler;
-
     /**
-     * 默认3s
+     * 重试次数 ,默认3次
      */
-    private int connectTimeout = 3000;
+    private int retry = 3;
 
     public ReConnectHandler(ConnectHandler connectHandler) {
         this.connectHandler = connectHandler;
     }
-
 
     public ReConnectHandler(int threshold, ConnectHandler connectHandler) {
         this.threshold = threshold;
         this.connectHandler = connectHandler;
     }
 
-    public ReConnectHandler(int threshold, int connectTimeout, ConnectHandler connectHandler) {
-        this.connectTimeout = connectTimeout;
+    public ReConnectHandler(int threshold, int retry, ConnectHandler connectHandler) {
+        this.threshold = threshold;
+        this.retry = retry;
         this.connectHandler = connectHandler;
     }
 
-
     @Override
-    public void channelAdded(SocketChannel socketChannel) throws Exception {
-        this.channel = socketChannel;
+    public void channelAdded(ChannelHandlerContext ctx) throws Exception {
+        this.channel = ctx.channel();
         //重置时间基数
         attempts = 0;
-        super.channelAdded(socketChannel);
+        super.channelAdded(ctx);
     }
 
-
     @Override
-    public void channelClosed(SocketChannel socketChannel) throws Exception {
-        if (!socketChannel.isInitiateClose() && timer.workerState == HashedWheelTimer.WORKER_STATE_INIT) {
+    public void channelClosed(ChannelHandlerContext ctx) throws Exception {
+        if (!ctx.channel().isInitiateClose() && timer.workerState == HashedWheelTimer.WORKER_STATE_INIT) {
             //如果不是主动关闭，则发起重连
-            reConnect(socketChannel);
+            reConnect(ctx.channel());
         }
-        super.channelClosed(socketChannel);
+        super.channelClosed(ctx);
     }
 
-
     @Override
-    public void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (timer.workerState == HashedWheelTimer.WORKER_STATE_INIT) {
-            reConnect(socketChannel);
+            reConnect(ctx.channel());
         }
-        super.exceptionCaught(socketChannel, cause);
+        super.exceptionCaught(ctx, cause);
     }
 
     @Override
     public void run(Timeout timeout) throws Exception {
-
         final BaseConfig clientConfig = channel.getConfig();
-        final ThreadPool workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 2);
-
         if (channel instanceof AioChannel) {
             AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
                 @Override
@@ -146,15 +142,20 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                 public void completed(Void result, AsynchronousSocketChannel attachment) {
                     logger.info("connect aio server success");
                     //连接成功则构造AIOSession对象
-                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(workerThreadPool), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufAllocator(), channel.getChannelPipeline());
+                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufAllocator(), channel.getChannelInitializer());
 
                     if (null != connectHandler) {
                         if (null != channel.getSslHandler()) {
-                            channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                            channel.setSslHandshakeListener(new IHandshakeListener() {
                                 @Override
                                 public void onComplete() {
                                     logger.info("Ssl Handshake Completed");
                                     connectHandler.onCompleted(channel);
+                                }
+
+                                @Override
+                                public void onFail(SSLException e) {
+                                    connectHandler.onFailed(e);
                                 }
                             });
                         } else {
@@ -190,8 +191,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
             /*
              * 创建一个事件选择器Selector
              */
-            Selector selector = Selector.open();
-
+            SelectedSelector selector = new SelectedSelector(Selector.open());
             /*
              * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
              */
@@ -206,14 +206,19 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         if (channels.isConnectionPending()) {
                             try {
                                 channels.finishConnect();
-                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(),channel.getByteBufAllocator(),channel.getWorkerThreadPool(), channel.getChannelPipeline());
+                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getByteBufAllocator(), channel.getChannelInitializer());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
-                                        channel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                                        channel.setSslHandshakeListener(new IHandshakeListener() {
                                             @Override
                                             public void onComplete() {
                                                 logger.info("Ssl Handshake Completed");
                                                 connectHandler.onCompleted(channel);
+                                            }
+
+                                            @Override
+                                            public void onFail(SSLException e) {
+                                                connectHandler.onFailed(e);
                                             }
                                         });
                                     } else {
@@ -238,21 +243,20 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
         }
     }
 
-
     /**
      * 重连
      *
      * @param socketChannel
      */
-    public void reConnect(SocketChannel socketChannel) {
+    private void reConnect(SocketChannel socketChannel) {
         //判断是否已经连接
         if (socketChannel.isInvalid()) {
             logger.debug("reconnect...");
             // 重连的间隔时间会越来越长
-            long timeout = attempts * threshold;
+            long delay = attempts * threshold;
             //启动定时器，通过定时器连接
-            timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
-            if (attempts < 10) {
+            timer.newTimeout(this, delay, TimeUnit.MILLISECONDS);
+            if (attempts < retry) {
                 attempts++;
             }
         }

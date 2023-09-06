@@ -54,12 +54,12 @@ public class ThreadPool {
     /**
      * 可循环或延迟任务的线程池
      */
-    private ScheduledExecutorService scheduleExec;
+    private final ScheduledExecutorService scheduleExec;
 
     /**
      * 线程池大小
      */
-    private int corePoolSize;
+    private final int corePoolSize;
 
     /**
      * ThreadPool构造函数

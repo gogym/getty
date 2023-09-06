@@ -16,21 +16,22 @@
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
-import com.gettyio.core.util.PlatformDependent;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.AioChannel;
+import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
-import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
+import com.gettyio.core.handler.ssl.IHandshakeListener;
+import com.gettyio.core.handler.ssl.SSLException;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.pipeline.ChannelInitializer;
 
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.*;
+import java.nio.channels.AsynchronousChannelGroup;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.CompletionHandler;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
@@ -68,7 +69,6 @@ public class AioClientStarter extends AioStarter {
         clientConfig.setPort(port);
     }
 
-
     /**
      * 配置文件启动
      *
@@ -78,18 +78,16 @@ public class AioClientStarter extends AioStarter {
         this.clientConfig = clientConfig;
     }
 
-
     /**
      * 设置责任链
      *
-     * @param channelPipeline 责任链
+     * @param channelInitializer 责任链
      * @return AioClientStarter
      */
-    public AioClientStarter channelInitializer(ChannelPipeline channelPipeline) {
-        this.channelPipeline = channelPipeline;
+    public AioClientStarter channelInitializer(ChannelInitializer channelInitializer) {
+        this.channelInitializer = channelInitializer;
         return this;
     }
-
 
     /**
      * 启动客户端
@@ -127,11 +125,9 @@ public class AioClientStarter extends AioStarter {
      * @param connectHandler
      */
     private void start0(ConnectHandler connectHandler) throws Exception {
-        startCheck();
-        //初始化worker线程池
-        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+        startCheck(clientConfig);
         //初始化内存池
-        byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && clientConfig.isDirect());
+        byteBufAllocator = new PooledByteBufAllocator();
 
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
@@ -166,13 +162,13 @@ public class AioClientStarter extends AioStarter {
             public void completed(Void result, AsynchronousSocketChannel attachment) {
                 LOGGER.info("connect aio server success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(workerThreadPool), new WriteCompletionHandler(), byteBufAllocator, channelPipeline);
+                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(), new WriteCompletionHandler(), byteBufAllocator, channelInitializer);
                 //开始读
                 aioChannel.starRead();
 
                 if (connectHandler != null) {
                     if (aioChannel.getSslHandler() != null) {
-                        aioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                        aioChannel.setSslHandshakeListener(new IHandshakeListener() {
                             @Override
                             public void onComplete() {
                                 LOGGER.info("ssl Handshake Completed");
@@ -180,6 +176,16 @@ public class AioClientStarter extends AioStarter {
                                     @Override
                                     public void run() {
                                         connectHandler.onCompleted(aioChannel);
+                                    }
+                                }).start();
+                            }
+
+                            @Override
+                            public void onFail(SSLException e) {
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        connectHandler.onFailed(e);
                                     }
                                 }).start();
                             }
@@ -231,7 +237,7 @@ public class AioClientStarter extends AioStarter {
         if (aioChannel != null) {
             if (aioChannel.getSslHandler() != null) {
                 //如果开启了ssl,要先判断是否已经完成握手
-                if (aioChannel.getSslHandler().getSslService().getSsl().isHandshakeCompleted()) {
+                if (aioChannel.getSslHandler().isHandshakeCompleted()) {
                     return aioChannel;
                 }
                 aioChannel.close();
@@ -243,26 +249,4 @@ public class AioClientStarter extends AioStarter {
     }
 
 
-    /**
-     * 启动检查
-     */
-    private void startCheck() {
-        if (null == clientConfig.getHost() || "".equals(clientConfig.getHost())) {
-            throw new NullPointerException("The connection host is null.");
-        }
-        if (0 == clientConfig.getPort()) {
-            throw new NullPointerException("The connection port is null.");
-        }
-        if (channelPipeline == null) {
-            throw new RuntimeException("ChannelPipeline can't be null");
-        }
-        if (clientConfig.isFlowControl()) {
-            if (clientConfig.getLowWaterMark() >= clientConfig.getHighWaterMark()) {
-                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
-            }
-            if (clientConfig.getHighWaterMark() >= clientConfig.getBufferWriterQueueSize()) {
-                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
-            }
-        }
-    }
 }

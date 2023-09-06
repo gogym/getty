@@ -16,9 +16,10 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.util.CharsetUtil;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.expansion.handler.codec.websocket.frame.*;
 
@@ -30,7 +31,7 @@ import com.gettyio.expansion.handler.codec.websocket.frame.*;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class WebSocketDecoder extends ObjectToMessageDecoder {
+public class WebSocketDecoder extends ByteToMessageDecoder {
 
 
     /**
@@ -57,42 +58,40 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
     WebSocketRequest requestInfo = new WebSocketRequest();
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx,Object in) throws Exception {
         if (handShake) {
             // 已经握手处理
             if (protocolVersion >= WebSocketConstants.SPLIT_VERSION6) {
-                byteBuffer.writeBytes((byte[]) obj);
+                byteBuffer.writeBytes((byte[]) in);
                 //解析数据帧
                 WebSocketFrame frame = parserVersion6(byteBuffer);
                 if (frame != null) {
-                    out.put(frame);
-                    super.decode(socketChannel, obj, out);
+                    ctx.fireChannelProcess(ChannelState.CHANNEL_READ,frame);
                     messageFrame = null;
                 }
             } else {
-                out.put(obj);
-                super.decode(socketChannel, obj, out);
+                super.channelRead(ctx,in);
             }
         } else {
             // 进行握手处理
-            byteBuffer.writeBytes((byte[]) obj);
+            byteBuffer.writeBytes((byte[]) in);
             WebSocketHandShake.parserRequest(byteBuffer, requestInfo);
             if (requestInfo.getReadStatus() != WebSocketHandShake.READ_CONTENT) {
                 return;
             }
             //写出握手信息到客户端
-            byte[] bytes = WebSocketHandShake.generateHandshake(requestInfo, socketChannel).getBytes();
-            if (socketChannel.getSslHandler() == null) {
-                socketChannel.writeToChannel(bytes);
+            byte[] bytes = WebSocketHandShake.generateHandshake(requestInfo, ctx.channel()).getBytes();
+            if (ctx.channel().getSslHandler() == null) {
+                ctx.channel().writeToChannel(bytes);
             } else {
                 //需要注意的是，当开启了ssl，握手信息需要经过ssl encode之后才能输出给客户端。
                 //为了避免握手信息经过其他的encoder，所以直接指定通过sslHandler输出
-                socketChannel.getSslHandler().encode(socketChannel, bytes);
+                ctx.channel().getSslHandler().channelWrite(ctx, bytes);
             }
             protocolVersion = requestInfo.getSecVersion();
             handShake = true;
-            socketChannel.setChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE, true);
-            socketChannel.setChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION, protocolVersion);
+            ctx.channel().setChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE, true);
+            ctx.channel().setChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION, protocolVersion);
         }
         byteBuffer.clear();
     }
@@ -151,12 +150,12 @@ public class WebSocketDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void channelClosed(SocketChannel socketChannel) throws Exception {
+    public void channelClosed(ChannelHandlerContext ctx) throws Exception {
         handShake = false;
         protocolVersion = 0;
         messageFrame = null;
         byteBuffer.clear();
         requestInfo = new WebSocketRequest();
-        super.channelClosed(socketChannel);
+        super.channelClosed(ctx);
     }
 }

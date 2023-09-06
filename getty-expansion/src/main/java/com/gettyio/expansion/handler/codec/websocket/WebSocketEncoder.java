@@ -16,11 +16,11 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
-import com.gettyio.expansion.handler.codec.websocket.frame.WebSocketFrame;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
 import com.gettyio.core.util.ObjectUtil;
+import com.gettyio.expansion.handler.codec.websocket.frame.WebSocketFrame;
 
 /**
  * version 5+
@@ -72,12 +72,12 @@ import com.gettyio.core.util.ObjectUtil;
 public class WebSocketEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(SocketChannel aioChannel, Object obj) throws Exception {
-        if (aioChannel.getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE) != null && (boolean) aioChannel.getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE)) {
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
+        if (ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE) != null && (boolean) ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE)) {
             byte[] bytes;
             if (obj instanceof WebSocketFrame) {
                 bytes = ((WebSocketFrame) obj).getPayloadData();
-                if ((int) aioChannel.getChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION) <= WebSocketConstants.SPLIT_VERSION0) {
+                if ((int) ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION) <= WebSocketConstants.SPLIT_VERSION0) {
                     AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
                     autoByteBuffer.writeBytes(WebSocketConstants.BEGIN_MSG.getBytes(CharsetUtil.UTF_8));
                     autoByteBuffer.writeBytes(bytes);
@@ -91,9 +91,8 @@ public class WebSocketEncoder extends MessageToByteEncoder {
                 bytes = ObjectUtil.ObjToByteArray(obj);
                 obj = codeVersion6(bytes, Opcode.BINARY.getCode());
             }
-
         }
-        super.encode(aioChannel, obj);
+        super.channelWrite(ctx, obj);
     }
 
 

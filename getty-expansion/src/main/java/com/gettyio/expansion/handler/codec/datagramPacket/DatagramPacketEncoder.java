@@ -15,9 +15,9 @@
  */
 package com.gettyio.expansion.handler.codec.datagramPacket;
 
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
-import com.gettyio.core.pipeline.DatagramPacketHandler;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
+import com.gettyio.core.pipeline.all.DatagramPacketHandler;
 
 /**
  * DatagramPacketEncoder.java
@@ -30,8 +30,8 @@ import com.gettyio.core.pipeline.DatagramPacketHandler;
 public class DatagramPacketEncoder extends MessageToByteEncoder implements DatagramPacketHandler {
 
     @Override
-    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         //udp包直接由通道发出，实际这里并没有处理什么
-        super.encode(socketChannel, obj);
+        super.channelWrite(ctx,obj);
     }
 }

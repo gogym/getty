@@ -16,23 +16,56 @@
 package com.gettyio.core.pipeline;
 
 
-import com.gettyio.core.channel.SocketChannel;
-
 /**
- * ChannelPipeline.java
- *
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * ChannelPipeline
+ * 责任链
  */
 public interface ChannelPipeline {
 
     /**
-     * 初始化责任链
+     * 添加一个处理器到第一位
      *
-     * @param socketChannel
-     * @throws Exception
+     * @param handler
+     * @return
      */
-    void initChannel(SocketChannel socketChannel) throws Exception;
+    ChannelPipeline addFirst(ChannelHandler handler);
+
+    /**
+     * 添加一个处理器到尾部
+     *
+     * @param handler
+     * @return
+     */
+    ChannelPipeline addLast(ChannelHandler handler);
+
+    /**
+     * 获取头部
+     *
+     * @return
+     */
+    ChannelHandlerContext head();
+
+    /**
+     * 获取尾部
+     *
+     * @return
+     */
+    ChannelHandlerContext tail();
+
+    /**
+     * 判断是否是第一位处理器
+     *
+     * @param handler
+     * @return
+     */
+    boolean isFirst(ChannelHandler handler);
+
+    /**
+     * 判断是否是最后一位处理器
+     *
+     * @param handler
+     * @return
+     */
+    boolean isLast(ChannelHandler handler);
+
 }

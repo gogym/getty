@@ -15,9 +15,8 @@
  */
 package com.gettyio.core.pipeline.all;
 
-import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 import com.gettyio.core.pipeline.ChannelBoundHandler;
+import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 
 
 /**

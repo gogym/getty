@@ -1,6 +1,6 @@
 package tcp;
 
-import com.gettyio.core.handler.ssl.SslConfig;
+import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.util.ThreadPool;
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
@@ -30,7 +30,7 @@ public class WsClient2 {
         String pkPath = WsClient.class.getClassLoader().getResource("clientStore.jks")
                 .getPath();
         //ssl配置
-        SslConfig sSLConfig = new SslConfig();
+        SSLConfig sSLConfig = new SSLConfig();
         sSLConfig.setKeyFile(pkPath);
         sSLConfig.setKeyPassword("123456");
         sSLConfig.setKeystorePassword("123456");
@@ -69,7 +69,7 @@ public class WsClient2 {
      *
      * @param config
      */
-    private static SSLContext init(SslConfig config) {
+    private static SSLContext init(SSLConfig config) {
 
         SSLContext sslContext = null;
         try {

@@ -16,22 +16,19 @@
 package com.gettyio.core.channel;
 
 
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
 import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
+import com.gettyio.core.channel.group.ChannelFutureListener;
+import com.gettyio.core.handler.ssl.IHandshakeListener;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.ChannelHandlerAdapter;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
+import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
-import com.gettyio.core.channel.group.ChannelFutureListener;
-import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
 import com.gettyio.core.util.ConcurrentSafeMap;
-import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.StringUtil;
-import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -96,21 +93,21 @@ public abstract class SocketChannel {
     /**
      * 默认责任链对象
      */
-    protected DefaultChannelPipeline defaultChannelPipeline;
+    protected ChannelPipeline channelPipeline;
     /**
      * 关闭监听
      */
     protected ChannelFutureListener channelFutureListener;
 
     /**
-     * 用于保存以及decode的消息
-     */
-    private final LinkedBlockQueue<Object> outList = new LinkedBlockQueue<>();
-
-    /**
      * 用于方便设置随通道传播的属性
      */
     protected ConcurrentSafeMap<String, Object> channelAttribute = new ConcurrentSafeMap<>();
+
+    /**
+     * 通道初始化接口
+     */
+    protected ChannelInitializer channelInitializer;
 
     //-------------------------------------------------------------------------------------
 
@@ -196,11 +193,11 @@ public abstract class SocketChannel {
     /**
      * 消息读取到责任链管道
      *
-     * @param obj 消息对象
+     * @param readBuffer 消息对象
      * @throws Exception 异常
      */
-    public void readToPipeline(Object obj) throws Exception {
-        invokePipeline(ChannelState.CHANNEL_READ, obj);
+    public void readToPipeline(Object readBuffer) throws Exception {
+        invokePipeline(ChannelState.CHANNEL_READ, readBuffer);
     }
 
     //------------------------------------------------------------------------------
@@ -223,44 +220,9 @@ public abstract class SocketChannel {
      * @throws Exception 异常
      */
     protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
-        if (defaultChannelPipeline == null) {
-            return;
-        }
-
-        ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.inPipeFirst();
-        if (channelHandlerAdapter == null) {
-            return;
-        }
-
-        switch (channelState) {
-            case NEW_CHANNEL:
-                channelHandlerAdapter.channelAdded(this);
-                break;
-            case CHANNEL_READ:
-                channelHandlerAdapter.decode(this, obj, outList);
-                break;
-            case CHANNEL_CLOSED:
-                channelHandlerAdapter.channelClosed(this);
-                break;
-            case INPUT_SHUTDOWN:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel input shutdown exception"));
-                break;
-            case INPUT_EXCEPTION:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel input exception"));
-                break;
-            case OUTPUT_SHUTDOWN:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel output shutdown exception"));
-                break;
-            case OUTPUT_EXCEPTION:
-                channelHandlerAdapter.exceptionCaught(this, new RuntimeException("socket channel output exception"));
-                break;
-            default:
-                break;
-        }
-
-
+        ChannelHandlerContext channelHandlerContext = getDefaultChannelPipeline().head();
+        channelHandlerContext.fireChannelProcess(channelState, obj);
     }
-
 
     /**
      * 反向执行管道
@@ -270,19 +232,8 @@ public abstract class SocketChannel {
      * @throws Exception 异常
      */
     protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
-        ChannelHandlerAdapter channelHandlerAdapter = defaultChannelPipeline.outPipeFirst();
-
-        if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            //channelHandlerAdapter.channelWrite(this, obj);
-            channelHandlerAdapter.encode(this, obj);
-            return;
-        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            //channelHandlerAdapter.channelWrite(this, obj);
-            channelHandlerAdapter.encode(this, obj);
-            return;
-        }
-        //如果没有对应的处理器，直接输出到wirter
-        writeToChannel(obj);
+        ChannelHandlerContext channelHandlerContext = getDefaultChannelPipeline().tail();
+        channelHandlerContext.fireChannelProcess(channelState, obj);
     }
 
 
@@ -291,8 +242,8 @@ public abstract class SocketChannel {
      *
      * @return com.gettyio.core.pipeline.DefaultChannelPipeline
      */
-    public DefaultChannelPipeline getDefaultChannelPipeline() {
-        return defaultChannelPipeline != null ? defaultChannelPipeline : (defaultChannelPipeline = new DefaultChannelPipeline(this));
+    public ChannelPipeline getDefaultChannelPipeline() {
+        return channelPipeline != null ? channelPipeline : (channelPipeline = new DefaultChannelPipeline(this));
     }
 
 //--------------------------------------------------------------------------------------
@@ -309,20 +260,12 @@ public abstract class SocketChannel {
         return byteBufAllocator;
     }
 
-    public ThreadPool getWorkerThreadPool() {
-        return null;
-    }
-
-    public ChannelPipeline getChannelPipeline() {
-        return null;
-    }
-
     /**
      * 设置SSLHandler
      *
      * @return AioChannel
      */
-    public void setSslHandler(SslHandler sslHandler) {
+    public void setSslHandler(SSLHandler sslHandler) {
     }
 
     /**
@@ -330,15 +273,15 @@ public abstract class SocketChannel {
      *
      * @return com.gettyio.core.handler.ssl.SslService
      */
-    public SslHandler getSslHandler() {
+    public SSLHandler getSslHandler() {
         return null;
     }
 
-    public IHandshakeCompletedListener getSslHandshakeCompletedListener() {
+    public IHandshakeListener getSslHandshakeListener() {
         return null;
     }
 
-    public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
+    public void setSslHandshakeListener(IHandshakeListener handshakeListener) {
     }
 
     public BaseConfig getConfig() {
@@ -393,5 +336,9 @@ public abstract class SocketChannel {
 
     public boolean isWriteable() {
         return writeable;
+    }
+
+    public ChannelInitializer getChannelInitializer() {
+        return channelInitializer;
     }
 }

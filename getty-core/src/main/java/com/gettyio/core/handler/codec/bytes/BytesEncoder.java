@@ -15,8 +15,8 @@
  */
 package com.gettyio.core.handler.codec.bytes;
 
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.ObjectUtil;
 
 
@@ -31,9 +31,9 @@ import com.gettyio.core.util.ObjectUtil;
 public class BytesEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         obj = ObjectUtil.ObjToByteArray(obj);
-        super.encode(socketChannel, obj);
+        super.channelWrite(ctx, obj);
     }
 
 

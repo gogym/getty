@@ -33,8 +33,6 @@ public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
 
     final transient ReentrantLock lock = new ReentrantLock();
 
-    private Class<T> type;
-
     /**
      * 当前下标
      */
@@ -47,7 +45,7 @@ public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
 
 
     /**
-     * 定义一个常量为 0.(后面用于定义默认的集合大小)
+     * 定义一个常量为 (后面用于定义默认的集合大小)
      */
     private static final int DEFAULT_CAPACITY = 0;
 
@@ -55,7 +53,6 @@ public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
     public FastCopyOnWriteArrayList(Class<T> type) {
         //实例化数组
         this.data = (T[]) Array.newInstance(type, DEFAULT_CAPACITY);
-        this.type = type;
     }
 
 

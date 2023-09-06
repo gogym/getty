@@ -20,7 +20,7 @@ import com.gettyio.core.channel.SocketChannel;
 /**
  * ChannelFutureListener.java
  *
- * @description:监听，目前用于监听关闭时清理
+ * 监听，目前用于监听通道关闭时清理相关资源
  * @author:gogym
  * @date:2020/4/8
  */

@@ -2,9 +2,10 @@ package com.gettyio.mqtt.server;
 
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.expansion.handler.codec.mqtt.*;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.expansion.handler.codec.mqtt.MqttDecoder;
+import com.gettyio.expansion.handler.codec.mqtt.MqttEncoder;
 import com.gettyio.mqtt.client.SimpleHandler;
 
 
@@ -19,7 +20,7 @@ public class MqttServer {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
 
-                DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
                 //添加mqtt编解码器
                 defaultChannelPipeline.addLast(MqttEncoder.INSTANCE);
                 defaultChannelPipeline.addLast(new MqttDecoder());

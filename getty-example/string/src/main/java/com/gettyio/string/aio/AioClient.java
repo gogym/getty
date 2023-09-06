@@ -7,11 +7,11 @@ import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.string.StringEncoder;
-import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.expansion.handler.timeout.ReConnectHandler;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -45,13 +45,12 @@ public class AioClient {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
-                DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
-
+                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                 //获取证书
                 String pkPath = getClass().getClassLoader().getResource("clientStore.jks").getPath();
                 //ssl配置
-                SslConfig sSLConfig = new SslConfig();
+                SSLConfig sSLConfig = new SSLConfig();
                 sSLConfig.setKeyFile(pkPath);
                 sSLConfig.setKeyPassword("123456");
                 sSLConfig.setKeystorePassword("123456");
@@ -60,9 +59,19 @@ public class AioClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                SslService sSLService = new SslService(sSLConfig);
-                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
+                defaultChannelPipeline.addLast(new ReConnectHandler(new ConnectHandler() {
+                    @Override
+                    public void onCompleted(SocketChannel channel) {
+                        System.out.println("重连成功");
+                    }
+
+                    @Override
+                    public void onFailed(Throwable exc) {
+                        System.out.println("重连失败");
+                    }
+                }));
 
                 defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
@@ -78,31 +87,30 @@ public class AioClient {
             @Override
             public void onCompleted(final SocketChannel socketChannel) {
 
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            String s = "12\r\n";
-                            byte[] msgBody = s.getBytes("utf-8");
-                            long ct = System.currentTimeMillis();
-
-                            int i = 0;
-                            while (i < 100) {
-                                boolean flag = socketChannel.writeAndFlush(msgBody);
-                                System.out.printf(flag + " ");
-                                if (flag) {
-                                    i++;
-                                }
-                            }
-
-                            long lt = System.currentTimeMillis();
-                            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                            System.out.printf("发送消息数量：" + i + "条\r\n");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }).start();
+//                new Thread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        try {
+//                            String s = "12\r\n";
+//                            byte[] msgBody = s.getBytes("utf-8");
+//                            long ct = System.currentTimeMillis();
+//
+//                            int i = 0;
+//                            while (i < 1000000) {
+//                                boolean flag = socketChannel.writeAndFlush(msgBody);
+//                                if (flag) {
+//                                    i++;
+//                                }
+//                            }
+//
+//                            long lt = System.currentTimeMillis();
+//                            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+//                            System.out.printf("发送消息数量：" + i + "条\r\n");
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }).start();
 
 
             }

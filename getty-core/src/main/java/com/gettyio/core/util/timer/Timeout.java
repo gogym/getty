@@ -18,7 +18,6 @@ package com.gettyio.core.util.timer;
 /**
  * Timeout.java
  *
- * @description:参考自netty 4.3
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com

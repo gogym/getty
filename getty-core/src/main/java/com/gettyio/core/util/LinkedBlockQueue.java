@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * LinkedBlockQueue.java
  *
- * @description:读写mq,元素满时阻塞
+ * 自定义读写mq,元素满时阻塞
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com

@@ -27,7 +27,8 @@ import com.gettyio.core.channel.SocketChannel;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public abstract class ChannelInitializer implements ChannelPipeline {
+public interface ChannelInitializer {
+
 
     /**
      * 初始化责任链
@@ -35,6 +36,5 @@ public abstract class ChannelInitializer implements ChannelPipeline {
      * @param socketChannel
      * @throws Exception
      */
-    @Override
-    public abstract void initChannel(SocketChannel socketChannel) throws Exception;
+    void initChannel(SocketChannel socketChannel) throws Exception;
 }

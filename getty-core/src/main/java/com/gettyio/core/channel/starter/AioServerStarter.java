@@ -15,28 +15,30 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.constant.Banner;
-import com.gettyio.core.constant.Version;
 import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
-import com.gettyio.core.util.PlatformDependent;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.config.ServerConfig;
-import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
+import com.gettyio.core.channel.internal.WriteCompletionHandler;
+import com.gettyio.core.constant.Banner;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.util.DateTimeUtil;
 import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.*;
+import java.nio.channels.AsynchronousChannelGroup;
+import java.nio.channels.AsynchronousServerSocketChannel;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.CompletionHandler;
 import java.util.Date;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -68,11 +70,6 @@ public class AioServerStarter extends AioStarter {
      * aio服务端通道
      */
     private AsynchronousServerSocketChannel serverSocketChannel;
-
-    /**
-     * 服务线程运行标志
-     */
-    private volatile boolean running = true;
 
 
     /**
@@ -107,11 +104,11 @@ public class AioServerStarter extends AioStarter {
     /**
      * 责任链
      *
-     * @param channelPipeline 责任链
+     * @param channelInitializer 责任链
      * @return AioServerStarter
      */
-    public AioServerStarter channelInitializer(ChannelPipeline channelPipeline) {
-        this.channelPipeline = channelPipeline;
+    public AioServerStarter channelInitializer(ChannelInitializer channelInitializer) {
+        this.channelInitializer = channelInitializer;
         return this;
     }
 
@@ -129,19 +126,6 @@ public class AioServerStarter extends AioStarter {
         return this;
     }
 
-    /**
-     * 设置worker线程数
-     *
-     * @param threadNum
-     * @return
-     */
-    public AioServerStarter workerThreadNum(int threadNum) {
-        if (threadNum >= 3) {
-            this.workerThreadNum = threadNum;
-        }
-        return this;
-    }
-
 
     /**
      * 启动AIO服务
@@ -150,18 +134,16 @@ public class AioServerStarter extends AioStarter {
      */
     public void start() throws Exception {
         //打印框架信息
-        LOGGER.info("\r\n" + Banner.BANNER + "\r\n  getty version:(" + Version.VERSION + ")");
+        Banner.printBanner();
         //启动检查
-        startCheck();
+        startCheck(config, true);
 
         //实例化内存池
-        this.byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && config.isDirect());
+        this.byteBufAllocator = new PooledByteBufAllocator();
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
-        //初始化worker线程池
-        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-
+        //启动
         startTcp();
     }
 
@@ -174,7 +156,7 @@ public class AioServerStarter extends AioStarter {
         try {
 
             //实例化读写回调
-            readCompletionHandler = new ReadCompletionHandler(workerThreadPool);
+            readCompletionHandler = new ReadCompletionHandler();
             writeCompletionHandler = new WriteCompletionHandler();
 
             //IO线程分组
@@ -239,8 +221,6 @@ public class AioServerStarter extends AioStarter {
      * 停止服务
      */
     public final void shutdown() {
-        //接收线程标志置为false
-        running = false;
         if (serverSocketChannel != null) {
             try {
                 serverSocketChannel.close();
@@ -252,9 +232,6 @@ public class AioServerStarter extends AioStarter {
 
         if (!bossThreadPool.isShutDown()) {
             bossThreadPool.shutdownNow();
-        }
-        if (!workerThreadPool.isShutDown()) {
-            workerThreadPool.shutdownNow();
         }
 
         if (!asynchronousChannelGroup.isShutdown()) {
@@ -287,7 +264,7 @@ public class AioServerStarter extends AioStarter {
     private void createTcpChannel(AsynchronousSocketChannel channel) {
         SocketChannel aioChannel = null;
         try {
-            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufAllocator, channelPipeline);
+            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufAllocator, channelInitializer);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {
@@ -297,7 +274,6 @@ public class AioServerStarter extends AioStarter {
             }
         }
     }
-
 
     /**
      * 关闭客户端连接通道
@@ -322,27 +298,4 @@ public class AioServerStarter extends AioStarter {
         }
     }
 
-    /**
-     * 启动检查
-     */
-    private void startCheck() {
-        if (config == null) {
-            throw new NullPointerException("AioServerConfig can't null");
-        }
-
-        if (config.getPort() == 0) {
-            throw new NullPointerException("AioServerConfig port can't null");
-        }
-        if (channelPipeline == null) {
-            throw new RuntimeException("ChannelPipeline can't be null");
-        }
-        if (config.isFlowControl()) {
-            if (config.getLowWaterMark() >= config.getHighWaterMark()) {
-                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
-            }
-            if (config.getHighWaterMark() >= config.getBufferWriterQueueSize()) {
-                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
-            }
-        }
-    }
 }

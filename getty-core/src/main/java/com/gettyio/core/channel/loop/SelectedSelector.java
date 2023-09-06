@@ -64,16 +64,28 @@ public class SelectedSelector extends Selector {
      */
     private Selector selector;
 
+    /**
+     * 构造方法
+     *
+     * @param selector
+     */
     public SelectedSelector(Selector selector) {
+        //super(selector.provider());
         this.selector = selector;
     }
 
+    /**
+     * 获取多路复用器
+     *
+     * @return
+     */
     public Selector getSelector() {
         return selector;
     }
 
     /**
-     * 同步， 保证多个线程调用register不会出现问题
+     * 注册通道监听事件
+     * 需要同步， 保证多个线程调用register不会出现问题
      *
      * @param channel
      * @param op
@@ -123,11 +135,15 @@ public class SelectedSelector extends Selector {
 
     @Override
     public int select(long timeout) throws IOException {
-        return selector.select(timeout);
+        return select0(timeout);
     }
 
     @Override
     public int select() throws IOException {
+        return select0(timeoutMillis);
+    }
+
+    private int select0(long timeout) throws IOException {
         //当前纳秒
         long currentTimeNanos = System.nanoTime();
 
@@ -135,7 +151,7 @@ public class SelectedSelector extends Selector {
             if (mark) {
                 continue;
             }
-            int select = selector.select(timeoutMillis);
+            int select = selector.select(timeout);
             if (select >= 1) {
                 return select;
             }
@@ -154,7 +170,6 @@ public class SelectedSelector extends Selector {
         }
     }
 
-
     @Override
     public Selector wakeup() {
         return selector.wakeup();
@@ -164,7 +179,6 @@ public class SelectedSelector extends Selector {
     public void close() throws IOException {
         selector.close();
     }
-
 
     /**
      * 新建一个selector来解决空轮询bug
@@ -203,8 +217,6 @@ public class SelectedSelector extends Selector {
             } catch (Exception e) {
                 logger.warn("Failed to re-register a Channel to the new Selector.", e);
             }
-
-
         }
 
         selector = newSelectorTuple;

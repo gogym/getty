@@ -15,10 +15,9 @@
  */
 package com.gettyio.core.handler.codec.string;
 
-import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
-import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -29,13 +28,11 @@ import com.gettyio.core.util.LinkedBlockQueue;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class StringDecoder extends ObjectToMessageDecoder {
+public class StringDecoder extends ByteToMessageDecoder {
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
-
-        String str = new String((byte[]) obj, CharsetUtil.UTF_8);
-        out.put(str);
-        super.decode(socketChannel, obj, out);
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
+        String str = new String((byte[]) in, CharsetUtil.UTF_8);
+        super.channelRead(ctx, str);
     }
 }

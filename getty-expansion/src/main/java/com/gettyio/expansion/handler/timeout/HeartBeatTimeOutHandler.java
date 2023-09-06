@@ -15,12 +15,11 @@
  */
 package com.gettyio.expansion.handler.timeout;
 
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.constant.IdleState;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -36,23 +35,22 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
     private int loss_connect_time = 0;
 
     @Override
-    public void userEventTriggered(SocketChannel socketChannel, IdleState evt) throws Exception {
+    public void userEventTriggered(ChannelHandlerContext ctx, IdleState evt) throws Exception {
         if (evt == IdleState.READER_IDLE) {
             loss_connect_time++;
             if (loss_connect_time > 2) {
                 // 超过3次检测没有心跳就关闭这个连接
-                logger.info("[closed inactive channel:" + socketChannel.getRemoteAddress().getHostString() + "]");
-                socketChannel.close();
+                logger.info("[closed inactive channel:" + ctx.channel().getRemoteAddress().getHostString() + "]");
+                ctx.channel().close();
             }
         }
-        super.userEventTriggered(socketChannel, evt);
+        super.userEventTriggered(ctx, evt);
     }
 
-
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         loss_connect_time = 0;
-        super.decode(socketChannel, obj, out);
+        super.channelRead(ctx, in);
     }
 
 }

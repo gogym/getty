@@ -23,32 +23,16 @@ import com.gettyio.core.util.ThreadPool;
 import java.nio.channels.CompletionHandler;
 
 /**
- * ReadCompletionHandler.java
- *
  * @description:读回调事件
  * @author:gogym
  * @date:2020/4/8
  */
 public class ReadCompletionHandler implements CompletionHandler<Integer, AioChannel> {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReadCompletionHandler.class);
-    /**
-     * worker线程池
-     */
-    private final ThreadPool workerExecutorService;
-
-    public ReadCompletionHandler(ThreadPool executorService) {
-        this.workerExecutorService = executorService;
-    }
 
     @Override
     public void completed(final Integer result, final AioChannel aioChannel) {
-        //通过多线程形式读取，提高处理效率
-        workerExecutorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                aioChannel.readFromChannel(result == -1);
-            }
-        });
+        aioChannel.readFromChannel(result == -1);
     }
 
     @Override

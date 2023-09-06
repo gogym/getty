@@ -34,36 +34,19 @@ public enum ChannelState {
      */
     CHANNEL_CLOSED,
     /**
-     * 读通道已关闭。
-     */
-    INPUT_SHUTDOWN,
-    /**
-     * 写通道已关闭。
-     */
-    OUTPUT_SHUTDOWN,
-    /**
-     * 读操作异常。
-     */
-    INPUT_EXCEPTION,
-    /**
-     * 写操作异常。
-     */
-    OUTPUT_EXCEPTION,
-    /**
-     * ENCODE异常。
-     */
-    ENCODE_EXCEPTION,
-    /**
-     * DECODE异常。
-     */
-    DECODE_EXCEPTION,
-    /**
      * 读取数据
      */
     CHANNEL_READ,
     /**
      * 写数据
      */
-    CHANNEL_WRITE
-
+    CHANNEL_WRITE,
+    /**
+     * IdleState
+     */
+    CHANNEL_EVENT,
+    /**
+     * 操作异常。
+     */
+    CHANNEL_EXCEPTION
 }

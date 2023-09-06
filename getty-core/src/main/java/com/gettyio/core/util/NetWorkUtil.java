@@ -24,9 +24,8 @@ import java.util.regex.Pattern;
 
 
 /**
- * NetWorkUtil.java
+ * 网络工具类
  *
- * @description:
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com

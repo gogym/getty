@@ -16,9 +16,8 @@
 package com.gettyio.core.pipeline.in;
 
 
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.ChannelBoundHandler;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 
 /**
  * ChannelInboundHandler.java
@@ -33,50 +32,40 @@ public interface ChannelInboundHandler extends ChannelBoundHandler {
     /**
      * 连接
      *
-     * @param socketChannel 通道
+     * @param ctx 通道
      * @throws Exception 异常
      */
     @Override
-    void channelAdded(SocketChannel socketChannel) throws Exception;
+    void channelAdded(ChannelHandlerContext ctx) throws Exception;
 
     /**
      * 连接关闭
      *
-     * @param socketChannel 通道
+     * @param ctx 通道
      * @throws Exception 异常
      */
     @Override
-    void channelClosed(SocketChannel socketChannel) throws Exception;
+    void channelClosed(ChannelHandlerContext ctx) throws Exception;
 
     /**
      * 消息读取
      *
-     * @param obj           读取消息
-     * @param socketChannel 通道
+     * @param in  读取消息
+     * @param ctx 通道
      * @throws Exception 异常
      */
     @Override
-    void channelRead(SocketChannel socketChannel, Object obj) throws Exception;
+    void channelRead(ChannelHandlerContext ctx, Object in) throws Exception;
 
     /**
      * 异常
      *
-     * @param socketChannel 通道
-     * @param cause         异常信息
+     * @param ctx   通道
+     * @param cause 异常信息
      * @throws Exception 异常
      */
     @Override
-    void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception;
+    void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception;
 
-    /**
-     * 消息解码
-     *
-     * @param socketChannel 通道
-     * @param obj           消息
-     * @param out           消息队列
-     * @throws Exception 异常
-     */
-    @Override
-    void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception;
 
 }

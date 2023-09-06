@@ -2,6 +2,7 @@ package test.http;
 
 
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.*;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import com.gettyio.expansion.handler.codec.http.request.HttpRequest;
@@ -10,14 +11,14 @@ import com.gettyio.expansion.handler.codec.http.response.HttpResponseStatus;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
     @Override
-    public void channelAdded(SocketChannel aioChannel) {
+    public void channelAdded(ChannelHandlerContext ctx) {
         System.out.println("连接过来了");
         //设置keep-alive为false
-        aioChannel.setKeepAlive(false);
+        ctx.channel().setKeepAlive(false);
     }
 
     @Override
-    public void channelClosed(SocketChannel aioChannel) {
+    public void channelClosed(ChannelHandlerContext ctx) {
         System.out.println("连接关闭了");
     }
 
@@ -39,7 +40,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
     }
 
     @Override
-    public void exceptionCaught(SocketChannel aioChannel, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         cause.printStackTrace();
         System.out.println("出错了");
     }

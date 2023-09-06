@@ -16,93 +16,72 @@
 package com.gettyio.core.pipeline;
 
 
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.constant.IdleState;
-import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
  * ChannelBoundHandler.java
+ * 所有handler方法集合
  *
  * @description:
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public interface ChannelBoundHandler {
+public interface ChannelBoundHandler extends ChannelHandler {
 
     /**
      * 连接进来
      *
-     * @param socketChannel 通道
+     * @param ctx 通道
      * @throws Exception 异常
      */
-    void channelAdded(SocketChannel socketChannel) throws Exception;
+    void channelAdded(ChannelHandlerContext ctx) throws Exception;
 
     /**
      * 连接关闭
      *
-     * @param socketChannel 通道
+     * @param ctx 通道
      * @throws Exception 异常
      */
-    void channelClosed(SocketChannel socketChannel) throws Exception;
+    void channelClosed(ChannelHandlerContext ctx) throws Exception;
 
     /**
      * 消息读取
      *
-     * @param obj           读取消息
-     * @param socketChannel 通道
+     * @param ctx 通道
+     * @param in  读取消息
      * @throws Exception 异常
      */
-    void channelRead(SocketChannel socketChannel, Object obj) throws Exception;
+    void channelRead(ChannelHandlerContext ctx, Object in) throws Exception;
 
 
     /**
      * 消息写出
      *
-     * @param socketChannel 通道
-     * @param obj           数据
+     * @param ctx 通道
+     * @param obj 数据
      * @throws Exception 异常
      */
-    void channelWrite(SocketChannel socketChannel, Object obj) throws Exception;
-
+    void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception;
 
     /**
      * 异常
      *
-     * @param socketChannel 通道
-     * @param cause         异常信息
+     * @param ctx   通道
+     * @param cause 异常信息
      * @throws Exception 异常
      */
-    void exceptionCaught(SocketChannel socketChannel, Throwable cause) throws Exception;
+    void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception;
 
-    /**
-     * 消息解码
-     *
-     * @param socketChannel 通道
-     * @param obj           消息
-     * @param out           消息队列
-     * @throws Exception 异常
-     */
-    void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception;
-
-
-    /**
-     * 消息编码
-     *
-     * @param socketChannel 通道
-     * @param obj           数据
-     * @throws Exception 异常
-     */
-    void encode(SocketChannel socketChannel, Object obj) throws Exception;
 
     /**
      * 该方法类是一个心跳起搏器，执行读或写操作会被触发
      *
-     * @param socketChannel 通道
-     * @param evt           IdleState
+     * @param ctx 通道
+     * @param evt IdleState
      * @throws Exception 异常
      */
-    void userEventTriggered(SocketChannel socketChannel, IdleState evt) throws Exception;
+    void userEventTriggered(ChannelHandlerContext ctx, IdleState evt) throws Exception;
 
 }

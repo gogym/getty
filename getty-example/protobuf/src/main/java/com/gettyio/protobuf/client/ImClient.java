@@ -3,14 +3,14 @@ package com.gettyio.protobuf.client;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+
 import com.gettyio.core.util.ThreadPool;
 import com.gettyio.protobuf.packet.MessageClass;
 
@@ -45,12 +45,12 @@ public class ImClient {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
-                DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
                 //获取证书
                 String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
                 //ssl配置
-                SslConfig sSLConfig = new SslConfig();
+                SSLConfig sSLConfig = new SSLConfig();
                 sSLConfig.setKeyFile(pkPath);
                 sSLConfig.setKeyPassword("123456");
                 sSLConfig.setKeystorePassword("123456");
@@ -59,7 +59,7 @@ public class ImClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                SslService sSLService = new SslService(sSLConfig);
+                //SslService sSLService = new SslService(sSLConfig);
                 //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
 
                 defaultChannelPipeline.addLast(new ProtobufVarint32LengthFieldPrepender());

@@ -1,4 +1,18 @@
-
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 /**
@@ -86,45 +100,83 @@ package com.gettyio.core.buffer.pool;
  * the second value (i.e, x) indicates that the first node which is free to be allocated is at depth x (from root)
  */
 
-import com.gettyio.core.buffer.pool.buffer.PooledByteBuf;
+import com.gettyio.core.buffer.bytebuf.impl.PooledByteBuf;
 
 /**
- * 池化内存块
+ * PoolArena 包含一系列的PoolChunk
  *
  * @param <T>
  */
 public final class PoolChunk<T> {
     /**
-     * 内存空间
+     * 当前内存块所属的内存空间
      */
     public final PoolArena<T> arena;
+    /**
+     * 待分配的内存，如果是堆内存那么这里就是byte[]，如果是直接内存那么就是一个java.nioDirectByteBuffer实例
+     */
     public final T memory;
     /**
-     * 是否池化
+     * 是否是可重用的，unpooled=false表示可重用
      */
     public final boolean unpooled;
-
+    /**
+     * PoolChunk的物理视图是连续的PoolSubpage,用PoolSubpage保持，而memoryMap是所有PoolSubpage的
+     * 逻辑映射，映射为一颗平衡二叉数，用来标记每一个PoolSubpage是否被分配
+     */
     private final byte[] memoryMap;
+    /**
+     * 存储每个节点在二叉树的深度
+     */
     private final byte[] depthMap;
+    /**
+     * 该PoolChunk所包含的PoolSupage。也就是PoolChunk连续的可用内存。
+     */
     private final PoolSubpage<T>[] subpages;
     /**
-     * 用于确定请求的容量是否等于或大于pageSize。
+     * 用来判断申请的内存是否超过pageSize的掩码，等于  ~(pageSize-1)
      */
     private final int subpageOverflowMask;
+
+    /**
+     * 每个PoolSubpage的大小，默认为8192个字节（8K)
+     */
     private final int pageSize;
+    /**
+     * pageSize 2的 pageShifts幂
+     */
     private final int pageShifts;
+    /**
+     * 平衡二叉树的深度，一个PoolChunk包含 2的 maxOrder幂(  1 << maxOrder ) 个PoolSubpage。
+     */
     private final int maxOrder;
+    /**
+     * PoolChunk的总内存大小,chunkSize =   (1<<maxOrder) * pageSize。
+     */
     private final int chunkSize;
+    /**
+     * chunkSize 是  2的 log2ChunkSize幂，如果chunkSize = 2 的 10次幂,那么 log2ChunkSize=10
+     */
     private final int log2ChunkSize;
+    /**
+     * PoolChunk由maxSubpageAllocs个PoolSubpage组成。
+     */
     private final int maxSubpageAllocs;
     /**
-     * Used to mark memory as unusable
+     * 标记为已被分配的值，该值为 maxOrder + 1
      */
     private final byte unusable;
-
+    /**
+     * 当前PoolChunk空闲的内存。
+     */
     private int freeBytes;
-
+    /**
+     * 一个PoolChunk分配后，会根据使用率挂在一个PoolChunkList中，在(PoolArena的PoolChunkList上)
+     */
     PoolChunkList<T> parent;
+    /**
+     * 前后相连的PoolChunk，PoolChunk本身设计为一个链表结构
+     */
     PoolChunk<T> prev;
     PoolChunk<T> next;
 
@@ -138,7 +190,7 @@ public final class PoolChunk<T> {
         this.chunkSize = chunkSize;
         unusable = (byte) (maxOrder + 1);
         log2ChunkSize = log2(chunkSize);
-        subpageOverflowMask = ~(pageSize - 1);
+        subpageOverflowMask = ~(pageSize-1);
         freeBytes = chunkSize;
 
         assert maxOrder < 30 : "maxOrder should be < 30, but is: " + maxOrder;
@@ -181,11 +233,22 @@ public final class PoolChunk<T> {
         maxSubpageAllocs = 0;
     }
 
+    /**
+     * 创建内存子页数组
+     *
+     * @param size
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private PoolSubpage<T>[] newSubpageArray(int size) {
         return new PoolSubpage[size];
     }
 
+    /**
+     * 计算当前块使用率
+     *
+     * @return
+     */
     int usage() {
         final int freeBytes = this.freeBytes;
         if (freeBytes == 0) {
@@ -200,7 +263,9 @@ public final class PoolChunk<T> {
     }
 
     long allocate(int normCapacity) {
-        if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
+        //(normCapacity & subpageOverflowMask) 可以理解为判断两个变量不为0
+        if ((normCapacity & subpageOverflowMask) != 0) {
+            // >= pageSize
             return allocateRun(normCapacity);
         } else {
             return allocateSubpage(normCapacity);
@@ -298,7 +363,8 @@ public final class PoolChunk<T> {
     }
 
     /**
-     * 创建/初始化一个新的normCapacity的PoolSubpage这里创建/初始化的任何PoolSubpage都被添加到拥有这个PoolChunk的PoolArena的子页面池中
+     * 创建/初始化一个新的normCapacity的PoolSubpage
+     * 这里创建/初始化的任何PoolSubpage都被添加到拥有这个PoolChunk的PoolArena的子页面池中
      *
      * @param normCapacity normalized capacity
      * @return index in memoryMap
@@ -412,18 +478,4 @@ public final class PoolChunk<T> {
         return memoryMapIdx ^ maxSubpageAllocs; // remove highest set bit, to get offset
     }
 
-    @Override
-    public String toString() {
-        return new StringBuilder()
-                .append("Chunk(")
-                .append(Integer.toHexString(System.identityHashCode(this)))
-                .append(": ")
-                .append(usage())
-                .append("%, ")
-                .append(chunkSize - freeBytes)
-                .append('/')
-                .append(chunkSize)
-                .append(')')
-                .toString();
-    }
 }

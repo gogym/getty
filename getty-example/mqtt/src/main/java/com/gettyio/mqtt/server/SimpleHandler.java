@@ -2,17 +2,18 @@ package com.gettyio.mqtt.server;
 
 
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.mqtt.MqttMessage;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<MqttMessage> {
     @Override
-    public void channelAdded(SocketChannel aioChannel) {
+    public void channelAdded(ChannelHandlerContext ctx) {
         System.out.println("mqtt客户端连接成功");
     }
 
     @Override
-    public void channelClosed(SocketChannel aioChannel) {
+    public void channelClosed(ChannelHandlerContext ctx) {
         System.out.println("mqtt客户端连接关闭了");
     }
 
@@ -23,7 +24,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MqttMessage> {
     }
 
     @Override
-    public void exceptionCaught(SocketChannel aioChannel, Throwable cause) {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         System.out.println("出错了");
         cause.printStackTrace();
     }

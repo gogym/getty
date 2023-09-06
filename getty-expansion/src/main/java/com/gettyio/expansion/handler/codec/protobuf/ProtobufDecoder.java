@@ -16,13 +16,14 @@
 package com.gettyio.expansion.handler.codec.protobuf;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.LinkedBlockQueue;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
-import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 
 
 /**
@@ -33,7 +34,7 @@ import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class ProtobufDecoder extends ObjectToMessageDecoder {
+public class ProtobufDecoder extends ByteToMessageDecoder {
 
 
     private static final boolean HAS_PARSER;
@@ -73,9 +74,9 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
 
-        byte[] bytes = (byte[]) obj;
+        byte[] bytes = (byte[]) in;
         final byte[] array;
         final int offset;
 
@@ -116,7 +117,6 @@ public class ProtobufDecoder extends ObjectToMessageDecoder {
                 e.printStackTrace();
             }
         }
-        out.put(messageLite);
-        super.decode(socketChannel, obj, out);
+        super.channelRead(ctx,messageLite);
     }
 }

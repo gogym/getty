@@ -1,4 +1,22 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.constant;
+
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 
 /**
  * @author gogym.ggj
@@ -8,6 +26,8 @@ package com.gettyio.core.constant;
  * @createTime 2021/01/28/ 18:44:00
  */
 public class Banner {
+
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(Banner.class);
 
     public static final String BANNER =
             "                       tt     yt             \n" +
@@ -22,4 +42,12 @@ public class Banner {
                     "ytt  yey                               te    \n" +
                     " ttttty                              yttt    \n" +
                     "   yy                                yyy     \n";
+
+
+    public static void printBanner() {
+        //打印框架信息
+        LOGGER.info("\r\n" + Banner.BANNER + "\r\n  getty version:(" + Version.VERSION + ")");
+    }
+
+
 }

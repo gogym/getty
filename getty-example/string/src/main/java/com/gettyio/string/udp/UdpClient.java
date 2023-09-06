@@ -3,11 +3,10 @@ package com.gettyio.string.udp;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ClientConfig;
-import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
 import com.gettyio.expansion.handler.codec.datagramPacket.DatagramPacketDecoder;
 import com.gettyio.expansion.handler.codec.datagramPacket.DatagramPacketEncoder;
@@ -15,6 +14,7 @@ import com.gettyio.expansion.handler.codec.datagramPacket.DatagramPacketEncoder;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 
 public class UdpClient {
@@ -46,12 +46,12 @@ public class UdpClient {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
-                DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                 defaultChannelPipeline.addLast(new DatagramPacketEncoder());
                 defaultChannelPipeline.addLast(new DatagramPacketDecoder());
                 //定义消息解码器
-                defaultChannelPipeline.addLast(new SimpleHandler());
+                defaultChannelPipeline.addLast(new ClientSimpleHandler());
             }
         });
 
@@ -61,7 +61,7 @@ public class UdpClient {
             public void onCompleted(final SocketChannel channel) {
                 try {
                     String s = "12";
-                    byte[] msgBody = s.getBytes("utf-8");
+                    byte[] msgBody = s.getBytes(StandardCharsets.UTF_8);
                     final DatagramPacket datagramPacket = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress("127.0.0.1", 8888));
                     final long ct = System.currentTimeMillis();
 

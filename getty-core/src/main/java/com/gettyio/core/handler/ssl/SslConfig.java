@@ -23,7 +23,13 @@ package com.gettyio.core.handler.ssl;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class SslConfig {
+public class SSLConfig {
+
+    /**
+     * 协议版本
+     */
+    private String protocolVersion;
+
     /**
      * 配置引擎在握手时使用客户端（或服务器）模式
      */
@@ -49,7 +55,18 @@ public class SslConfig {
      */
     private String trustPassword;
 
+    /**
+     * 客户端鉴权模式
+     */
     private boolean clientAuth = ClientAuth.NONE;
+
+    public String getProtocolVersion() {
+        return protocolVersion;
+    }
+
+    public void setProtocolVersion(String protocolVersion) {
+        this.protocolVersion = protocolVersion;
+    }
 
     public String getKeyFile() {
         return keyFile;

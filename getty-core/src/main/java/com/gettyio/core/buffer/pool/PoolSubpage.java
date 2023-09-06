@@ -1,27 +1,70 @@
-
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 /**
- * 内存池子页
+ * PoolChunk 包含一列PoolSubpage
  *
  * @param <T>
  */
 final class PoolSubpage<T> {
-
+    /**
+     * 所属的PoolChunk
+     */
     final PoolChunk<T> chunk;
+    /**
+     * 在memoryMap的索引 id memoryMap[id]
+     */
     private final int memoryMapIdx;
-    private final int runOffset;
+    /**
+     * 大小
+     */
     private final int pageSize;
+
+    /**
+     * bitmap中实际使用的长度
+     */
+    private int bitmapLength;
     private final long[] bitmap;
 
+    /**
+     * 前后两个相连的子页
+     */
     PoolSubpage<T> prev;
     PoolSubpage<T> next;
-
+    /**
+     * 是否销毁
+     */
     boolean doNotDestroy;
+    /**
+     * 元素大小
+     */
     int elemSize;
+    /**
+     * 最大元素个数
+     */
     private int maxNumElems;
-    private int bitmapLength;
+
+    /**
+     * 下一个可分配的elemSize块
+     */
     private int nextAvail;
+    /**
+     * 目前可用的elemSize块数量。
+     */
     private int numAvail;
 
     /**
@@ -30,7 +73,6 @@ final class PoolSubpage<T> {
     PoolSubpage(int pageSize) {
         chunk = null;
         memoryMapIdx = -1;
-        runOffset = -1;
         elemSize = -1;
         this.pageSize = pageSize;
         bitmap = null;
@@ -39,7 +81,6 @@ final class PoolSubpage<T> {
     PoolSubpage(PoolChunk<T> chunk, int memoryMapIdx, int runOffset, int pageSize, int elemSize) {
         this.chunk = chunk;
         this.memoryMapIdx = memoryMapIdx;
-        this.runOffset = runOffset;
         this.pageSize = pageSize;
         bitmap = new long[pageSize >>> 10]; // pageSize / 16 / 64
         init(elemSize);
@@ -60,7 +101,6 @@ final class PoolSubpage<T> {
                 bitmap[i] = 0;
             }
         }
-
         addToPool();
     }
 
@@ -127,6 +167,8 @@ final class PoolSubpage<T> {
         }
     }
 
+    //----------------------------------
+
     private void addToPool() {
         PoolSubpage<T> head = chunk.arena.findSubpagePoolHead(elemSize);
         assert prev == null && next == null;
@@ -191,12 +233,4 @@ final class PoolSubpage<T> {
         return 0x4000000000000000L | (long) bitmapIdx << 32 | memoryMapIdx;
     }
 
-    public String toString() {
-        if (!doNotDestroy) {
-            return "(" + memoryMapIdx + ": not in use)";
-        }
-
-        return String.valueOf('(') + memoryMapIdx + ": " + (maxNumElems - numAvail) + '/' + maxNumElems +
-                ", offset: " + runOffset + ", length: " + pageSize + ", elemSize: " + elemSize + ')';
-    }
 }

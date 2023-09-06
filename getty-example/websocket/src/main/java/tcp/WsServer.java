@@ -5,15 +5,12 @@ import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.ssl.ClientAuth;
-import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.websocket.WebSocketDecoder;
 import com.gettyio.expansion.handler.codec.websocket.WebSocketEncoder;
-
-import java.net.StandardSocketOptions;
 
 public class WsServer {
 
@@ -32,12 +29,12 @@ public class WsServer {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象
-                    DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                    ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                     //获取证书
                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
                     //ssl配置
-                    SslConfig sSLConfig = new SslConfig();
+                    SSLConfig sSLConfig = new SSLConfig();
                     sSLConfig.setKeyFile(pkPath);
                     sSLConfig.setKeyPassword("123456");
                     sSLConfig.setKeystorePassword("123456");
@@ -48,8 +45,7 @@ public class WsServer {
                     //设置单向验证或双向验证
                     sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
-                    SslService sslService = new SslService(sSLConfig);
-                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sslService));
+                    defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                     defaultChannelPipeline.addLast(new WebSocketEncoder());
                     defaultChannelPipeline.addLast(new WebSocketDecoder());

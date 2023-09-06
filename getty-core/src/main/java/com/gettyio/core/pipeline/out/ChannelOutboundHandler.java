@@ -15,8 +15,8 @@
  */
 package com.gettyio.core.pipeline.out;
 
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.pipeline.ChannelBoundHandler;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 
 /**
  * ChannelOutboundHandler.java
@@ -32,22 +32,11 @@ public interface ChannelOutboundHandler extends ChannelBoundHandler {
     /**
      * 消息写出
      *
-     * @param socketChannel 通道
-     * @param obj           数据
+     * @param ctx 通道
+     * @param obj 数据
      * @throws Exception 异常
      */
     @Override
-    void channelWrite(SocketChannel socketChannel, Object obj) throws Exception;
-
-
-    /**
-     * 消息编码
-     *
-     * @param socketChannel 通道
-     * @param obj           数据
-     * @throws Exception 异常
-     */
-    @Override
-    void encode(SocketChannel socketChannel, Object obj) throws Exception;
+    void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception;
 
 }

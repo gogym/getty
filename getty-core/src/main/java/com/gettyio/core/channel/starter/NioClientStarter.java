@@ -16,21 +16,25 @@
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
-import com.gettyio.core.util.PlatformDependent;
-import com.gettyio.core.channel.*;
+import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.SocketMode;
+import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
-import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
+import com.gettyio.core.channel.loop.SelectedSelector;
+import com.gettyio.core.handler.ssl.IHandshakeListener;
+import com.gettyio.core.handler.ssl.SSLException;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.pipeline.ChannelInitializer;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.*;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -63,7 +67,7 @@ public class NioClientStarter extends NioStarter {
     /**
      * 多路复用
      */
-    Selector selector;
+    SelectedSelector selector;
 
     /**
      * 简单启动
@@ -96,11 +100,11 @@ public class NioClientStarter extends NioStarter {
     /**
      * 设置责任链
      *
-     * @param channelPipeline 责任链
+     * @param channelInitializer 责任链
      * @return AioClientStarter
      */
-    public NioClientStarter channelInitializer(ChannelPipeline channelPipeline) {
-        this.channelPipeline = channelPipeline;
+    public NioClientStarter channelInitializer(ChannelInitializer channelInitializer) {
+        this.channelInitializer = channelInitializer;
         return this;
     }
 
@@ -146,11 +150,9 @@ public class NioClientStarter extends NioStarter {
      * @throws Exception
      */
     private void start0(ConnectHandler connectHandler) throws Exception {
-        startCheck();
-        //初始化worker线程池
-        workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+        startCheck(clientConfig);
         //初始化内存池
-        byteBufAllocator = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred() && clientConfig.isDirect());
+        byteBufAllocator = new PooledByteBufAllocator();
         //调用内部启动
         nioEventLoop = new NioEventLoop(clientConfig, byteBufAllocator);
         nioEventLoop.run();
@@ -179,17 +181,16 @@ public class NioClientStarter extends NioStarter {
          * 连接到指定的服务地址
          */
         socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
-
         /*
          * 创建一个事件选择器Selector
          */
-        selector = Selector.open();
+        selector = new SelectedSelector(Selector.open());
         /*
          * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
          */
-        socketChannel.register(selector, SelectionKey.OP_CONNECT);
+        socketChannel.register(selector.getSelector(), SelectionKey.OP_CONNECT);
 
-        while (selector.select() > 0) {
+        while (selector.select(0) > 0) {
             Iterator<SelectionKey> it = selector.selectedKeys().iterator();
             while (it.hasNext()) {
                 SelectionKey sk = it.next();
@@ -199,14 +200,19 @@ public class NioClientStarter extends NioStarter {
                     if (channel.isConnectionPending()) {
                         channel.finishConnect();
                         try {
-                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, byteBufAllocator, workerThreadPool, channelPipeline);
+                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, byteBufAllocator, channelInitializer);
                             if (connectHandler != null) {
                                 if (null != nioChannel.getSslHandler()) {
-                                    nioChannel.setSslHandshakeCompletedListener(new IHandshakeCompletedListener() {
+                                    nioChannel.setSslHandshakeListener(new IHandshakeListener() {
                                         @Override
                                         public void onComplete() {
                                             LOGGER.info("Ssl Handshake Completed");
                                             connectHandler.onCompleted(nioChannel);
+                                        }
+
+                                        @Override
+                                        public void onFail(SSLException e) {
+                                            connectHandler.onFailed(e);
                                         }
                                     });
                                 } else {
@@ -228,6 +234,8 @@ public class NioClientStarter extends NioStarter {
                 }
             }
             it.remove();
+            selector.close();
+            break;
         }
     }
 
@@ -241,9 +249,9 @@ public class NioClientStarter extends NioStarter {
 
         DatagramChannel datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
-        Selector selector = Selector.open();
-        datagramChannel.register(selector, SelectionKey.OP_READ);
-        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, byteBufAllocator, channelPipeline, 3);
+        selector = new SelectedSelector(Selector.open());
+        datagramChannel.register(selector.getSelector(), SelectionKey.OP_READ);
+        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, byteBufAllocator, channelInitializer, 3);
         nioChannel.starRead();
         if (null != connectHandler) {
             connectHandler.onCompleted(nioChannel);
@@ -294,29 +302,6 @@ public class NioClientStarter extends NioStarter {
             channel.close();
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 启动检查
-     */
-    private void startCheck() {
-        if (null == clientConfig.getHost() || "".equals(clientConfig.getHost())) {
-            throw new NullPointerException("The connection host is null.");
-        }
-        if (0 == clientConfig.getPort()) {
-            throw new NullPointerException("The connection port is null.");
-        }
-        if (channelPipeline == null) {
-            throw new RuntimeException("ChannelPipeline can't be null");
-        }
-        if (clientConfig.isFlowControl()) {
-            if (clientConfig.getLowWaterMark() >= clientConfig.getHighWaterMark()) {
-                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
-            }
-            if (clientConfig.getHighWaterMark() >= clientConfig.getBufferWriterQueueSize()) {
-                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
-            }
         }
     }
 

@@ -15,153 +15,68 @@
  */
 package com.gettyio.core.pipeline;
 
-
 import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.channel.UdpChannel;
-import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
-import com.gettyio.core.util.FastCopyOnWriteArrayList;
 
 /**
- * DefaultChannelPipeline.java
- *
- * @description:默认责任链对象
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * ChannelPipeline默认实现
  */
-public class DefaultChannelPipeline {
+public class DefaultChannelPipeline implements ChannelPipeline {
 
-    /**
-     * 入栈链
-     */
-    FastCopyOnWriteArrayList<ChannelHandlerAdapter> inPipeList = new FastCopyOnWriteArrayList<>();
-    /**
-     * 出栈链
-     */
-    FastCopyOnWriteArrayList<ChannelHandlerAdapter> outPipeList = new FastCopyOnWriteArrayList<>();
+    AbstractChannelHandlerContext head;
+    AbstractChannelHandlerContext tail;
+    SocketChannel socketChannel;
 
-    /**
-     * channel
-     */
-    private final SocketChannel socketChannel;
-
-    /**
-     * 构造方法
-     *
-     * @param socketChannel
-     */
     public DefaultChannelPipeline(SocketChannel socketChannel) {
         this.socketChannel = socketChannel;
+        tail = new DefaultChannelHandlerContext(socketChannel, new DefaultChannelHandler());
+        head = new DefaultChannelHandlerContext(socketChannel, new DefaultChannelHandler());
+        head.next = tail;
+        tail.prev = head;
+    }
+
+    @Override
+    public ChannelPipeline addFirst(ChannelHandler handler) {
+        AbstractChannelHandlerContext newCtx = new DefaultChannelHandlerContext(socketChannel, handler);
+        AbstractChannelHandlerContext nextCtx = this.head.next;
+        newCtx.prev = this.head;
+        newCtx.next = nextCtx;
+        this.head.next = newCtx;
+        nextCtx.prev = newCtx;
+        return this;
+    }
+
+    public ChannelPipeline addLast(ChannelHandler handler) {
+        AbstractChannelHandlerContext newCtx = new DefaultChannelHandlerContext(socketChannel, handler);
+        AbstractChannelHandlerContext prev = tail.prev;
+        newCtx.prev = prev;
+        newCtx.next = tail;
+        prev.next = newCtx;
+        tail.prev = newCtx;
+        return this;
     }
 
 
-    /**
-     * 获取第一个入栈处理器
-     *
-     * @return ChannelHandlerAdapter
-     */
-    public ChannelHandlerAdapter inPipeFirst() {
-        if (inPipeList.size() > 0) {
-            return inPipeList.getFirst();
-        }
-        return null;
+    @Override
+    public ChannelHandlerContext head() {
+        return head;
     }
 
-    /**
-     * 获取第一个出栈处理器
-     *
-     * @return ChannelHandlerAdapter
-     */
-    public ChannelHandlerAdapter outPipeFirst() {
-        if (outPipeList.size() > 0) {
-            return outPipeList.getLast();
-        }
-        return null;
+    @Override
+    public ChannelHandlerContext tail() {
+        return tail;
     }
 
-
-    /**
-     * 获取下一个入栈处理器
-     *
-     * @param channelHandlerAdapter 当前处理器
-     * @return ChannelHandlerAdapter
-     */
-    public ChannelHandlerAdapter nextInPipe(ChannelHandlerAdapter channelHandlerAdapter) {
-        int index = inPipeList.indexOf(channelHandlerAdapter);
-        index++;
-        if (inPipeList.size() > index) {
-            return inPipeList.get(index);
-        }
-        return null;
+    @Override
+    public boolean isFirst(ChannelHandler handler) {
+        AbstractChannelHandlerContext first = this.head.next;
+        return first.handler() == handler;
     }
 
-
-    /**
-     * 获取下一个出栈处理器
-     * 注意：出栈是倒序
-     *
-     * @param channelHandlerAdapter 当前处理器
-     * @return ChannelHandlerAdapter
-     */
-    public ChannelHandlerAdapter nextOutPipe(ChannelHandlerAdapter channelHandlerAdapter) {
-        int index = outPipeList.indexOf(channelHandlerAdapter);
-        index--;
-        if (index >= 0) {
-            return outPipeList.get(index);
-        }
-        return null;
+    @Override
+    public boolean isLast(ChannelHandler handler) {
+        AbstractChannelHandlerContext last = this.tail.prev;
+        return last.handler() == handler;
     }
 
-    /**
-     * 添加到最后一位
-     *
-     * @param channelHandlerAdapter 当前处理器
-     */
-    public void addLast(ChannelHandlerAdapter channelHandlerAdapter) {
-        if (socketChannel instanceof UdpChannel && !(channelHandlerAdapter instanceof DatagramPacketHandler)) {
-            //如果是udp模式，则有些处理器是不适合udp使用的，不加入
-            return;
-        }
-        if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-            inPipeList.addLast(channelHandlerAdapter);
-        } else if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            outPipeList.addLast(channelHandlerAdapter);
-        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            inPipeList.addLast(channelHandlerAdapter);
-            outPipeList.addLast(channelHandlerAdapter);
-        }
-    }
-
-    /**
-     * 添加到第一位
-     *
-     * @param channelHandlerAdapter 当前处理器
-     */
-    public void addFirst(ChannelHandlerAdapter channelHandlerAdapter) {
-        if (socketChannel instanceof UdpChannel && !(channelHandlerAdapter instanceof DatagramPacketHandler)) {
-            //如果是udp模式，则有些处理器是不适合udp使用的，不加入
-            return;
-        }
-
-        if (channelHandlerAdapter instanceof ChannelInboundHandlerAdapter) {
-            inPipeList.addFirst(channelHandlerAdapter);
-        } else if (channelHandlerAdapter instanceof ChannelOutboundHandlerAdapter) {
-            outPipeList.addFirst(channelHandlerAdapter);
-        } else if (channelHandlerAdapter instanceof ChannelAllBoundHandlerAdapter) {
-            inPipeList.addFirst(channelHandlerAdapter);
-            outPipeList.addFirst(channelHandlerAdapter);
-        }
-
-    }
-
-    /**
-     * 清理责任链
-     */
-    public void clean() {
-        inPipeList.clear();
-        outPipeList.clear();
-    }
 
 }

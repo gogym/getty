@@ -1,9 +1,29 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.util;
 
 
 import java.util.Formatter;
 
-
+/**
+ * 字符串工具类
+ *
+ * @author gogym.ggj
+ * @date 2023/6/9
+ */
 public final class StringUtil {
 
     public static final String NEWLINE;
@@ -20,7 +40,12 @@ public final class StringUtil {
         NEWLINE = newLine;
     }
 
-
+    /**
+     * 获取简单类名
+     *
+     * @param o
+     * @return
+     */
     public static String simpleClassName(Object o) {
         if (o == null) {
             return "null_object";
@@ -29,6 +54,12 @@ public final class StringUtil {
         }
     }
 
+    /**
+     * 获取简单类名
+     *
+     * @param clazz
+     * @return
+     */
     public static String simpleClassName(Class<?> clazz) {
         if (clazz == null) {
             return "null_class";
@@ -42,6 +73,13 @@ public final class StringUtil {
         }
     }
 
+    /**
+     * 从指定位置开始，查找非空格下标
+     *
+     * @param sb
+     * @param offset
+     * @return
+     */
     public static int findNonWhitespace(String sb, int offset) {
         int result;
         for (result = offset; result < sb.length(); result++) {
@@ -52,6 +90,13 @@ public final class StringUtil {
         return result;
     }
 
+    /**
+     * 从指定位置开始，查找空格下标
+     *
+     * @param sb
+     * @param offset
+     * @return
+     */
     public static int findWhitespace(String sb, int offset) {
         int result;
         for (result = offset; result < sb.length(); result++) {
@@ -62,6 +107,12 @@ public final class StringUtil {
         return result;
     }
 
+    /**
+     * 从末尾往前查找一个非空格字符
+     *
+     * @param sb
+     * @return
+     */
     public static int findEndOfString(String sb) {
         int result;
         for (result = sb.length(); result > 0; result--) {
@@ -73,6 +124,12 @@ public final class StringUtil {
     }
 
 
+    /**
+     * 判断字符串是否为空
+     *
+     * @param str
+     * @return
+     */
     public static boolean isEmpty(String str) {
 
         if (null == str || str.length() == 0) {

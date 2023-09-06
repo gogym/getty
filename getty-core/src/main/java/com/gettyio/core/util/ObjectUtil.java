@@ -21,7 +21,10 @@ import java.io.ObjectOutputStream;
 import java.util.Collection;
 
 /**
- * A grab-bag of useful utility methods.
+ * 对象工具类
+ *
+ * @author gogym.ggj
+ * @date 2023/6/9
  */
 public final class ObjectUtil {
 
@@ -179,7 +182,7 @@ public final class ObjectUtil {
         long res = 0;
         int byteslen = b.length;
         if (byteslen > 8) {
-            return Long.valueOf(0L);
+            return 0L;
         }
         for (int i = 0; i < byteslen; i++) {
             res <<= 8;

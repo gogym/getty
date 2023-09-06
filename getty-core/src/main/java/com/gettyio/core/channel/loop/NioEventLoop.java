@@ -15,12 +15,12 @@
  */
 package com.gettyio.core.channel.loop;
 
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.bytebuf.ByteBuf;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.buffer.ByteBuf;
 import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
@@ -29,10 +29,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 
-
 /**
- * NioEventLoop.java
- *
  * @description:nio循环事件处理
  * @author:gogym
  * @date:2020/6/17
@@ -61,11 +58,11 @@ public class NioEventLoop implements EventLoop {
      * 创建一个1个线程的线程池，负责读
      */
     private final ThreadPool workerThreadPool;
+
     /**
      * 内存池
      */
     protected ByteBufAllocator byteBufAllocator;
-
 
     /**
      * 构造方法
@@ -93,7 +90,7 @@ public class NioEventLoop implements EventLoop {
             public void run() {
                 while (!shutdown) {
                     try {
-                        selector.select();
+                        selector.select(0);
                     } catch (IOException e) {
                         LOGGER.error(e);
                     }
@@ -101,12 +98,12 @@ public class NioEventLoop implements EventLoop {
                     while (it.hasNext()) {
                         SelectionKey sk = it.next();
                         Object obj = sk.attachment();
+
                         if (obj instanceof NioChannel) {
                             NioChannel nioChannel = (NioChannel) obj;
-
                             java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
                             if (sk.isConnectable()) {
-                                //during connecting, finish the connect
+                                //连接过程中，完成连接
                                 if (channel.isConnectionPending()) {
                                     try {
                                         channel.finishConnect();
@@ -117,11 +114,10 @@ public class NioEventLoop implements EventLoop {
                                     }
                                 }
                             } else if (sk.isReadable()) {
-
                                 ByteBuf readBuffer = null;
                                 //接收数据
                                 try {
-                                    readBuffer = byteBufAllocator.ioBuffer(config.getReadBufferSize());
+                                    readBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
                                     ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
                                     int recCount = channel.read(readByteBuf);
                                     readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
@@ -143,7 +139,7 @@ public class NioEventLoop implements EventLoop {
                                 //读取缓冲区数据，输送到责任链
                                 while (readBuffer.isReadable()) {
                                     byte[] bytes = new byte[readBuffer.readableBytes()];
-                                    readBuffer.readBytes(bytes, 0, bytes.length);
+                                    readBuffer.readBytes(bytes);
                                     nioChannel.doRead(bytes);
                                 }
                                 //触发读取完成，清理缓冲区
@@ -163,6 +159,15 @@ public class NioEventLoop implements EventLoop {
         if (!workerThreadPool.isShutDown()) {
             workerThreadPool.shutdown();
         }
+
+        if (selector != null && selector.isOpen()) {
+            try {
+                selector.close();
+            } catch (IOException e) {
+                LOGGER.error(e);
+            }
+        }
+
     }
 
     @Override

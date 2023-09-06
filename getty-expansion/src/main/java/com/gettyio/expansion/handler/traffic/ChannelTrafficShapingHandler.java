@@ -15,9 +15,9 @@
  */
 package com.gettyio.expansion.handler.traffic;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.core.util.ThreadPool;
 
@@ -46,6 +46,8 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
      */
     private long intervalTotalRead;
     private long intervalTotalWrite;
+
+
     long intervalTotalReadTmp = 0;
     long intervalTotalWriteTmp = 0;
 
@@ -53,14 +55,14 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
      * 读写次数
      */
     private long totalReadCount;
-    private long totolWriteCount;
+    private long totalWriteCount;
 
     /**
      * 线程池
      */
     ThreadPool pool;
 
-    public ChannelTrafficShapingHandler(int checkInterval) {
+    public ChannelTrafficShapingHandler(int checkInterval, final TrafficShapingHandler trafficShapingHandler) {
 
         pool = new ThreadPool(ThreadPool.SingleThread, 1);
         pool.scheduleWithFixedRate(new Runnable() {
@@ -70,33 +72,47 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
                 intervalTotalReadTmp = 0;
                 intervalTotalWrite = intervalTotalWriteTmp;
                 intervalTotalWriteTmp = 0;
+                if (trafficShapingHandler != null) {
+                    trafficShapingHandler.callback(totalRead, totalWrite, intervalTotalRead, intervalTotalWrite, totalReadCount, totalWriteCount);
+                }
+
             }
         }, 0, checkInterval, TimeUnit.MILLISECONDS);
     }
 
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
-        byte[] bytes = (byte[]) obj;
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
+        byte[] bytes;
+        if (in instanceof byte[]) {
+            bytes = (byte[]) in;
+        } else {
+            bytes = ObjectUtil.ObjToByteArray(in);
+        }
         totalRead += bytes.length;
         intervalTotalReadTmp += bytes.length;
         totalReadCount++;
-        super.decode(socketChannel, obj, out);
+        ctx.fireChannelProcess(ChannelState.CHANNEL_READ, in);
     }
 
     @Override
-    public void channelWrite(SocketChannel socketChannel, Object obj) throws Exception {
-        byte[] bytes = ObjectUtil.ObjToByteArray(obj);
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
+        byte[] bytes;
+        if (obj instanceof byte[]) {
+            bytes = (byte[]) obj;
+        } else {
+            bytes = ObjectUtil.ObjToByteArray(obj);
+        }
         totalWrite += bytes.length;
         intervalTotalWriteTmp += bytes.length;
-        totolWriteCount++;
-        super.channelWrite(socketChannel, obj);
+        totalWriteCount++;
+        ctx.fireChannelProcess(ChannelState.CHANNEL_WRITE, obj);
     }
 
     @Override
-    public void channelClosed(SocketChannel socketChannel) throws Exception {
+    public void channelClosed(ChannelHandlerContext ctx) throws Exception {
         pool.shutdown();
-        super.channelClosed(socketChannel);
+        super.channelClosed(ctx);
     }
 
 
@@ -120,8 +136,8 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
         return totalReadCount;
     }
 
-    public long getTotolWriteCount() {
-        return totolWriteCount;
+    public long getTotalWriteCount() {
+        return totalWriteCount;
     }
 
 

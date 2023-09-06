@@ -17,7 +17,8 @@ package com.gettyio.core.util.timer;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.util.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.LinkedQueue;
 import com.gettyio.core.util.PlatformDependent;
 
 import java.util.Collections;
@@ -35,7 +36,6 @@ import static com.gettyio.core.util.StringUtil.simpleClassName;
 /**
  * HashedWheelTimer.java
  *
- * @description:时间轮,参考自netty 4.3
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
@@ -74,11 +74,11 @@ public class HashedWheelTimer implements Timer {
     /**
      * 待执行任务队列
      */
-    private final LinkedBlockQueue<HashedWheelTimeout> timeouts = new LinkedBlockQueue<>();
+    private final LinkedQueue<HashedWheelTimeout> timeouts = new LinkedNonReadBlockQueue<>();
     /**
      * 待取消任务队列
      */
-    private final LinkedBlockQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedBlockQueue<>();
+    private final LinkedQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedNonReadBlockQueue<>();
     /**
      * 等待处理计数器
      */

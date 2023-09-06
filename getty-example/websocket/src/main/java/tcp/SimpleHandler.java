@@ -2,19 +2,20 @@ package tcp;
 
 
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.websocket.frame.*;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
     @Override
-    public void channelAdded(SocketChannel aioChannel) {
+    public void channelAdded(ChannelHandlerContext ctx) {
 
         System.out.println("连接成功");
 
     }
 
     @Override
-    public void channelClosed(SocketChannel aioChannel) {
+    public void channelClosed(ChannelHandlerContext ctx) {
         System.out.println("连接关闭了");
     }
 
@@ -37,7 +38,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
     }
 
     @Override
-    public void exceptionCaught(SocketChannel aioChannel, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         System.out.println("出错了");
     }
 }

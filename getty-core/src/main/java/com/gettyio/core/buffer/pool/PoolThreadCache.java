@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -13,17 +13,12 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.gettyio.core.buffer.pool;
 
 
-
-import com.gettyio.core.buffer.ThreadDeathWatcher;
-import com.gettyio.core.buffer.pool.buffer.PooledByteBuf;
+import com.gettyio.core.buffer.bytebuf.impl.PooledByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.nio.ByteBuffer;
 
 /**
  * 为分配充当线程缓存。这个实现将在之后模块化
@@ -31,18 +26,13 @@ import java.nio.ByteBuffer;
 final class PoolThreadCache {
     private final static Logger logger = LoggerFactory.getLogger(PoolThreadCache.class);
     final PoolArena<byte[]> heapArena;
-    final PoolArena<ByteBuffer> directArena;
 
     // 为不同大小的类保留缓存，这些类很小、小和正常。
     private final MemoryRegionCache<byte[]>[] tinySubPageHeapCaches;
     private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;
-    private final MemoryRegionCache<ByteBuffer>[] tinySubPageDirectCaches;
-    private final MemoryRegionCache<ByteBuffer>[] smallSubPageDirectCaches;
     private final MemoryRegionCache<byte[]>[] normalHeapCaches;
-    private final MemoryRegionCache<ByteBuffer>[] normalDirectCaches;
 
     // 用于以后计算普通缓存索引时的位移
-    private final int numShiftsNormalDirect;
     private final int numShiftsNormalHeap;
     private final int freeSweepAllocationThreshold;
 
@@ -56,7 +46,7 @@ final class PoolThreadCache {
         }
     };
 
-    PoolThreadCache(PoolArena<byte[]> heapArena, PoolArena<ByteBuffer> directArena,
+    PoolThreadCache(PoolArena<byte[]> heapArena,
                     int tinyCacheSize, int smallCacheSize, int normalCacheSize,
                     int maxCachedBufferCapacity, int freeSweepAllocationThreshold) {
         if (maxCachedBufferCapacity < 0) {
@@ -69,22 +59,9 @@ final class PoolThreadCache {
         }
         this.freeSweepAllocationThreshold = freeSweepAllocationThreshold;
         this.heapArena = heapArena;
-        this.directArena = directArena;
-        if (directArena != null) {
-            tinySubPageDirectCaches = createSubPageCaches(tinyCacheSize, PoolArena.numTinySubpagePools);
-            smallSubPageDirectCaches = createSubPageCaches(smallCacheSize, directArena.numSmallSubpagePools);
 
-            numShiftsNormalDirect = log2(directArena.pageSize);
-            normalDirectCaches = createNormalCaches(normalCacheSize, maxCachedBufferCapacity, directArena);
-        } else {
-            // No directArea is configured so just null out all caches
-            tinySubPageDirectCaches = null;
-            smallSubPageDirectCaches = null;
-            normalDirectCaches = null;
-            numShiftsNormalDirect = -1;
-        }
         if (heapArena != null) {
-            // Create the caches for the heap allocations
+            // 为堆分配创建缓存
             tinySubPageHeapCaches = createSubPageCaches(tinyCacheSize, PoolArena.numTinySubpagePools);
             smallSubPageHeapCaches = createSubPageCaches(smallCacheSize, heapArena.numSmallSubpagePools);
 
@@ -92,7 +69,7 @@ final class PoolThreadCache {
             normalHeapCaches = createNormalCaches(
                     normalCacheSize, maxCachedBufferCapacity, heapArena);
         } else {
-            // No heapArea is configured so just null out all caches
+            // 没有配置heapArea，所以清空所有缓存
             tinySubPageHeapCaches = null;
             smallSubPageHeapCaches = null;
             normalHeapCaches = null;
@@ -144,24 +121,24 @@ final class PoolThreadCache {
     }
 
     /**
-     * Try to allocate a tiny buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
+     * 尝试从缓存中分配一个小缓冲区。 Returns {@code true} if successful {@code false} otherwise
      */
-    boolean allocateTiny(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
-        return allocate(cacheForTiny(area, normCapacity), buf, reqCapacity);
+    boolean allocateTiny(PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
+        return allocate(cacheForTiny(normCapacity), buf, reqCapacity);
     }
 
     /**
-     * Try to allocate a small buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
+     * 尝试从缓存中分配一个小缓冲区。 Returns {@code true} if successful {@code false} otherwise
      */
-    boolean allocateSmall(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
-        return allocate(cacheForSmall(area, normCapacity), buf, reqCapacity);
+    boolean allocateSmall(PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
+        return allocate(cacheForSmall(normCapacity), buf, reqCapacity);
     }
 
     /**
-     * Try to allocate a small buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
+     * 尝试从缓存中分配一个小缓冲区。 Returns {@code true} if successful {@code false} otherwise
      */
-    boolean allocateNormal(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
-        return allocate(cacheForNormal(area, normCapacity), buf, reqCapacity);
+    boolean allocateNormal(PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
+        return allocate(cacheForNormal(normCapacity), buf, reqCapacity);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -179,7 +156,7 @@ final class PoolThreadCache {
     }
 
     /**
-     * Add {@link PoolChunk} and {@code handle} to the cache if there is enough room.
+     * 如果有足够的空间，添加 {@link PoolChunk} and {@code handle} 到缓冲
      * Returns {@code true} if it fit into the cache {@code false} otherwise.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -187,12 +164,12 @@ final class PoolThreadCache {
         MemoryRegionCache<?> cache;
         if (area.isTinyOrSmall(normCapacity)) {
             if (PoolArena.isTiny(normCapacity)) {
-                cache = cacheForTiny(area, normCapacity);
+                cache = cacheForTiny(normCapacity);
             } else {
-                cache = cacheForSmall(area, normCapacity);
+                cache = cacheForSmall(normCapacity);
             }
         } else {
-            cache = cacheForNormal(area, normCapacity);
+            cache = cacheForNormal(normCapacity);
         }
         if (cache == null) {
             return false;
@@ -201,7 +178,7 @@ final class PoolThreadCache {
     }
 
     /**
-     * Should be called if the Thread that uses this cache is about to exist to release resources out of the cache
+     * 如果使用此缓存的线程即将退出，从缓存中释放资源
      */
     void free() {
         ThreadDeathWatcher.unwatch(thread, freeTask);
@@ -209,12 +186,10 @@ final class PoolThreadCache {
     }
 
     private void free0() {
-        int numFreed = free(tinySubPageDirectCaches) +
-                free(smallSubPageDirectCaches) +
-                free(normalDirectCaches) +
+        int numFreed =
                 free(tinySubPageHeapCaches) +
-                free(smallSubPageHeapCaches) +
-                free(normalHeapCaches);
+                        free(smallSubPageHeapCaches) +
+                        free(normalHeapCaches);
 
         if (numFreed > 0 && logger.isDebugEnabled()) {
             logger.debug("Freed {} thread-local buffer(s) from thread: {}", numFreed, thread.getName());
@@ -241,9 +216,6 @@ final class PoolThreadCache {
     }
 
     void trim() {
-        trim(tinySubPageDirectCaches);
-        trim(smallSubPageDirectCaches);
-        trim(normalDirectCaches);
         trim(tinySubPageHeapCaches);
         trim(smallSubPageHeapCaches);
         trim(normalHeapCaches);
@@ -265,27 +237,17 @@ final class PoolThreadCache {
         cache.trim();
     }
 
-    private MemoryRegionCache<?> cacheForTiny(PoolArena<?> area, int normCapacity) {
+    private MemoryRegionCache<?> cacheForTiny(int normCapacity) {
         int idx = PoolArena.tinyIdx(normCapacity);
-        if (area.isDirect()) {
-            return cache(tinySubPageDirectCaches, idx);
-        }
         return cache(tinySubPageHeapCaches, idx);
     }
 
-    private MemoryRegionCache<?> cacheForSmall(PoolArena<?> area, int normCapacity) {
+    private MemoryRegionCache<?> cacheForSmall(int normCapacity) {
         int idx = PoolArena.smallIdx(normCapacity);
-        if (area.isDirect()) {
-            return cache(smallSubPageDirectCaches, idx);
-        }
         return cache(smallSubPageHeapCaches, idx);
     }
 
-    private MemoryRegionCache<?> cacheForNormal(PoolArena<?> area, int normCapacity) {
-        if (area.isDirect()) {
-            int idx = log2(normCapacity >> numShiftsNormalDirect);
-            return cache(normalDirectCaches, idx);
-        }
+    private MemoryRegionCache<?> cacheForNormal(int normCapacity) {
         int idx = log2(normCapacity >> numShiftsNormalHeap);
         return cache(normalHeapCaches, idx);
     }

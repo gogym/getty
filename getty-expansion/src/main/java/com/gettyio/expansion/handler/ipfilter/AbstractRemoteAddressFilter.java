@@ -16,6 +16,9 @@
 package com.gettyio.expansion.handler.ipfilter;
 
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 import java.io.IOException;
@@ -30,13 +33,14 @@ import java.net.SocketAddress;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends ChannelInboundHandlerAdapter {
+abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends ChannelInboundHandlerAdapter {
 
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractRemoteAddressFilter.class);
 
     @Override
-    public void channelAdded(SocketChannel socketChannel) throws Exception {
-        super.channelAdded(socketChannel);
-        handleNewChannel(socketChannel);
+    public void channelAdded(ChannelHandlerContext ctx) throws Exception {
+        super.channelAdded(ctx);
+        handleNewChannel(ctx.channel());
     }
 
     /**
@@ -56,7 +60,7 @@ public abstract class AbstractRemoteAddressFilter<T extends SocketAddress> exten
                 socketChannel.close();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 

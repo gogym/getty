@@ -22,12 +22,12 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 
 /**
- * 数组缓存处理类，用于解决需要写入一个未知长度的byte[]，如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
+ * 数组缓存处理类，用于解决需要写入一个未知长度的byte[]，
+ * 如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
  *
  * @author gogym
  * @version 1.0.0
  * @className AutoByteBuffer.java
- * @description
  * @date 2019/9/27
  */
 public class AutoByteBuffer {
@@ -49,7 +49,6 @@ public class AutoByteBuffer {
      */
     private byte[] data;
 
-
     /**
      * 获取一个新的实例
      *
@@ -65,7 +64,7 @@ public class AutoByteBuffer {
      * @return AutoByteBuffer
      */
     public static AutoByteBuffer newByteBuffer() {
-        return new AutoByteBuffer(256);
+        return new AutoByteBuffer(BUFFER_SIZE);
     }
 
     /**
@@ -77,7 +76,6 @@ public class AutoByteBuffer {
     public static AutoByteBuffer newByteBuffer(int capacity) {
         return new AutoByteBuffer(capacity);
     }
-
 
     /**
      * 清空数据，重置指针
@@ -94,12 +92,10 @@ public class AutoByteBuffer {
     /**
      * 清理指针标记，数组内容保留，下次写入会被覆盖，除了array()获取原始数组外无法得到旧数据
      *
-     * @return AutoByteBuffer
      */
-    public AutoByteBuffer reset() {
+    public void reset() {
         readerIndex = 0;
         writerIndex = 0;
-        return this;
     }
 
     /**
@@ -108,12 +104,8 @@ public class AutoByteBuffer {
      * @return
      */
     public boolean hasArray() {
-        if (writerIndex > 0) {
-            return true;
-        }
-        return false;
+        return writerIndex > 0;
     }
-
 
     /**
      * 获取未处理byte[]，就是获取原始数组的意思
@@ -161,7 +153,6 @@ public class AutoByteBuffer {
         data = newBytes;
     }
 
-
     /**
      * 重置读指针位置,相当于指定下次开始读取的下标
      * 如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
@@ -177,7 +168,6 @@ public class AutoByteBuffer {
         }
         return this;
     }
-
 
     /**
      * 读取指针位置
@@ -206,7 +196,6 @@ public class AutoByteBuffer {
         return writerIndex - readerIndex;
     }
 
-
     /**
      * 当前是否有可读数据
      *
@@ -219,7 +208,6 @@ public class AutoByteBuffer {
         return false;
     }
 
-
     /**
      * 当前剩余可写入数据长度，每次触发扩容后都不一样
      *
@@ -228,7 +216,6 @@ public class AutoByteBuffer {
     public int writableBytes() {
         return data.length - writerIndex;
     }
-
 
     /**
      * 复制自身
@@ -240,7 +227,6 @@ public class AutoByteBuffer {
         autoByteBuffer.writeBytes(this);
         return autoByteBuffer;
     }
-
 
     /**
      * 当前容量，当写入数据超过当前容量后会自动扩容
@@ -261,7 +247,6 @@ public class AutoByteBuffer {
         readerIndex += length;
         return this;
     }
-
 
     /**
      * 读取一个数据到byte，从readIndex位置开始，每读取一个，指针+1，类似byteBuffer的get方法
@@ -638,7 +623,12 @@ public class AutoByteBuffer {
         return new byte[]{(byte) ((i >> 24) & 0xFF), (byte) ((i >> 16) & 0xFF), (byte) ((i >> 8) & 0xFF), (byte) (i & 0xFF)};
     }
 
-
+    /**
+     * shortToByte
+     *
+     * @param s
+     * @return
+     */
     private byte[] shortToByte(int s) {
         byte[] targets = new byte[2];
         targets[0] = (byte) (s >> 8 & 0xFF);
@@ -669,7 +659,6 @@ public class AutoByteBuffer {
         return decodeString(this, index, length, charset);
     }
 
-
     /**
      * 指定解析成string
      *
@@ -688,7 +677,7 @@ public class AutoByteBuffer {
 
         if (src.hasArray()) {
             array = src.array();
-            offset = 0 + readerIndex;
+            offset = readerIndex;
         } else {
             offset = 0;
             array = getBytes(readerIndex, len);

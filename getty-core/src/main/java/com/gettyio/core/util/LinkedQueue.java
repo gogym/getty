@@ -18,13 +18,12 @@ package com.gettyio.core.util;
 /**
  * LinkedQueue.java
  *
- * @description:自定义mq
+ * 自定义mq
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
 public interface LinkedQueue<T> {
-
 
     /**
      * 获取mq底层数组对象

@@ -15,9 +15,8 @@
  */
 package com.gettyio.core.handler.codec.string;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-import com.gettyio.core.util.LinkedBlockQueue;
 
 
 /**
@@ -30,7 +29,7 @@ import com.gettyio.core.util.LinkedBlockQueue;
  */
 public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
 
-    private int frameLength;
+    private final int frameLength;
 
     public FixedLengthFrameDecoder(int frameLength) {
         if (frameLength <= 0) {
@@ -40,10 +39,14 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
         }
     }
 
-    @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
 
-        byte[] bytes = (byte[]) obj;
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
+        decode(ctx, in);
+    }
+
+    private void decode(ChannelHandlerContext ctx, Object in) throws Exception {
+        byte[] bytes = (byte[]) in;
         int index = 0;
         while (index < bytes.length) {
             byte[] byte2;
@@ -55,7 +58,7 @@ public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
                 System.arraycopy(bytes, index, byte2, 0, bytes.length - index);
             }
             //传递到下一个解码器
-            super.decode(socketChannel, obj, out);
+            super.channelRead(ctx, byte2);
             index += frameLength;
         }
 

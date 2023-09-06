@@ -1,10 +1,29 @@
-
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 
-import com.gettyio.core.buffer.pool.buffer.PooledByteBuf;
+import com.gettyio.core.buffer.bytebuf.impl.PooledByteBuf;
 import com.gettyio.core.util.StringUtil;
 
+/**
+ * 内存块列表
+ *
+ * @param <T>
+ */
 final class PoolChunkList<T> {
     /**
      * 池化空间
@@ -40,6 +59,14 @@ final class PoolChunkList<T> {
         this.maxUsage = maxUsage;
     }
 
+    /**
+     * 创建一个内存块列表
+     *
+     * @param buf
+     * @param reqCapacity
+     * @param normCapacity
+     * @return
+     */
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         if (head == null) {
             return false;
@@ -63,6 +90,12 @@ final class PoolChunkList<T> {
         }
     }
 
+    /**
+     * 释放一个内存块
+     *
+     * @param chunk
+     * @param handle
+     */
     void free(PoolChunk<T> chunk, long handle) {
         chunk.free(handle);
         if (chunk.usage() < minUsage) {
@@ -76,6 +109,11 @@ final class PoolChunkList<T> {
         }
     }
 
+    /**
+     * 添加一个内存块
+     *
+     * @param chunk
+     */
     void add(PoolChunk<T> chunk) {
         if (chunk.usage() >= maxUsage) {
             nextList.add(chunk);
@@ -95,6 +133,11 @@ final class PoolChunkList<T> {
         }
     }
 
+    /**
+     * 移除内存块
+     *
+     * @param cur
+     */
     private void remove(PoolChunk<T> cur) {
         if (cur == head) {
             head = cur.next;

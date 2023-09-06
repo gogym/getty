@@ -19,7 +19,7 @@ import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.buffer.ByteBuf;
+import com.gettyio.core.buffer.bytebuf.ByteBuf;
 import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.LinkedQueue;
 
@@ -43,6 +43,7 @@ public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
      * 函数
      */
     private final Function<BufferWriter, Void> function;
+
     /**
      * 数据缓冲队列
      */
@@ -52,7 +53,6 @@ public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
      * 缓冲区构造器
      */
     private final ByteBufAllocator byteBufAllocator;
-
 
     /**
      * 构造方法
@@ -79,9 +79,9 @@ public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
         }
         try {
             //申请写缓冲
-            ByteBuf byteBuf = byteBufAllocator.ioBuffer(len - off);
+            ByteBuf byteBuf = byteBufAllocator.buffer(len - off);
             //写入数据
-            byteBuf.writeBytes(b, off, b.length);
+            byteBuf.writeBytes(b);
             //写到缓冲队列
             queue.put(byteBuf);
         } catch (Exception e) {

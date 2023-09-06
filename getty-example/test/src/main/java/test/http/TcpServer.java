@@ -4,10 +4,10 @@ package test.http;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
+import com.gettyio.core.pipeline.ChannelInitializer;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.http.request.HttpRequestDecoder;
 import com.gettyio.expansion.handler.codec.http.response.HttpResponseEncoder;
-import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
 
 public class TcpServer {
 
@@ -26,7 +26,7 @@ public class TcpServer {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象
-                    DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                    ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                     //添加http response 编码器
                     defaultChannelPipeline.addLast(new HttpResponseEncoder());

@@ -16,8 +16,8 @@
 package com.gettyio.expansion.handler.codec.http.request;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpEncodeSerializer;
 
 /**
@@ -31,7 +31,7 @@ import com.gettyio.expansion.handler.codec.http.HttpEncodeSerializer;
 public class HttpRequestEncoder extends MessageToByteEncoder {
 
     @Override
-    public void encode(SocketChannel socketChannel, Object obj) throws Exception {
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer();
         if (obj instanceof HttpRequest) {
             HttpRequest httpRequest = (HttpRequest) obj;
@@ -40,6 +40,6 @@ public class HttpRequestEncoder extends MessageToByteEncoder {
             HttpEncodeSerializer.encodeContent(buffer, httpRequest);
             obj = buffer.readableBytesArray();
         }
-        super.encode(socketChannel, obj);
+        super.channelWrite(ctx, obj);
     }
 }

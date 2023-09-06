@@ -41,15 +41,9 @@ public abstract class BaseConfig {
      */
     private int readBufferSize = 64;
     /**
-     * 输出类队列大小,再大其实意义不大，因为实际写出速度还会收到机器配置已经带宽的限制，设置这个数，已经能满足绝大部分场景需要
+     * 输出类队列大小,再大其实意义不大，因为实际写出速度还会受到机器配置以及带宽等的限制，设置这个数，已经能满足绝大部分场景需要
      */
     private int bufferWriterQueueSize = 1024 * 1024 * 8;
-
-    /**
-     * 是否开启零拷贝,使用堆外内存
-     */
-    private final Boolean isDirect = true;
-
     /**
      * 流控开关，默认不打开
      */
@@ -62,7 +56,6 @@ public abstract class BaseConfig {
      * 释放流控阈值(低水位线)，默认高水位的一半
      */
     private int lowWaterMark = highWaterMark / 2;
-
 
     /**
      * 设置Socket的TCP参数配置
@@ -84,7 +77,6 @@ public abstract class BaseConfig {
      * 4. StandardSocketOptions.SO_REUSEADDR
      */
     private Map<SocketOption<Object>, Object> socketOptions;
-
 
     //------------------------------------------------------------------------------------------------
 
@@ -131,11 +123,6 @@ public abstract class BaseConfig {
         socketOptions.put(socketOption, f);
     }
 
-    public Boolean isDirect() {
-        return isDirect;
-    }
-
-
     public boolean isFlowControl() {
         return flowControl;
     }
@@ -171,7 +158,6 @@ public abstract class BaseConfig {
                 ", highWaterMark=" + highWaterMark +
                 ", lowWaterMark=" + lowWaterMark +
                 ", socketOptions=" + socketOptions +
-                ", isDirect=" + isDirect +
                 '}';
     }
 }

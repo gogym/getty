@@ -24,7 +24,6 @@ package com.gettyio.core.channel.loop;
  * @createTime 2020/12/15 13:59:32
  */
 public interface EventLoop {
-
     /**
      * 运行
      */

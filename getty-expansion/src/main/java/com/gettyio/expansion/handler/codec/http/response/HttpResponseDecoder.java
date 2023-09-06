@@ -16,9 +16,8 @@
 package com.gettyio.expansion.handler.codec.http.response;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
-import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpDecodeSerializer;
 
 /**
@@ -29,15 +28,15 @@ import com.gettyio.expansion.handler.codec.http.HttpDecodeSerializer;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class HttpResponseDecoder extends ObjectToMessageDecoder {
+public class HttpResponseDecoder extends ByteToMessageDecoder {
 
     AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
     HttpResponse httpResponse;
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
 
-        autoByteBuffer.writeBytes((byte[]) obj);
+        autoByteBuffer.writeBytes((byte[]) in);
 
         if (httpResponse == null) {
             httpResponse = new HttpResponse();
@@ -47,8 +46,7 @@ public class HttpResponseDecoder extends ObjectToMessageDecoder {
 
         boolean flag = HttpDecodeSerializer.read(autoByteBuffer, httpResponse);
         if (flag) {
-            out.put(httpResponse);
-            super.decode(socketChannel, httpResponse, out);
+            super.channelRead(ctx, httpResponse);
             autoByteBuffer.clear();
             httpResponse = null;
         }

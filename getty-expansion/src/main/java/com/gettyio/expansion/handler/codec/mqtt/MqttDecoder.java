@@ -17,11 +17,11 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.ChannelState;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.handler.codec.DecoderException;
-import com.gettyio.core.handler.codec.ObjectToMessageDecoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
-import com.gettyio.core.util.LinkedBlockQueue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.*;
  * @date:2020/6/9
  * @copyright: Copyright by gettyio.com
  */
-public final class MqttDecoder extends ObjectToMessageDecoder {
+public final class MqttDecoder extends ByteToMessageDecoder {
 
     private static final int DEFAULT_MAX_BYTES_IN_MESSAGE = 8092;
 
@@ -101,10 +101,10 @@ public final class MqttDecoder extends ObjectToMessageDecoder {
 
 
     @Override
-    public void decode(SocketChannel socketChannel, Object obj, LinkedBlockQueue<Object> out) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
 
-        AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) obj);
-
+        AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) in);
+        MqttMessage mqttMessage = null;
         switch (state()) {
             case READ_FIXED_HEADER:
                 try {
@@ -113,7 +113,7 @@ public final class MqttDecoder extends ObjectToMessageDecoder {
                     checkpoint(DecoderState.READ_VARIABLE_HEADER);
                     // fall through
                 } catch (Exception cause) {
-                    out.put(invalidMessage(cause));
+                    mqttMessage = invalidMessage(cause);
                     break;
                 }
 
@@ -128,7 +128,7 @@ public final class MqttDecoder extends ObjectToMessageDecoder {
                     checkpoint(DecoderState.READ_PAYLOAD);
                     // fall through
                 } catch (Exception cause) {
-                    out.put(invalidMessage(cause));
+                    mqttMessage = invalidMessage(cause);
                     break;
                 }
 
@@ -140,13 +140,12 @@ public final class MqttDecoder extends ObjectToMessageDecoder {
                         throw new DecoderException("non-zero remaining payload bytes: " + bytesRemainingInVariablePart + " (" + mqttFixedHeader.messageType() + ')');
                     }
                     checkpoint(DecoderState.READ_FIXED_HEADER);
-                    MqttMessage message = MqttMessageFactory.newMessage(mqttFixedHeader, variableHeader, decodedPayload.value);
+                    mqttMessage = MqttMessageFactory.newMessage(mqttFixedHeader, variableHeader, decodedPayload.value);
                     mqttFixedHeader = null;
                     variableHeader = null;
-                    out.put(message);
                     break;
                 } catch (Exception cause) {
-                    out.put(invalidMessage(cause));
+                    mqttMessage = invalidMessage(cause);
                     break;
                 }
 
@@ -159,9 +158,7 @@ public final class MqttDecoder extends ObjectToMessageDecoder {
                 // Shouldn't reach here.
                 throw new Error();
         }
-
-
-        super.decode(socketChannel, obj, out);
+        super.channelRead(ctx,mqttMessage);
     }
 
     private MqttMessage invalidMessage(Throwable cause) {

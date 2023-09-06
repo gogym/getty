@@ -1,4 +1,18 @@
-
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 
@@ -9,13 +23,19 @@ import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 基于线程本地堆栈的轻量级对象池。
+ * 基于线程本地堆栈的可回收对象池。
  *
  * @param <T> 池化对象的类型
  */
 public abstract class Recycler<T> {
 
+    /**
+     * id生成，确保增量是原子性的
+     */
     private static final AtomicInteger ID_GENERATOR = new AtomicInteger(Integer.MIN_VALUE);
+    /**
+     * 线程id
+     */
     private static final int OWN_THREAD_ID = ID_GENERATOR.getAndIncrement();
     /**
      * 默认对象池容量
@@ -27,27 +47,18 @@ public abstract class Recycler<T> {
     private static final int INITIAL_CAPACITY;
 
     static {
-        // 我们可能会为不同的对象类型使用不同的最大容量，应该随着我们生产经验的增加而调整。暂时使用默认即可
-        //int maxCapacity = SystemPropertyUtil.getInt(Constants.io_recycler_max_Capacity, 0);
-        //if (maxCapacity <= 0) {
-        //maxCapacity = 262144;
-        //}
-        int maxCapacity = 262144;
-        DEFAULT_MAX_CAPACITY = maxCapacity;
-        INITIAL_CAPACITY = Math.min(DEFAULT_MAX_CAPACITY, 256);
+        // 为不同的对象类型使用不同的最大容量，应该随着生产环境调整。暂时使用默认即可
+        DEFAULT_MAX_CAPACITY = 262144;
+        INITIAL_CAPACITY = 256;
     }
 
     /**
      * 最大容量
      */
     private final int maxCapacity;
-    private final ThreadLocal<Stack<T>> threadLocal = new ThreadLocal<Stack<T>>() {
-        @Override
-        protected Stack<T> initialValue() {
-            return new Stack<T>(Recycler.this, Thread.currentThread(), maxCapacity);
-        }
-    };
-
+    /**
+     * 构造方法
+     */
     protected Recycler() {
         this(DEFAULT_MAX_CAPACITY);
     }
@@ -55,6 +66,16 @@ public abstract class Recycler<T> {
     protected Recycler(int maxCapacity) {
         this.maxCapacity = Math.max(0, maxCapacity);
     }
+
+    /**
+     * 创建一个ThreadLocal
+     */
+    private final ThreadLocal<Stack<T>> threadLocal = new ThreadLocal<Stack<T>>() {
+        @Override
+        protected Stack<T> initialValue() {
+            return new Stack<T>(Recycler.this, Thread.currentThread(), maxCapacity);
+        }
+    };
 
     /**
      * 获取对象
@@ -72,39 +93,6 @@ public abstract class Recycler<T> {
         return (T) handle.value;
     }
 
-    /**
-     * 回收利用
-     *
-     * @param o
-     * @param handle
-     * @return
-     */
-    public final boolean recycle(T o, Handle<T> handle) {
-        DefaultHandle<T> h = (DefaultHandle<T>) handle;
-        if (h.stack.parent != this) {
-            return false;
-        }
-        h.recycle(o);
-        return true;
-    }
-
-    /**
-     * threadLocal容量
-     *
-     * @return
-     */
-    final int threadLocalCapacity() {
-        return threadLocal.get().elements.length;
-    }
-
-    /**
-     * threadLocal大小
-     *
-     * @return
-     */
-    final int threadLocalSize() {
-        return threadLocal.get().size;
-    }
 
     /**
      * 新对象
@@ -114,6 +102,12 @@ public abstract class Recycler<T> {
      */
     protected abstract T newObject(Handle<T> handle);
 
+
+    /**
+     * 处理器
+     *
+     * @param <T>
+     */
     public interface Handle<T> {
         void recycle(T object);
     }
@@ -153,10 +147,13 @@ public abstract class Recycler<T> {
         }
     }
 
+    /**
+     * 延迟回收站
+     */
     private static final ThreadLocal<Map<Stack<?>, WeakOrderQueue>> DELAYED_RECYCLED = new ThreadLocal<Map<Stack<?>, WeakOrderQueue>>() {
         @Override
         protected Map<Stack<?>, WeakOrderQueue> initialValue() {
-            return new WeakHashMap<Stack<?>, WeakOrderQueue>();
+            return new WeakHashMap<>();
         }
     };
 
@@ -165,33 +162,52 @@ public abstract class Recycler<T> {
      * 一个只对可见性做出适度保证的队列:但不能绝对保证看到任何东西，因此保持队列的维护成本低
      */
     private static final class WeakOrderQueue {
+        /**
+         * 链大小
+         */
         private static final int LINK_CAPACITY = 16;
 
-        //让Link为intrinsic扩展AtomicInteger。链接本身将被用作writerIndex。
-        @SuppressWarnings("serial")
+        /**
+         * 让Link为intrinsic扩展AtomicInteger。链接本身将被用作writerIndex。
+         */
         private static final class Link extends AtomicInteger {
             private final DefaultHandle<?>[] elements = new DefaultHandle[LINK_CAPACITY];
-
+            /**
+             * 当前读取下标
+             */
             private int readIndex;
+            /**
+             * 下一个
+             */
             private Link next;
         }
 
-        // 数据项链
+        /**
+         * 数据项链，头、尾
+         */
         private Link head, tail;
-        //指向同一堆栈的另一个延迟项队列的指针
+        /**
+         * 指向同一堆栈的另一个延迟项队列的指针
+         */
         private WeakOrderQueue next;
         private final WeakReference<Thread> owner;
         private final int id = ID_GENERATOR.getAndIncrement();
 
         WeakOrderQueue(Stack<?> stack, Thread thread) {
             head = tail = new Link();
-            owner = new WeakReference<Thread>(thread);
+            owner = new WeakReference<>(thread);
             synchronized (stack) {
+                //初始化，当前和下一个都是当前对象
                 next = stack.head;
                 stack.head = this;
             }
         }
 
+        /**
+         * 添加handle
+         *
+         * @param handle
+         */
         void add(DefaultHandle<?> handle) {
             handle.lastRecycledId = id;
 
@@ -212,7 +228,9 @@ public abstract class Recycler<T> {
             return tail.readIndex != tail.get();
         }
 
-        //将尽可能多的项从队列转移到堆栈，如果有的话返回true
+        /**
+         * 将尽可能多的项从队列转移到堆栈，如果有的话返回true
+         */
         @SuppressWarnings("rawtypes")
         boolean transfer(Stack<?> dst) {
 
@@ -280,17 +298,26 @@ public abstract class Recycler<T> {
      */
     static final class Stack<T> {
 
-        //每个线程都有一个队列，每次除堆栈所有者外的新线程回收时，这个队列只被追加一次:
-        // 当堆栈中的项用完时，迭代这个集合，以查找那些可以重用的项。这允许我们在回收所有项目的同时产生最小的线程同步。
         final Recycler<T> parent;
         final Thread thread;
         private DefaultHandle<?>[] elements;
         private final int maxCapacity;
         private int size;
 
+        /**
+         * 每个线程都有一个队列，每次除堆栈所有者外的新线程回收时，这个队列只被追加一次:
+         * 当堆栈中的项用完时，迭代这个集合，以查找那些可以重用的项。这允许我们在回收所有项目的同时产生最小的线程同步。
+         */
         private volatile WeakOrderQueue head;
         private WeakOrderQueue cursor, prev;
 
+        /**
+         * 构造
+         *
+         * @param parent      回收站
+         * @param thread      线程
+         * @param maxCapacity 最大堆栈容量
+         */
         Stack(Recycler<T> parent, Thread thread, int maxCapacity) {
             this.parent = parent;
             this.thread = thread;
@@ -298,6 +325,12 @@ public abstract class Recycler<T> {
             elements = new DefaultHandle[Math.min(INITIAL_CAPACITY, maxCapacity)];
         }
 
+        /**
+         * 追加容量
+         *
+         * @param expectedCapacity 需要追加的容量
+         * @return
+         */
         int increaseCapacity(int expectedCapacity) {
             int newCapacity = elements.length;
             int maxCapacity = this.maxCapacity;
@@ -313,6 +346,11 @@ public abstract class Recycler<T> {
             return newCapacity;
         }
 
+        /**
+         * 出栈
+         *
+         * @return
+         */
         @SuppressWarnings({"unchecked", "rawtypes"})
         DefaultHandle<T> pop() {
             int size = this.size;
@@ -333,6 +371,7 @@ public abstract class Recycler<T> {
             return ret;
         }
 
+
         boolean scavenge() {
             // 继续现有的清除(如果有)
             if (scavengeSome()) {
@@ -345,7 +384,13 @@ public abstract class Recycler<T> {
             return false;
         }
 
+        /**
+         * 清理
+         *
+         * @return
+         */
         boolean scavengeSome() {
+            //当前游标
             WeakOrderQueue cursor = this.cursor;
             if (cursor == null) {
                 cursor = head;
@@ -380,9 +425,7 @@ public abstract class Recycler<T> {
                 } else {
                     prev = cursor;
                 }
-
                 cursor = next;
-
             } while (cursor != null && !success);
 
             this.prev = prev;
@@ -390,6 +433,11 @@ public abstract class Recycler<T> {
             return success;
         }
 
+        /**
+         * 入栈
+         *
+         * @param item
+         */
         void push(DefaultHandle<?> item) {
             if ((item.recycleId | item.lastRecycledId) != 0) {
                 throw new IllegalStateException("recycled already");
@@ -409,6 +457,12 @@ public abstract class Recycler<T> {
             this.size = size + 1;
         }
 
+
+        /**
+         * 创建默认堆栈
+         *
+         * @return
+         */
         DefaultHandle<T> newHandle() {
             return new DefaultHandle<T>(this);
         }

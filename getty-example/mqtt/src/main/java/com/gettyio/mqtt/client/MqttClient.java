@@ -3,10 +3,10 @@ package com.gettyio.mqtt.client;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
-import com.gettyio.expansion.handler.codec.mqtt.*;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.util.ThreadPool;
+import com.gettyio.expansion.handler.codec.mqtt.*;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -41,7 +41,7 @@ public class MqttClient {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
                 //责任链
-                DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
                 //添加mqtt编解码器
                 defaultChannelPipeline.addLast(MqttEncoder.INSTANCE);
                 defaultChannelPipeline.addLast(new MqttDecoder());

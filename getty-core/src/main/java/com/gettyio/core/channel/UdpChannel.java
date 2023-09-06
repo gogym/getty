@@ -16,10 +16,11 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.buffer.ByteBuf;
-import com.gettyio.core.util.LinkedBlockQueue;
+import com.gettyio.core.buffer.bytebuf.ByteBuf;
 import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.core.channel.loop.SelectedSelector;
+import com.gettyio.core.pipeline.ChannelInitializer;
+import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.core.util.ThreadPool;
 
 import java.io.IOException;
@@ -28,7 +29,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.util.Iterator;
 
 /**
@@ -46,14 +46,14 @@ public class UdpChannel extends SocketChannel {
      * udp通道
      */
     private DatagramChannel datagramChannel;
-    private Selector selector;
+    private SelectedSelector selector;
     /**
      * 阻塞队列
      */
     private LinkedBlockQueue<DatagramPacket> queue;
     private ThreadPool workerThreadPool;
 
-    public UdpChannel(DatagramChannel datagramChannel, Selector selector, BaseConfig config, ByteBufAllocator byteBufAllocator, ChannelPipeline channelPipeline, int workerThreadNum) {
+    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector, BaseConfig config, ByteBufAllocator byteBufAllocator, ChannelInitializer channelInitializer, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
         this.config = config;
@@ -62,7 +62,7 @@ public class UdpChannel extends SocketChannel {
         queue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
         try {
             //注意该方法可能抛异常
-            channelPipeline.initChannel(this);
+            channelInitializer.initChannel(this);
         } catch (Exception e) {
             throw new RuntimeException("channelPipeline init exception", e);
         }
@@ -85,12 +85,12 @@ public class UdpChannel extends SocketChannel {
             @Override
             public void run() {
                 try {
-                    while (selector.select() > 0) {
+                    while (selector.select(0) > 0) {
                         Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                         while (it.hasNext()) {
                             SelectionKey sk = it.next();
                             if (sk.isReadable()) {
-                                ByteBuf readBuffer = byteBufAllocator.ioBuffer(config.getReadBufferSize());
+                                ByteBuf readBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
                                 ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
                                 //接收数据
                                 InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readByteBuf);
@@ -98,7 +98,7 @@ public class UdpChannel extends SocketChannel {
                                 readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
                                 while (readBuffer.isReadable()) {
                                     byte[] bytes = new byte[readBuffer.readableBytes()];
-                                    readBuffer.readBytes(bytes, 0, bytes.length);
+                                    readBuffer.readBytes(bytes);
                                     //读取的数据封装成DatagramPacket
                                     DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
                                     //输出到链条
@@ -156,9 +156,8 @@ public class UdpChannel extends SocketChannel {
         status = CHANNEL_STATUS_CLOSED;
 
         //最后需要清空责任链
-        if (defaultChannelPipeline != null) {
-            defaultChannelPipeline.clean();
-            defaultChannelPipeline = null;
+        if (channelPipeline != null) {
+            channelPipeline = null;
         }
     }
 
@@ -219,10 +218,10 @@ public class UdpChannel extends SocketChannel {
     private void send(DatagramPacket datagramPacket) {
         try {
             //转换成udp数据包
-            ByteBuf byteBuffer = byteBufAllocator.ioBuffer(datagramPacket.getLength());
+            ByteBuf byteBuffer = byteBufAllocator.buffer(datagramPacket.getLength());
             byteBuffer.writeBytes(datagramPacket.getData());
             //写出到目标地址
-            datagramChannel.send(byteBuffer.nioBuffer(), datagramPacket.getSocketAddress());
+            datagramChannel.send(byteBuffer.getNioBuffer(), datagramPacket.getSocketAddress());
             //释放内存
             byteBuffer.release();
         } catch (ClassCastException e) {

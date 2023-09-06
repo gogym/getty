@@ -8,14 +8,14 @@ import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
-import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
+import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.expansion.handler.timeout.HeartBeatTimeOutHandler;
+import com.gettyio.expansion.handler.timeout.IdleStateHandler;
 import com.gettyio.expansion.handler.traffic.ChannelTrafficShapingHandler;
-
-import java.net.StandardSocketOptions;
+import com.gettyio.expansion.handler.traffic.TrafficShapingHandler;
 
 public class AioServer {
 
@@ -39,15 +39,16 @@ public class AioServer {
 
             AioServerStarter server = new AioServerStarter(8888);
             server.channelInitializer(new ChannelInitializer() {
-                @Override
-                public void initChannel(SocketChannel channel) throws Exception {
-                    //获取责任链对象
-                    DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
+                @Override
+                public void initChannel(SocketChannel socketChannel) throws Exception {
+
+                    //获取责任链对象
+                    ChannelPipeline defaultChannelPipeline = socketChannel.getDefaultChannelPipeline();
                     //获取证书
                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
                     //ssl配置
-                    SslConfig sSLConfig = new SslConfig();
+                    SSLConfig sSLConfig = new SSLConfig();
                     sSLConfig.setKeyFile(pkPath);
                     sSLConfig.setKeyPassword("123456");
                     sSLConfig.setKeystorePassword("123456");
@@ -58,8 +59,27 @@ public class AioServer {
                     //设置单向验证或双向验证
                     sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
-                    SslService sSLService = new SslService(sSLConfig);
-                    //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                    defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+
+                    //流量统计
+//                    ChannelTrafficShapingHandler channelTrafficShapingHandler = new ChannelTrafficShapingHandler(5000, new TrafficShapingHandler() {
+//                        @Override
+//                        public void callback(long totalRead, long totalWrite, long intervalTotalRead, long intervalTotalWrite, long totalReadCount, long totalWriteCount) {
+//                            System.out.println("totalRead:"+totalRead);
+//                            System.out.println("totalWrite:"+totalWrite);
+//                            System.out.println("intervalTotalRead:"+intervalTotalRead);
+//                            System.out.println("intervalTotalWrite:"+intervalTotalWrite);
+//                            System.out.println("totalReadCount:"+totalReadCount);
+//                            System.out.println("totalWriteCount:"+totalWriteCount);
+//                        }
+//                    });
+                   // defaultChannelPipeline.addLast(channelTrafficShapingHandler);
+
+
+
+                    defaultChannelPipeline.addLast(new IdleStateHandler(3,0));
+                    //defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
+
 
                     defaultChannelPipeline.addLast(new StringEncoder());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割

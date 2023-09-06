@@ -9,13 +9,10 @@ import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.core.handler.codec.string.StringDecoder;
 import com.gettyio.core.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
-import com.gettyio.core.handler.ssl.SslConfig;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.SslService;
+import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.DefaultChannelPipeline;
-
-import java.net.StandardSocketOptions;
+import com.gettyio.core.pipeline.ChannelPipeline;
 
 public class NioServer {
 
@@ -23,11 +20,11 @@ public class NioServer {
     public static void main(String[] args) {
         NioServer ns = new NioServer();
         ns.test(8888);
-       // ns.test(8889);
+        // ns.test(8889);
     }
 
 
-    public void test(int port){
+    public void test(int port) {
         try {
             //初始化配置对象
             ServerConfig aioServerConfig = new ServerConfig();
@@ -40,17 +37,17 @@ public class NioServer {
             //设置读取缓存块大小，一般不用设置这个参数，默认128字节
 
 
-            NioServerStarter server = new NioServerStarter(port).workerThreadNum(5);
+            NioServerStarter server = new NioServerStarter(port);
             server.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(SocketChannel channel) throws Exception {
                     //获取责任链对象
-                    DefaultChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                    ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
 
                     //获取证书
                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
                     //ssl配置
-                    SslConfig sSLConfig = new SslConfig();
+                    SSLConfig sSLConfig = new SSLConfig();
                     sSLConfig.setKeyFile(pkPath);
                     sSLConfig.setKeyPassword("123456");
                     sSLConfig.setKeystorePassword("123456");
@@ -61,8 +58,7 @@ public class NioServer {
                     //设置单向验证或双向验证
                     sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                     //初始化ssl服务
-                    SslService sSLService = new SslService(sSLConfig);
-                    defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                    //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                     defaultChannelPipeline.addLast(new StringEncoder());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割

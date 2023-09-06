@@ -16,19 +16,19 @@
 package com.gettyio.core.channel.group;
 
 import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.util.ConcurrentSafeMap;
 
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 
 /**
  * DefaultChannelGroup.java
+ * <p>
+ * 用于保存连接默认的组，方便查找
  *
- * @description:用于保存连接默认的组，方便查找
  * @author:gogym
  * @date:2020/4/8
  */
@@ -38,11 +38,11 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
      * 组名称
      */
     private final String name;
+
     /**
      * 用于保存连接的map
      */
-    private final ConcurrentMap<String, SocketChannel> serverChannels = new ConcurrentHashMap<>();
-
+    private final ConcurrentSafeMap<String, SocketChannel> serverChannels = new ConcurrentSafeMap<>();
 
     /**
      * 构造函数
@@ -78,12 +78,10 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
         return null;
     }
 
-
     @Override
     public boolean isEmpty() {
         return serverChannels.isEmpty();
     }
-
 
     @Override
     public boolean contains(Object o) {
@@ -102,7 +100,6 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
         }
         return added;
     }
-
 
     @Override
     public boolean remove(Object o) {
@@ -139,7 +136,6 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
         return System.identityHashCode(this);
     }
 
-
     @Override
     public int compareTo(ChannelGroup o) {
         int v = name().compareTo(o.name());
@@ -163,7 +159,6 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
     public String toString() {
         return this.getClass().getSimpleName() + "(name: " + name() + ", size: " + size() + ')';
     }
-
 
     /**
      * 移除监听

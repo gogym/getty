@@ -18,27 +18,23 @@ package com.gettyio.core.util;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.regex.Pattern;
 
 
 /**
  * SystemPropertyUtil.java
+ * <p>
+ * 用于检索和解析Java系统属性的值。
  *
- * @description:用于检索和解析Java系统属性的值。
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author:gogym 2020/4/9
+ * Copyright by gettyio.com
  */
 public final class SystemPropertyUtil {
-    private static final Pattern INTEGER_PATTERN = Pattern.compile("-?[0-9]+");
 
     private SystemPropertyUtil() {
     }
 
     /**
      * 返回带有指定的{@code key}的Java系统属性的值，如果属性访问失败则返回{@code null}。
-     *
-     * @return属性值或{@code null}
      */
     public static String get(String key) {
         return get(key, null);
@@ -76,41 +72,5 @@ public final class SystemPropertyUtil {
         return value;
     }
 
-    public static boolean getBoolean(String key, boolean def) {
-        String value = get(key);
-        if (value == null) {
-            return def;
-        }
-
-        value = value.trim().toLowerCase();
-        if (value.isEmpty()) {
-            return true;
-        }
-
-        if ("true".equals(value) || "yes".equals(value) || "1".equals(value)) {
-            return true;
-        }
-
-        if ("false".equals(value) || "no".equals(value) || "0".equals(value)) {
-            return false;
-        }
-        return def;
-    }
-
-    public static int getInt(String key, int def) {
-        String value = get(key);
-        if (value == null) {
-            return def;
-        }
-        value = value.trim().toLowerCase();
-        if (INTEGER_PATTERN.matcher(value).matches()) {
-            try {
-                return Integer.parseInt(value);
-            } catch (Exception e) {
-                // Ignore
-            }
-        }
-        return def;
-    }
 
 }

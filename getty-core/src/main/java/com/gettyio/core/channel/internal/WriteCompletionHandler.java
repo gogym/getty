@@ -22,8 +22,6 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import java.nio.channels.CompletionHandler;
 
 /**
- * WriteCompletionHandler.java
- *
  * @description:写回调事件
  * @author:gogym
  * @date:2020/4/8

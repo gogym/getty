@@ -25,9 +25,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 
 /**
- * ConcurrentSafeMap.java
+ * 为了获取更好的性能表现，自定义一个读写安全的map
  *
- * @description:为了获取更好的性能表现，自定义一个读写安全的map
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
@@ -35,11 +34,17 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class ConcurrentSafeMap<K, V> {
 
     private final Map<K, V> map;
-    //可重入读写锁
+    /**
+     * 可重入读写锁
+     */
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    //读锁
+    /**
+     * 读锁
+     */
     private final Lock r = lock.readLock();
-    //写锁
+    /**
+     * 写锁
+     */
     private final Lock w = lock.writeLock();
 
     public ConcurrentSafeMap() {
@@ -50,7 +55,12 @@ public class ConcurrentSafeMap<K, V> {
         this.map = map;
     }
 
-    //获取一个值
+    /**
+     * 获取一个值
+     *
+     * @param key
+     * @return
+     */
     public V get(Object key) {
         r.lock();
         try {
@@ -60,7 +70,13 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
-    //设置一个值
+    /**
+     * 设置一个值
+     *
+     * @param key
+     * @param value
+     * @return
+     */
     public V put(K key, V value) {
         w.lock();
         try {
@@ -70,7 +86,12 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
-    //移除一个值
+    /**
+     * 移除一个值
+     *
+     * @param key
+     * @return
+     */
     public V remove(Object key) {
         w.lock();
         try {
@@ -80,7 +101,11 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
-    //添加全部
+    /**
+     * 添加全部
+     *
+     * @param m
+     */
     public void putAll(Map<? extends K, ? extends V> m) {
         w.lock();
         try {
@@ -90,7 +115,9 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
-    //清除全部
+    /**
+     * 清除全部
+     */
     public void clear() {
         w.lock();
         try {
@@ -100,7 +127,11 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
-    //返回大小
+    /**
+     * 返回map长度大小
+     *
+     * @return
+     */
     public int size() {
         r.lock();
         try {
@@ -110,7 +141,11 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
-    //非空
+    /**
+     * 非空判断
+     *
+     * @return
+     */
     public boolean isEmpty() {
         r.lock();
         try {
@@ -120,6 +155,12 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
+    /**
+     * 是否存在某个key
+     *
+     * @param key
+     * @return
+     */
     public boolean containsKey(Object key) {
         r.lock();
         try {
@@ -129,6 +170,12 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
+    /**
+     * 是否存在某个值
+     *
+     * @param value
+     * @return
+     */
     public boolean containsValue(Object value) {
         r.lock();
         try {
@@ -139,6 +186,13 @@ public class ConcurrentSafeMap<K, V> {
     }
 
 
+    /**
+     * 存在则返回，不存在则添加
+     *
+     * @param key
+     * @param value
+     * @return
+     */
     public V putIfAbsent(K key, V value) {
 
         if (containsKey(key)) {
@@ -149,6 +203,11 @@ public class ConcurrentSafeMap<K, V> {
         }
     }
 
+    /**
+     * 返回全部value
+     *
+     * @return
+     */
     public Collection<V> values() {
         return map.values();
     }

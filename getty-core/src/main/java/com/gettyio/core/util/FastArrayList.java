@@ -43,9 +43,9 @@ public class FastArrayList<T> implements Iterable<T> {
      */
     private int size = 0;
     /**
-     * 定义一个常量为 10.(后面用于定义默认的集合大小)
+     * 定义一个常量为 (后面用于定义默认的集合大小)
      */
-    private static final int DEFAULT_CAPACITY = 10;
+    private static final int DEFAULT_CAPACITY = 8;
 
     /**
      * 有参构造函数
@@ -75,7 +75,7 @@ public class FastArrayList<T> implements Iterable<T> {
 
     /**
      * 无参构造函数
-     * 指定数组的初始大小为 10
+     * 指定数组的初始大小
      */
     public FastArrayList() {
         this(DEFAULT_CAPACITY);
@@ -371,8 +371,6 @@ public class FastArrayList<T> implements Iterable<T> {
 
             }
         }
-
         return new iter();
-
     }
 }

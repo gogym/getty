@@ -25,7 +25,6 @@ import java.io.OutputStream;
  * @author gogym
  * @version 1.0.0
  * @className AbstractBufferWriter.java
- * @description
  * @date 2020/6/17
  */
 public abstract class AbstractBufferWriter<T> extends OutputStream {
@@ -47,6 +46,10 @@ public abstract class AbstractBufferWriter<T> extends OutputStream {
     public void flush() throws IOException {
     }
 
+    @Override
+    public void close() throws IOException {
+    }
+
     /**
      * 写入队列，并刷新
      *
@@ -55,11 +58,6 @@ public abstract class AbstractBufferWriter<T> extends OutputStream {
      */
     public void writeAndFlush(byte[] b) throws IOException {
     }
-
-    @Override
-    public void close() throws IOException {
-    }
-
 
     /**
      * 是否已经关闭

@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * TimerTask.java
  *
- * @description:定时任务,参考自netty 4.3
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com

@@ -16,15 +16,15 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
+import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.bytebuf.ByteBuf;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.function.Function;
-import com.gettyio.core.handler.ssl.SslHandler;
-import com.gettyio.core.handler.ssl.sslfacade.IHandshakeCompletedListener;
-import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.buffer.ByteBuf;
+import com.gettyio.core.handler.ssl.IHandshakeListener;
+import com.gettyio.core.handler.ssl.SSLHandler;
+import com.gettyio.core.pipeline.ChannelInitializer;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -47,7 +47,6 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * 通信channel对象
      */
     protected AsynchronousSocketChannel channel;
-
     /**
      * 读缓冲。
      */
@@ -70,8 +69,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     /**
      * SSL服务
      */
-    private SslHandler sslHandler;
-    private IHandshakeCompletedListener handshakeCompletedListener;
+    private SSLHandler sslHandler;
+    private IHandshakeListener handshakeListener;
 
     /**
      * 数据输出组建
@@ -79,30 +78,23 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     protected BufferWriter bufferWriter;
 
     /**
-     * 处理器链
-     */
-    private final ChannelPipeline channelPipeline;
-
-
-    /**
      * @param channel                通道
      * @param config                 配置
      * @param readCompletionHandler  读回调
      * @param writeCompletionHandler 写回调
      * @param byteBufAllocator       内存池
-     * @param channelPipeline        责任链
+     * @param channelInitializer     责任链
      */
-    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ByteBufAllocator byteBufAllocator, ChannelPipeline channelPipeline) {
+    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ByteBufAllocator byteBufAllocator, ChannelInitializer channelInitializer) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
         this.config = config;
         this.byteBufAllocator = byteBufAllocator;
-        this.channelPipeline = channelPipeline;
-
+        this.channelInitializer=channelInitializer;
         try {
             //注意该方法可能抛异常
-            channelPipeline.initChannel(this);
+            channelInitializer.initChannel(this);
         } catch (Exception e) {
             try {
                 channel.close();
@@ -111,7 +103,6 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             }
             throw new RuntimeException("channelPipeline init exception", e);
         }
-
         //初始化数据输出类
         bufferWriter = new BufferWriter(byteBufAllocator, this, config.getBufferWriterQueueSize());
 
@@ -134,7 +125,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         continueRead();
         if (this.sslHandler != null) {
             //若开启了SSL，则需要握手
-            this.sslHandler.getSslService().beginHandshake(handshakeCompletedListener);
+            this.sslHandler.beginHandshake();
         }
     }
 
@@ -195,9 +186,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         }
 
         //最后需要清空责任链
-        if (defaultChannelPipeline != null) {
-            defaultChannelPipeline.clean();
-            defaultChannelPipeline = null;
+        if (channelPipeline != null) {
+            channelPipeline = null;
         }
 
     }
@@ -224,7 +214,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             return;
         }
         //初始化读缓冲区
-        this.readByteBuffer = byteBufAllocator.ioBuffer(config.getReadBufferSize());
+        this.readByteBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
         ByteBuffer readByteBuf = readByteBuffer.nioBuffer(readByteBuffer.writerIndex(), readByteBuffer.writableBytes());
         channel.read(readByteBuf, this, readCompletionHandler);
     }
@@ -246,13 +236,13 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         //读取缓冲区数据，输送到责任链
         while (readBuffer.isReadable()) {
             byte[] bytes = new byte[readBuffer.readableBytes()];
-            readBuffer.readBytes(bytes, 0, bytes.length);
             try {
+                readBuffer.readBytes(bytes);
                 readToPipeline(bytes);
             } catch (Exception e) {
                 logger.error(e);
                 try {
-                    invokePipeline(ChannelState.INPUT_EXCEPTION);
+                    invokePipeline(ChannelState.CHANNEL_EXCEPTION);
                 } catch (Exception e1) {
                     logger.error(e1);
                 }
@@ -349,7 +339,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
 
         if (writeByteBuffer != null && writeByteBuffer.isReadable()) {
             //再次写
-            continueWrite(writeByteBuffer.nioBuffer());
+            continueWrite(writeByteBuffer.getNioBuffer());
             //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
             return;
         }
@@ -387,20 +377,13 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         return (InetSocketAddress) channel.getRemoteAddress();
     }
 
-    /**
-     * 断言
-     *
-     * @throws IOException 异常
-     */
     private void assertChannel() throws IOException {
         if (status == CHANNEL_STATUS_CLOSED || channel == null) {
             throw new IOException("channel is closed");
         }
     }
 
-
 //--------------------------------------------------------------------------------------
-
 
     @Override
     public AsynchronousSocketChannel getAsynchronousSocketChannel() {
@@ -408,34 +391,23 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     }
 
     @Override
-    public ChannelPipeline getChannelPipeline() {
-        return channelPipeline;
-    }
-
-    /**
-     * 设置SSLHandler
-     *
-     * @return AioChannel
-     */
-    @Override
-    public void setSslHandler(SslHandler sslHandler) {
+    public void setSslHandler(SSLHandler sslHandler) {
         this.sslHandler = sslHandler;
     }
 
     @Override
-    public SslHandler getSslHandler() {
+    public SSLHandler getSslHandler() {
         return this.sslHandler;
     }
 
-
     @Override
-    public void setSslHandshakeCompletedListener(IHandshakeCompletedListener handshakeCompletedListener) {
-        this.handshakeCompletedListener = handshakeCompletedListener;
+    public void setSslHandshakeListener(IHandshakeListener handshakeListener) {
+        this.handshakeListener = handshakeListener;
     }
 
     @Override
-    public IHandshakeCompletedListener getSslHandshakeCompletedListener() {
-        return this.handshakeCompletedListener;
+    public IHandshakeListener getSslHandshakeListener() {
+        return this.handshakeListener;
     }
 
     @Override
@@ -445,7 +417,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         if (semaphore.tryAcquire()) {
             this.writeByteBuffer = input.poll();
             if (null != writeByteBuffer && writeByteBuffer.isReadable()) {
-                this.continueWrite(writeByteBuffer.nioBuffer());
+                this.continueWrite(writeByteBuffer.getNioBuffer());
             } else {
                 semaphore.release();
             }
