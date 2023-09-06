@@ -1,7 +1,6 @@
 package com.gettyio.core.handler.ssl.facade;
 
 import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.sun.xml.internal.stream.util.BufferAllocator;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
