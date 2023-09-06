@@ -87,30 +87,30 @@ public class AioClient {
             @Override
             public void onCompleted(final SocketChannel socketChannel) {
 
-//                new Thread(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        try {
-//                            String s = "12\r\n";
-//                            byte[] msgBody = s.getBytes("utf-8");
-//                            long ct = System.currentTimeMillis();
-//
-//                            int i = 0;
-//                            while (i < 1000000) {
-//                                boolean flag = socketChannel.writeAndFlush(msgBody);
-//                                if (flag) {
-//                                    i++;
-//                                }
-//                            }
-//
-//                            long lt = System.currentTimeMillis();
-//                            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-//                            System.out.printf("发送消息数量：" + i + "条\r\n");
-//                        } catch (Exception e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//                }).start();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            String s = "12\r\n";
+                            byte[] msgBody = s.getBytes("utf-8");
+                            long ct = System.currentTimeMillis();
+
+                            int i = 0;
+                            while (i < 100) {
+                                boolean flag = socketChannel.writeAndFlush(msgBody);
+                                if (flag) {
+                                    i++;
+                                }
+                            }
+
+                            long lt = System.currentTimeMillis();
+                            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+                            System.out.printf("发送消息数量：" + i + "条\r\n");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
 
 
             }

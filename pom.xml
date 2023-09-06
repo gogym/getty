@@ -6,7 +6,7 @@
     <groupId>com.gettyio</groupId>
     <artifactId>getty</artifactId>
     <packaging>pom</packaging>
-    <version>2.0.0-beta4</version>
+    <version>2.1.0-rc</version>
     <modules>
         <module>getty-core</module>
         <module>getty-example</module>
