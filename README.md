@@ -18,16 +18,15 @@ Getty can be used in a project or to help you learn Better about Java NIO
 
 Getty is fully open source, based on the Apache License 2.0 open source License.
 
-4、getty的目的是为了降低对java socket nio的使用成本，帮助提高工作效率。 
+4、getty的目的是为了降低对java socket nio的学习成本，帮助提高工作效率。 
 
 Getty aims to reduce the cost of using Java Socket NiO and help improve productivity.
-
 
 ### getty名称的由来 Origin of the name
 
 取名getty主要是作者过去使用netty比较多，对netty表示尊敬，以及getty本身借鉴了netty的设计思想。
 
-然后作者本人姓氏的拼音首字符是“G”，因而取名getty。
+其次作者本人姓氏的拼音首字符是“G”，因而取名getty。
 
 The name Getty is mainly due to the author's use of Netty in the past, which shows respect for Netty, and the fact that Getty itself borrows from Netty's design ideas.
 
@@ -35,7 +34,7 @@ Then the author's surname began with the alphabet character "G", hence the name 
 
 ### 写这个框架的原因： The reason for writing this framework
 
-1、作者是一名程序员，平时喜欢写写代码，特别是网络通讯方面。
+1、作为一名程序员，平时喜欢写写代码，特别是网络编程方面。
 
 The author is a programmer, usually like to write code, especially network communication.
 
@@ -47,7 +46,7 @@ The JDK provides a powerful NIO class library and provides AIO, which correspond
 
 The author likes Netty, both for its performance and programming ideas (JBOSS provides an open source Java networking framework that provides stable and powerful performance).
 
-4、有了netty为何还要自己造轮子？这里有两个原因，其一是本人喜欢造轮子，这是病，改不了。其二，netty经过多年的发展，其生态体系已经比较庞大，其代码比较臃肿，再者其高深的设计哲学我等凡夫俗子很难悟其精髓。因而索性造一个。
+4、有了netty为何还要自己造轮子？这里有两个原因，其一是作者喜欢造轮子，这是病，治不了。其二，netty经过多年的发展，其生态体系已经比较庞大，其代码比较臃肿，再者其高深的设计哲学，作者这样的凡夫俗子很难悟其精髓。因而索性造一个。
 
 Why build your own wheels when you have Netty?
 There are two reasons. One is that I like to build wheels. It's a disease that I can't change.
@@ -56,7 +55,7 @@ So just make one.
 
 ### getty的特点： The characteristics of the getty
 
-1、完全基于java nio，基于nio1以及nio2(aio)做了实现，整体代码代码结构很轻量，非常简单易用。
+1、完全基于java nio，基于nio1以及nio2(aio)做了实现，整体代码代码结构很清晰，非常简单易用。
 
 Completely based on Java NIO, based on NIO1 and NIO2 (AIO) to do the implementation, the overall code structure is very lightweight, very easy to use.
 
@@ -64,7 +63,7 @@ Completely based on Java NIO, based on NIO1 and NIO2 (AIO) to do the implementat
 
 Some of the good design ideas of Netty and other frameworks are borrowed, such as responsibility chain, memory pooling, zero copy and other excellent design patterns.
 
-3、Getty为大多数开发场景提供了常用的插件(字符串编解码器，Protobuf编解码器，WebSocket编解码器，MQTT编解码器，心跳超时处理器，IP过滤等)。
+3、Getty为常用的开发场景提供了插件(字符串编解码器，Protobuf编解码器，WebSocket编解码器，MQTT编解码器，心跳超时处理器，IP过滤等)。
 
 Getty provides commonly used plug-ins (String codec, Protobuf codec, WebSocket codec, MQTT codec, heartbeat timeout processor, IP filtering, etc.) for most development scenarios.
 
@@ -80,14 +79,13 @@ Getty provides support for both TCP and UDP and USES them in much the same way, 
 
 Getty's built-in processor supports the hot-swap design during use, and each processor can be combined flexibly.
 
-6、框架拥有非常好的拓展性，处理器拓展非常简单，大大降低了拓展开发成本。
+6、框架拥有非常好的拓展性，处理器扩展非常简单，大大降低了扩展开发成本。
 
 The framework has a very good scalability, processor scalability is very simple, greatly reducing the cost of expansion development.
 
-7、高效和稳定性能，相同条件下同时发送百万消息的耗时居然比netty还少。
+7、高效和稳定性能，相同条件下同时发送百万消息的耗时与netty相当。
 
 High efficiency and stable performance, it takes less time than netty to send millions of messages simultaneously under the same conditions.
-
 
 8、使用方式与netty非常相似，只要有netty是使用经验，使用getty几乎不需要额外学习。
 
@@ -106,7 +104,7 @@ Dependencies are included in the Projects Pom.XML dependencies
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>2.0.0-beta4</version>
+            <version>2.1.0-rc</version>
         </dependency>
 ```
 
@@ -114,39 +112,25 @@ Dependencies are included in the Projects Pom.XML dependencies
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '2.0.0-beta4'
+compile group: 'com.gettyio', name: 'getty-core', version: '2.1.0-rc'
 ```
 
 
 **本次更新**
 
-新增
-
-1、内存池的重新实现优化，大大降低了内存的占用和减少内存碎片产生，提高了缓冲区分配的效率
-
-2、新增channel流量控制，新增最高水位和最低水平的配置
 
 优化
 
-1、nio性能优化
+1、内存池的优惠，去除堆外内存的使用，
+原因：1、绝大部分场景无需使用堆外内存。2、堆外内存的使用比较复杂，掌控不好容易出现内存溢出。3、降低代码复杂性
 
-2、加强启动时配置检查，提高健壮性
+3、责任链重新实现，提高了性能和健壮性
 
 3、优化了若干代码，提高易用性
 
-4、去除了部分冗余，提高代码可读性
-
 修复
 
-1、修复了超高并发时，可能出现消息丢失的bug
-
-2、修复DelimiterFrameDecoder 消息截取不对的问题
-
-3、修复http 偶尔握手失败问题
-
-4、修复websocket握手失败问题
-
-5、修复其他若干bug
+1、修复其他若干bug
 
 
 
