@@ -24,7 +24,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
 
     @Override
-    public void channelRead0(SocketChannel socketChannel, DatagramPacket datagramPacket) {
+    public void channelRead0(SocketChannel socketChannel, DatagramPacket datagramPacket) throws Exception{
 
         String address = datagramPacket.getAddress().getHostName() + ":" + datagramPacket.getPort();
         System.out.println("读取客户端" + address + "消息:" + new String(datagramPacket.getData()));
