@@ -16,5 +16,5 @@
 package com.gettyio.core.buffer;
 
 /**
- * 这个包下部分代码参考至netty5,基于netty5内存池加以改造。在此申明
+ * 这个包下部分代码参考至netty5,基于netty5内存池加以改造。特此声明
  */

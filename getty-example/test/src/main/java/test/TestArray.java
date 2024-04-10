@@ -25,8 +25,8 @@ public class TestArray {
 //       boolean ss= ((normCapacity & subpageOverflowMask) != 0);
 //        System.out.println((normCapacity & subpageOverflowMask));
 
-        //testPool();
-        testTimer();
+        testPool();
+        //testTimer();
     }
 
 
@@ -107,7 +107,7 @@ public class TestArray {
 
         long ct = System.currentTimeMillis();
         for (int i=0;i<1000000;i++){
-            ByteBuf buf=byteBufAllocator.buffer(4);
+            ByteBuf buf=byteBufAllocator.buffer(64);
             buf.release();
         }
         long lt = System.currentTimeMillis();
