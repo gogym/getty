@@ -17,10 +17,8 @@ package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
-import com.gettyio.core.util.LinkedBlockQueue;
 import com.gettyio.expansion.handler.codec.websocket.frame.*;
 
 /**

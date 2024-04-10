@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.SocketMode;
@@ -152,9 +152,9 @@ public class NioClientStarter extends NioStarter {
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(clientConfig);
         //初始化内存池
-        byteBufAllocator = new PooledByteBufAllocator();
+        byteBufferPool = new ArrayRetainableByteBufferPool();
         //调用内部启动
-        nioEventLoop = new NioEventLoop(clientConfig, byteBufAllocator);
+        nioEventLoop = new NioEventLoop(clientConfig, byteBufferPool);
         nioEventLoop.run();
         if (socketMode == SocketMode.TCP) {
             startTcp(connectHandler);

@@ -16,8 +16,8 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -50,11 +50,11 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
     /**
      * 读缓冲。
      */
-    protected ByteBuf readByteBuffer;
+    protected RetainableByteBuffer readByteBuffer;
     /**
      * 写缓冲
      */
-    protected ByteBuf writeByteBuffer;
+    protected RetainableByteBuffer writeByteBuffer;
     /**
      * 输出信号量
      */
@@ -82,15 +82,15 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * @param config                 配置
      * @param readCompletionHandler  读回调
      * @param writeCompletionHandler 写回调
-     * @param byteBufAllocator       内存池
+     * @param byteBufferPool       内存池
      * @param channelInitializer     责任链
      */
-    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ByteBufAllocator byteBufAllocator, ChannelInitializer channelInitializer) {
+    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
         this.config = config;
-        this.byteBufAllocator = byteBufAllocator;
+        this.byteBufferPool = byteBufferPool;
         this.channelInitializer=channelInitializer;
         try {
             //注意该方法可能抛异常
@@ -104,7 +104,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             throw new RuntimeException("channelPipeline init exception", e);
         }
         //初始化数据输出类
-        bufferWriter = new BufferWriter(byteBufAllocator, this, config.getBufferWriterQueueSize());
+        bufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
 
         //触发责任链
         try {
@@ -140,11 +140,11 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             return;
         }
 
-        if (readByteBuffer != null && readByteBuffer.refCnt() > 0) {
+        if (readByteBuffer != null) {
             readByteBuffer.release();
         }
 
-        if (writeByteBuffer != null && writeByteBuffer.refCnt() > 0) {
+        if (writeByteBuffer != null) {
             writeByteBuffer.release();
         }
 
@@ -214,9 +214,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             return;
         }
         //初始化读缓冲区
-        this.readByteBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
-        ByteBuffer readByteBuf = readByteBuffer.nioBuffer(readByteBuffer.writerIndex(), readByteBuffer.writableBytes());
-        channel.read(readByteBuf, this, readCompletionHandler);
+        this.readByteBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+        channel.read(readByteBuffer.getBuffer(), this, readCompletionHandler);
     }
 
 
@@ -227,17 +226,16 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     public void readFromChannel(boolean eof) {
 
-        final ByteBuf readBuffer = this.readByteBuffer;
-        if (readBuffer == null || readBuffer.refCnt() == 0) {
+        final RetainableByteBuffer readBuffer = this.readByteBuffer;
+        if (readBuffer == null) {
             return;
         }
-        readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
-        //读取缓冲区数据到管道
-        //读取缓冲区数据，输送到责任链
-        while (readBuffer.isReadable()) {
-            byte[] bytes = new byte[readBuffer.readableBytes()];
+
+        //读取缓冲区数据到管道,输送到责任链
+        while (readBuffer.hasRemaining()) {
+            byte[] bytes = new byte[readBuffer.remaining()];
             try {
-                readBuffer.readBytes(bytes);
+                readBuffer.getBuffer().readBytes(bytes);
                 readToPipeline(bytes);
             } catch (Exception e) {
                 logger.error(e);

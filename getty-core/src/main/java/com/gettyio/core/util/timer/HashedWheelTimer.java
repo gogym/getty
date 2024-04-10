@@ -17,8 +17,8 @@ package com.gettyio.core.util.timer;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.LinkedNonReadBlockQueue;
-import com.gettyio.core.util.LinkedQueue;
+import com.gettyio.core.util.queue.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.queue.LinkedQueue;
 import com.gettyio.core.util.PlatformDependent;
 
 import java.util.Collections;

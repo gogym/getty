@@ -16,8 +16,7 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.function.Function;
@@ -69,12 +68,12 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     private final Semaphore semaphore = new Semaphore(1);
 
-    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ByteBufAllocator byteBufAllocator, ChannelInitializer channelInitializer) {
+    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.config = config;
         this.channel = channel;
         this.nioEventLoop = nioEventLoop;
-        this.byteBufAllocator = byteBufAllocator;
-        this.nioBufferWriter = new BufferWriter(byteBufAllocator, this, config.getBufferWriterQueueSize());
+        this.byteBufferPool = byteBufferPool;
+        this.nioBufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
         this.channelInitializer = channelInitializer;
         try {
             //注意该方法可能抛异常

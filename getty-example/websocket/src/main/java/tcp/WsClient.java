@@ -1,7 +1,7 @@
 package tcp;
 
 import com.gettyio.core.handler.ssl.SSLConfig;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.enums.ReadyState;

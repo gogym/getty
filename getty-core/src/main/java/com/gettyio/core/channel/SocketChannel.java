@@ -16,7 +16,7 @@
 package com.gettyio.core.channel;
 
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -78,7 +78,7 @@ public abstract class SocketChannel {
     /**
      * 内存池
      */
-    protected ByteBufAllocator byteBufAllocator;
+    protected ByteBufferPool byteBufferPool;
 
     /**
      * 会话当前状态
@@ -256,8 +256,8 @@ public abstract class SocketChannel {
         return null;
     }
 
-    public ByteBufAllocator getByteBufAllocator() {
-        return byteBufAllocator;
+    public ByteBufferPool getByteBufferPool() {
+        return byteBufferPool;
     }
 
     /**

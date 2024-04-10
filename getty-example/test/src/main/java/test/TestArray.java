@@ -2,7 +2,6 @@ package test;
 
 import com.gettyio.core.buffer.allocator.ByteBufAllocator;
 import com.gettyio.core.buffer.bytebuf.ByteBuf;
-import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
 import com.gettyio.core.util.FastArrayList;
 import com.gettyio.core.util.FastCopyOnWriteArrayList;
 import com.gettyio.core.util.timer.HashedWheelTimer;

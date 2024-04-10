@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
@@ -127,7 +127,7 @@ public class AioClientStarter extends AioStarter {
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(clientConfig);
         //初始化内存池
-        byteBufAllocator = new PooledByteBufAllocator();
+        byteBufferPool = new ArrayRetainableByteBufferPool();
 
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
@@ -162,7 +162,7 @@ public class AioClientStarter extends AioStarter {
             public void completed(Void result, AsynchronousSocketChannel attachment) {
                 LOGGER.info("connect aio server success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(), new WriteCompletionHandler(), byteBufAllocator, channelInitializer);
+                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(), new WriteCompletionHandler(), byteBufferPool, channelInitializer);
                 //开始读
                 aioChannel.starRead();
 

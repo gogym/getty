@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.gettyio.core.util;
+package com.gettyio.core.util.queue;
 
 import java.lang.reflect.Array;
 import java.util.concurrent.locks.Condition;

@@ -15,13 +15,13 @@
  */
 package com.gettyio.core.channel.loop;
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
+
+import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -62,17 +62,17 @@ public class NioEventLoop implements EventLoop {
     /**
      * 内存池
      */
-    protected ByteBufAllocator byteBufAllocator;
+    protected ByteBufferPool byteBufferPool;
 
     /**
      * 构造方法
      *
      * @param config
-     * @param byteBufAllocator
+     * @param byteBufferPool
      */
-    public NioEventLoop(BaseConfig config, ByteBufAllocator byteBufAllocator) {
+    public NioEventLoop(BaseConfig config, ByteBufferPool byteBufferPool) {
         this.config = config;
-        this.byteBufAllocator = byteBufAllocator;
+        this.byteBufferPool = byteBufferPool;
         this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
 
         try {

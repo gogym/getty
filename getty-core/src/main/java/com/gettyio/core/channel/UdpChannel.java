@@ -20,8 +20,8 @@ import com.gettyio.core.buffer.bytebuf.ByteBuf;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.util.LinkedBlockQueue;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.queue.LinkedBlockQueue;
+import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

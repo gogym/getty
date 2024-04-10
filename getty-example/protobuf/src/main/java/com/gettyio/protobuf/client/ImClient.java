@@ -11,7 +11,7 @@ import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32LengthFieldP
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
 
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 import com.gettyio.protobuf.packet.MessageClass;
 
 import java.io.IOException;
