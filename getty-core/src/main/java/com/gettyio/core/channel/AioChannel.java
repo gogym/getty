@@ -235,7 +235,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         while (readBuffer.hasRemaining()) {
             byte[] bytes = new byte[readBuffer.remaining()];
             try {
-                readBuffer.getBuffer().readBytes(bytes);
+                readBuffer.getBuffer().get(bytes);
                 readToPipeline(bytes);
             } catch (Exception e) {
                 logger.error(e);
@@ -261,9 +261,9 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      *
      * @param readBuffer 读取的缓冲区
      */
-    public void readCompleted(ByteBuf readBuffer) {
+    public void readCompleted(RetainableByteBuffer readBuffer) {
 
-        if (readBuffer == null || readBuffer.refCnt() == 0) {
+        if (readBuffer == null) {
             return;
         }
         readBuffer.release();
@@ -327,17 +327,16 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * 需要同步控制
      */
     public void writeCompleted() {
-        writeByteBuffer.readerIndex(writeByteBuffer.getNioBuffer().position());
-        if (!writeByteBuffer.isReadable()) {
+        if (!writeByteBuffer.hasRemaining()) {
             //写完及时释放内存
             writeByteBuffer.release();
             //继续循环写出
             writeByteBuffer = bufferWriter.poll();
         }
 
-        if (writeByteBuffer != null && writeByteBuffer.isReadable()) {
+        if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
             //再次写
-            continueWrite(writeByteBuffer.getNioBuffer());
+            continueWrite(writeByteBuffer.getBuffer());
             //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
             return;
         }
@@ -414,8 +413,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         //获取信息量
         if (semaphore.tryAcquire()) {
             this.writeByteBuffer = input.poll();
-            if (null != writeByteBuffer && writeByteBuffer.isReadable()) {
-                this.continueWrite(writeByteBuffer.getNioBuffer());
+            if (null != writeByteBuffer && writeByteBuffer.hasRemaining()) {
+                this.continueWrite(writeByteBuffer.getBuffer());
             } else {
                 semaphore.release();
             }

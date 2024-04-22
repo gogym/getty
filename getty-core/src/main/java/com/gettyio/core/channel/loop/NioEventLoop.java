@@ -17,6 +17,7 @@ package com.gettyio.core.channel.loop;
 
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
@@ -114,13 +115,13 @@ public class NioEventLoop implements EventLoop {
                                     }
                                 }
                             } else if (sk.isReadable()) {
-                                ByteBuf readBuffer = null;
+                                RetainableByteBuffer readBuffer = null;
                                 //接收数据
                                 try {
-                                    readBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
-                                    ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
-                                    int recCount = channel.read(readByteBuf);
-                                    readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
+                                    readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+                                   // ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
+                                    int recCount = channel.read(readBuffer.getBuffer());
+                                   // readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
 
                                     if (recCount == -1) {
                                         readBuffer.release();
@@ -137,9 +138,9 @@ public class NioEventLoop implements EventLoop {
                                 }
 
                                 //读取缓冲区数据，输送到责任链
-                                while (readBuffer.isReadable()) {
-                                    byte[] bytes = new byte[readBuffer.readableBytes()];
-                                    readBuffer.readBytes(bytes);
+                                while (readBuffer.hasRemaining()) {
+                                    byte[] bytes = new byte[readBuffer.remaining()];
+                                    readBuffer.getBuffer().get(bytes);
                                     nioChannel.doRead(bytes);
                                 }
                                 //触发读取完成，清理缓冲区

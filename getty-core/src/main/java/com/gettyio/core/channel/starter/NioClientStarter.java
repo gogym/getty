@@ -200,7 +200,7 @@ public class NioClientStarter extends NioStarter {
                     if (channel.isConnectionPending()) {
                         channel.finishConnect();
                         try {
-                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, byteBufAllocator, channelInitializer);
+                            nioChannel = new NioChannel(clientConfig, socketChannel, nioEventLoop, byteBufferPool, channelInitializer);
                             if (connectHandler != null) {
                                 if (null != nioChannel.getSslHandler()) {
                                     nioChannel.setSslHandshakeListener(new IHandshakeListener() {
@@ -251,7 +251,7 @@ public class NioClientStarter extends NioStarter {
         datagramChannel.configureBlocking(false);
         selector = new SelectedSelector(Selector.open());
         datagramChannel.register(selector.getSelector(), SelectionKey.OP_READ);
-        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, byteBufAllocator, channelInitializer, 3);
+        nioChannel = new UdpChannel(datagramChannel, selector, clientConfig, byteBufferPool, channelInitializer, 3);
         nioChannel.starRead();
         if (null != connectHandler) {
             connectHandler.onCompleted(nioChannel);

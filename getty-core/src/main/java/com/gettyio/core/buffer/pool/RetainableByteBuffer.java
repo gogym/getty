@@ -52,7 +52,8 @@ public class RetainableByteBuffer implements Retainable
      */
     public long getLastUpdate()
     {
-        return lastUpdate.getOpaque();
+        //return lastUpdate.getOpaque();
+        return lastUpdate.get();
     }
 
     /**
@@ -121,7 +122,8 @@ public class RetainableByteBuffer implements Retainable
         // 如果引用计数递减至0，则进行后续的释放操作，并返回true。
         if (ref == 0)
         {
-            lastUpdate.setOpaque(System.nanoTime()); // 更新最后修改时间
+            //lastUpdate.setOpaque(System.nanoTime()); // 更新最后修改时间
+            lastUpdate.set(System.nanoTime());
             releaser.accept(this); // 执行释放操作
             return true;
         }

@@ -264,7 +264,7 @@ public class AioServerStarter extends AioStarter {
     private void createTcpChannel(AsynchronousSocketChannel channel) {
         SocketChannel aioChannel = null;
         try {
-            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufAllocator, channelInitializer);
+            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufferPool, channelInitializer);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {

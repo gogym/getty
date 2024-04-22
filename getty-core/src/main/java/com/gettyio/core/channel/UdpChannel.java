@@ -15,8 +15,8 @@
  */
 package com.gettyio.core.channel;
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -53,11 +53,11 @@ public class UdpChannel extends SocketChannel {
     private LinkedBlockQueue<DatagramPacket> queue;
     private ThreadPool workerThreadPool;
 
-    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector, BaseConfig config, ByteBufAllocator byteBufAllocator, ChannelInitializer channelInitializer, int workerThreadNum) {
+    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector, BaseConfig config, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
         this.config = config;
-        this.byteBufAllocator = byteBufAllocator;
+        this.byteBufferPool = byteBufferPool;
         this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
         queue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
         try {
@@ -90,15 +90,13 @@ public class UdpChannel extends SocketChannel {
                         while (it.hasNext()) {
                             SelectionKey sk = it.next();
                             if (sk.isReadable()) {
-                                ByteBuf readBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
-                                ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
+                                RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
                                 //接收数据
-                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readByteBuf);
+                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer.getBuffer());
                                 //读取缓冲区数据，输送到责任链
-                                readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
-                                while (readBuffer.isReadable()) {
-                                    byte[] bytes = new byte[readBuffer.readableBytes()];
-                                    readBuffer.readBytes(bytes);
+                                while (readBuffer.hasRemaining()) {
+                                    byte[] bytes = new byte[readBuffer.remaining()];
+                                    readBuffer.getBuffer().get(bytes);
                                     //读取的数据封装成DatagramPacket
                                     DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
                                     //输出到链条
@@ -218,10 +216,10 @@ public class UdpChannel extends SocketChannel {
     private void send(DatagramPacket datagramPacket) {
         try {
             //转换成udp数据包
-            ByteBuf byteBuffer = byteBufAllocator.buffer(datagramPacket.getLength());
-            byteBuffer.writeBytes(datagramPacket.getData());
+            RetainableByteBuffer byteBuffer = byteBufferPool.acquire(datagramPacket.getLength());
+            byteBuffer.getBuffer().put(datagramPacket.getData());
             //写出到目标地址
-            datagramChannel.send(byteBuffer.getNioBuffer(), datagramPacket.getSocketAddress());
+            datagramChannel.send(byteBuffer.getBuffer(), datagramPacket.getSocketAddress());
             //释放内存
             byteBuffer.release();
         } catch (ClassCastException e) {

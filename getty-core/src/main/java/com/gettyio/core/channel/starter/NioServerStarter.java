@@ -274,7 +274,7 @@ public class NioServerStarter extends NioStarter {
         try {
             //获取loop
             NioEventLoop nioEventLoop = nioEventLoopFastArrayList.round();
-            socketChannel = new NioChannel(serverConfig, channel, nioEventLoop, byteBufAllocator, channelInitializer);
+            socketChannel = new NioChannel(serverConfig, channel, nioEventLoop, byteBufferPool, channelInitializer);
             //注册事件
             ((NioChannel) socketChannel).register();
         } catch (Exception e) {
@@ -292,7 +292,7 @@ public class NioServerStarter extends NioStarter {
      * @params [datagramChannel, selector]
      */
     private void createUdpChannel(DatagramChannel datagramChannel, SelectedSelector selector) {
-        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, serverConfig, byteBufAllocator, channelInitializer, workerThreadNum);
+        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, serverConfig, byteBufferPool, channelInitializer, workerThreadNum);
         udpChannel.starRead();
     }
 

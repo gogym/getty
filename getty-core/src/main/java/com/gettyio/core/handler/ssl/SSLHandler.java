@@ -124,7 +124,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     }
 
     private void createSSLFacade(IHandshakeCompletedListener handshakeCompletedListener, ISSLListener SSLListener, ISessionClosedListener sessionClosedListener) {
-        ssl = new SSLFacade(sslContext, config.isClientMode(), config.isClientAuth(), new DefaultTaskHandler(),channelHandlerContext().channel().getByteBufAllocator());
+        ssl = new SSLFacade(sslContext, config.isClientMode(), config.isClientAuth(), new DefaultTaskHandler(),channelHandlerContext().channel().getByteBufferPool());
         ssl.setHandshakeCompletedListener(handshakeCompletedListener);
         ssl.setSSLListener(SSLListener);
         ssl.setCloseListener(sessionClosedListener);

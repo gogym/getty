@@ -17,6 +17,7 @@ package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.function.Function;
@@ -281,10 +282,10 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     public Void apply(BufferWriter input) {
         //获取信息量
         if (semaphore.tryAcquire()) {
-            ByteBuf byteBuf;
+            RetainableByteBuffer byteBuf;
             while ((byteBuf = input.poll()) != null) {
 
-                if (!byteBuf.isReadable()) {
+                if (!byteBuf.hasRemaining()) {
                     //写完及时释放
                     byteBuf.release();
                 }
@@ -293,10 +294,10 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                         byteBuf.release();
                         throw new IOException("NioChannel is Invalid");
                     }
-                    while (byteBuf.isReadable()) {
-                        ByteBuffer buffer = byteBuf.getNioBuffer();
+                    while (byteBuf.hasRemaining()) {
+                        ByteBuffer buffer = byteBuf.getBuffer();
                         NioChannel.this.getSocketChannel().write(buffer);
-                        byteBuf.readerIndex(buffer.position());
+                        //byteBuf.readerIndex(buffer.position());
                     }
                 } catch (IOException e) {
                     NioChannel.this.close();

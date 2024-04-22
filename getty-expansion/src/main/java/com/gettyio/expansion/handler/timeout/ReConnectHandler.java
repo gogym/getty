@@ -142,7 +142,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                 public void completed(Void result, AsynchronousSocketChannel attachment) {
                     logger.info("connect aio server success");
                     //连接成功则构造AIOSession对象
-                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufAllocator(), channel.getChannelInitializer());
+                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufferPool(), channel.getChannelInitializer());
 
                     if (null != connectHandler) {
                         if (null != channel.getSslHandler()) {
@@ -206,7 +206,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         if (channels.isConnectionPending()) {
                             try {
                                 channels.finishConnect();
-                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getByteBufAllocator(), channel.getChannelInitializer());
+                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getByteBufferPool(), channel.getChannelInitializer());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
                                         channel.setSslHandshakeListener(new IHandshakeListener() {
