@@ -1,6 +1,8 @@
 package com.gettyio.core.buffer.pool;
 
 
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.thread.AutoLock;
 
 import java.io.Closeable;
@@ -17,7 +19,9 @@ import java.util.function.Function;
  * @param <T>
  */
 public class Pool<T> implements AutoCloseable {
-    private static final String TAG = Pool.class.getSimpleName();
+
+    private static final InternalLogger Logger = InternalLoggerFactory.getInstance(Pool.class);
+
 
     // 使用CopyOnWriteArrayList作为entries的存储方式，确保线程安全的读写访问
     private final List<Entry> entries = new CopyOnWriteArrayList<>();

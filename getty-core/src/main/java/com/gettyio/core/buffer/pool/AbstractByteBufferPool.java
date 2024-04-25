@@ -18,6 +18,7 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
 
     /**
      * 获取最小池化缓冲区容量。
+     *
      * @return 返回设置的最小缓冲区容量。
      */
     public int getMinCapacity() {
@@ -26,6 +27,7 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
 
     /**
      * 获取最大池化缓冲区容量。
+     *
      * @return 返回设置的最大缓冲区容量。
      */
     public int getMaxCapacity() {
@@ -35,6 +37,7 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
     /**
      * 计算保留大小。
      * 如果大小不为-2，将调用memorySize方法进行内存大小计算。
+     *
      * @param size 缓冲区的大小。
      * @return 计算后的保留大小。
      */
@@ -48,6 +51,7 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
     /**
      * 计算内存大小。
      * 如果大小大于等于0且不为0，返回该大小；否则，返回通过Runtime.maxMemory()方法计算得到的最大内存的四分之一。
+     *
      * @param size 缓冲区的大小。
      * @return 计算后的内存大小。
      */

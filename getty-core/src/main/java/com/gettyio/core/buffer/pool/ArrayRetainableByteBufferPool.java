@@ -2,6 +2,9 @@
 package com.gettyio.core.buffer.pool;
 
 
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
@@ -19,7 +22,9 @@ import java.util.function.Function;
  */
 @SuppressWarnings("resource")
 public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
-    private static final String TAG = ArrayRetainableByteBufferPool.class.getSimpleName();
+
+    private static final InternalLogger Logger = InternalLoggerFactory.getInstance(ArrayRetainableByteBufferPool.class);
+
 
     // 定义了两个数组，分别用于存储直接和间接保留的Bucket。
     private final RetainedBucket[] _direct;
