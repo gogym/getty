@@ -89,14 +89,16 @@ public class UdpChannel extends SocketChannel {
                         Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                         while (it.hasNext()) {
                             SelectionKey sk = it.next();
+                            it.remove();
                             if (sk.isReadable()) {
                                 RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
                                 //接收数据
-                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer.getBuffer());
+                                InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer.flipToFill());
                                 //读取缓冲区数据，输送到责任链
+                                readBuffer.flipToFlush();
                                 while (readBuffer.hasRemaining()) {
                                     byte[] bytes = new byte[readBuffer.remaining()];
-                                    readBuffer.getBuffer().get(bytes);
+                                    readBuffer.get(bytes);
                                     //读取的数据封装成DatagramPacket
                                     DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
                                     //输出到链条
@@ -105,7 +107,7 @@ public class UdpChannel extends SocketChannel {
                                 readBuffer.release();
                             }
                         }
-                        it.remove();
+
                     }
                 } catch (Exception e) {
                     logger.error(e);
@@ -217,7 +219,7 @@ public class UdpChannel extends SocketChannel {
         try {
             //转换成udp数据包
             RetainableByteBuffer byteBuffer = byteBufferPool.acquire(datagramPacket.getLength());
-            byteBuffer.getBuffer().put(datagramPacket.getData());
+            byteBuffer.put(datagramPacket.getData());
             //写出到目标地址
             datagramChannel.send(byteBuffer.getBuffer(), datagramPacket.getSocketAddress());
             //释放内存

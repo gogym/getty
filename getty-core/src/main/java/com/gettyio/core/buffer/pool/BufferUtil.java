@@ -265,6 +265,11 @@ public class BufferUtil {
     }
 
 
+    public static void flipToFlush(ByteBuffer buffer) {
+        flipToFlush(buffer, 0); // 将位置设置为传入的位置，确定有效数据的开始点
+    }
+
+
     /**
      * 将一个整数以小端格式存入ByteBuffer中。
      *

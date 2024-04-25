@@ -81,7 +81,7 @@ public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffe
             //申请写缓冲
             RetainableByteBuffer byteBuf = byteBufferPool.acquire(len - off);
             //写入数据
-            byteBuf.getBuffer().put(b);
+            byteBuf.put(b);
             //写到缓冲队列
             queue.put(byteBuf);
         } catch (Exception e) {

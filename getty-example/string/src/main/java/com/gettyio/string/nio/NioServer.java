@@ -58,7 +58,7 @@ public class NioServer {
                     //设置单向验证或双向验证
                     sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                     //初始化ssl服务
-                    //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                    defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                     defaultChannelPipeline.addLast(new StringEncoder());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割

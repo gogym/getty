@@ -25,7 +25,6 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
@@ -99,7 +98,7 @@ public class NioEventLoop implements EventLoop {
                     while (it.hasNext()) {
                         SelectionKey sk = it.next();
                         Object obj = sk.attachment();
-
+                        it.remove();
                         if (obj instanceof NioChannel) {
                             NioChannel nioChannel = (NioChannel) obj;
                             java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
@@ -119,10 +118,7 @@ public class NioEventLoop implements EventLoop {
                                 //接收数据
                                 try {
                                     readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
-                                   // ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
-                                    int recCount = channel.read(readBuffer.getBuffer());
-                                   // readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
-
+                                    int recCount = channel.read(readBuffer.flipToFill());
                                     if (recCount == -1) {
                                         readBuffer.release();
                                         nioChannel.close();
@@ -137,6 +133,7 @@ public class NioEventLoop implements EventLoop {
                                     break;
                                 }
 
+                                readBuffer.flipToFlush();
                                 //读取缓冲区数据，输送到责任链
                                 while (readBuffer.hasRemaining()) {
                                     byte[] bytes = new byte[readBuffer.remaining()];
@@ -148,7 +145,6 @@ public class NioEventLoop implements EventLoop {
                             }
                         }
                     }
-                    it.remove();
                 }
             }
         });

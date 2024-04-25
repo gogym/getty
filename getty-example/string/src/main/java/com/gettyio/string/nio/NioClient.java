@@ -99,7 +99,7 @@ public class NioClient {
 
 
                         int i = 0;
-                        for (; i < 100; i++) {
+                        for (; i < 10; i++) {
                             if (!channel.isInvalid()) {
                                 channel.writeAndFlush(msgBody);
                                 Thread.sleep(500);

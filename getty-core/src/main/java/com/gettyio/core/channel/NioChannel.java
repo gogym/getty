@@ -297,7 +297,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                     while (byteBuf.hasRemaining()) {
                         ByteBuffer buffer = byteBuf.getBuffer();
                         NioChannel.this.getSocketChannel().write(buffer);
-                        //byteBuf.readerIndex(buffer.position());
                     }
                 } catch (IOException e) {
                     NioChannel.this.close();

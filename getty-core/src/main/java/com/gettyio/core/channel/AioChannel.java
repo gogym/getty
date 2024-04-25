@@ -82,7 +82,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * @param config                 配置
      * @param readCompletionHandler  读回调
      * @param writeCompletionHandler 写回调
-     * @param byteBufferPool       内存池
+     * @param byteBufferPool         内存池
      * @param channelInitializer     责任链
      */
     public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
@@ -91,7 +91,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         this.writeCompletionHandler = writeCompletionHandler;
         this.config = config;
         this.byteBufferPool = byteBufferPool;
-        this.channelInitializer=channelInitializer;
+        this.channelInitializer = channelInitializer;
         try {
             //注意该方法可能抛异常
             channelInitializer.initChannel(this);
@@ -215,7 +215,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         }
         //初始化读缓冲区
         this.readByteBuffer = byteBufferPool.acquire(config.getReadBufferSize());
-        channel.read(readByteBuffer.getBuffer(), this, readCompletionHandler);
+        channel.read(readByteBuffer.flipToFill(), this, readCompletionHandler);
     }
 
 
@@ -231,11 +231,13 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
             return;
         }
 
+        //切换为读取模式
+        readBuffer.flipToFlush();
         //读取缓冲区数据到管道,输送到责任链
         while (readBuffer.hasRemaining()) {
             byte[] bytes = new byte[readBuffer.remaining()];
             try {
-                readBuffer.getBuffer().get(bytes);
+                readBuffer.get(bytes);
                 readToPipeline(bytes);
             } catch (Exception e) {
                 logger.error(e);
@@ -266,6 +268,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
         if (readBuffer == null) {
             return;
         }
+        //读取完要释放缓冲区
         readBuffer.release();
         //再次调用读取方法。循环监听socket通道数据的读取
         continueRead();
