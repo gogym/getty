@@ -47,7 +47,7 @@ public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
     /**
      * 定义一个常量为 (后面用于定义默认的集合大小)
      */
-    private static final int DEFAULT_CAPACITY = 0;
+    private static final int DEFAULT_CAPACITY = 1000000;
 
 
     public FastCopyOnWriteArrayList(Class<T> type) {

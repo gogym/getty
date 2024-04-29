@@ -1,3 +1,18 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 
@@ -14,9 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /**
- * 对象池
+ * `Pool`类提供了一个通用的资源池化机制，用于高效管理共享资源。这个类是泛型的，允许池化任何类型的对象T。
+ * 它实现了AutoCloseable接口，以便于在使用完毕后能够自动释放资源。
  *
- * @param <T>
+ * @param <T> 池化对象的类型。
  */
 public class Pool<T> implements AutoCloseable {
 

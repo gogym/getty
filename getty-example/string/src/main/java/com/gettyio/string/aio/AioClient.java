@@ -59,7 +59,7 @@ public class AioClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                 defaultChannelPipeline.addLast(new ReConnectHandler(new ConnectHandler() {
                     @Override
@@ -92,11 +92,11 @@ public class AioClient {
                     public void run() {
                         try {
                             String s = "12\r\n";
-                            byte[] msgBody = s.getBytes("utf-8");
+                            byte[] msgBody = s.getBytes();
                             long ct = System.currentTimeMillis();
 
                             int i = 0;
-                            while (i < 10) {
+                            while (i < 2) {
                                 boolean flag = socketChannel.writeAndFlush(msgBody);
                                 if (flag) {
                                     i++;

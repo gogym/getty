@@ -1,4 +1,18 @@
-
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 import java.io.IOException;
@@ -7,7 +21,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-
+/**
+ * RetainableByteBuffer类实现了Retainable接口，提供了一种可以保留和管理ByteBuffer对象的机制。
+ * 这个类对于需要多次使用或者在多个地方共享ByteBuffer对象的场景非常有用。
+ */
 public class RetainableByteBuffer implements Retainable {
     // 用于存储数据的ByteBuffer
     private final ByteBuffer buffer;
@@ -35,7 +52,7 @@ public class RetainableByteBuffer implements Retainable {
      * @return 缓冲区的容量。
      */
     public int capacity() {
-        return buffer.capacity();
+        return 0;
     }
 
     /**
@@ -173,7 +190,14 @@ public class RetainableByteBuffer implements Retainable {
     }
 
 
+    /**
+     * 将字节数组写入缓冲区。
+     *
+     * @param bytes 待写入的字节数组。
+     * @throws IOException 如果在写入过程中发生I/O错误。
+     */
     public void get(byte[] bytes) throws IOException {
+        // 将字节数组写入缓冲区
         BufferUtil.writeTo(buffer, bytes);
     }
 
@@ -192,7 +216,7 @@ public class RetainableByteBuffer implements Retainable {
     /**
      * 将缓冲区切换到刷新模式。
      */
-    public void flipToFlush(){
+    public void flipToFlush() {
         BufferUtil.flipToFlush(buffer);
     }
 

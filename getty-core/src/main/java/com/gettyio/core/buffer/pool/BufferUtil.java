@@ -1,3 +1,18 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 import java.io.*;
@@ -14,62 +29,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 
 /**
- * Buffer utility methods.
- * <p>The standard JVM {@link ByteBuffer} can exist in two modes: In fill mode the valid
- * data is between 0 and pos; In flush mode the valid data is between the pos and the limit.
- * The various ByteBuffer methods assume a mode and some of them will switch or enforce a mode:
- * Allocate and clear set fill mode; flip and compact switch modes; read and write assume fill
- * and flush modes.    This duality can result in confusing code such as:
- * </p>
- * <pre>
- *     buffer.clear();
- *     channel.write(buffer);
- * </pre>
- * <p>
- * Which looks as if it should write no data, but in fact writes the buffer worth of garbage.
- * </p>
- * <p>
- * The BufferUtil class provides a set of utilities that operate on the convention that ByteBuffers
- * will always be left, passed in an API or returned from a method in the flush mode - ie with
- * valid data between the pos and limit.    This convention is adopted so as to avoid confusion as to
- * what state a buffer is in and to avoid excessive copying of data that can result with the usage
- * of compress.</p>
- * <p>
- * Thus this class provides alternate implementations of {@link #allocate(int)},
- * {@link #allocateDirect(int)} and {@link #clear(ByteBuffer)} that leave the buffer
- * in flush mode.   Thus the following tests will pass:
- * </p>
- * <pre>
- *     ByteBuffer buffer = BufferUtil.allocate(1024);
- *     assert(buffer.remaining()==0);
- *     BufferUtil.clear(buffer);
- *     assert(buffer.remaining()==0);
- * </pre>
- * <p>If the BufferUtil methods {@link #fill(ByteBuffer, byte[], int, int)},
- * {@link #append(ByteBuffer, byte[], int, int)} or {@link #put(ByteBuffer, ByteBuffer)} are used,
- * then the caller does not need to explicitly switch the buffer to fill mode.
- * If the caller wishes to use other ByteBuffer bases libraries to fill a buffer,
- * then they can use explicit calls of #flipToFill(ByteBuffer) and #flipToFlush(ByteBuffer, int)
- * to change modes.  Note because this convention attempts to avoid the copies of compact, the position
- * is not set to zero on each fill cycle and so its value must be remembered:
- * </p>
- * <pre>
- *      int pos = BufferUtil.flipToFill(buffer);
- *      try
- *      {
- *          buffer.put(data);
- *      }
- *      finally
- *      {
- *          flipToFlush(buffer, pos);
- *      }
- * </pre>
- * <p>
- * The flipToFill method will effectively clear the buffer if it is empty and will compact the buffer if there is no space.
- * </p>
+ * BufferUtil类提供了一系列静态方法，用于处理和操作缓冲区相关的任务。
+ * 这个类旨在简化缓冲区的使用，提高性能和内存管理效率。ø
  */
 public class BufferUtil {
-    private static final String TAG = BufferUtil.class.getSimpleName();
 
     // 定义临时缓冲区的大小，用于各种操作中的临时数据存储
     static final int TEMP_BUFFER_SIZE = 4096;
@@ -265,8 +228,16 @@ public class BufferUtil {
     }
 
 
+    /**
+     * 将给定的ByteBuffer对象翻转到冲洗模式，准备进行数据的读取或处理。
+     * 这是通过调用另一个重载方法flipToFlush(ByteBuffer buffer, int position)实现的，
+     * 其中将位置参数设置为0，即将缓冲区的有效数据起始位置重置为开始。
+     *
+     * @param buffer 需要进行翻转操作的ByteBuffer对象。
+     *               注意：此方法不接受任何返回值，因为它是对传入的ByteBuffer对象进行就地修改。
+     */
     public static void flipToFlush(ByteBuffer buffer) {
-        flipToFlush(buffer, 0); // 将位置设置为传入的位置，确定有效数据的开始点
+        flipToFlush(buffer, 0); // 使用0作为位置参数，将缓冲区的有效数据起始位置重置为开始处
     }
 
 
@@ -685,25 +656,58 @@ public class BufferUtil {
     }
 
 
+    /**
+     * 将ByteBuffer中的数据写入到byte数组中。
+     *
+     * @param buffer 源ByteBuffer，数据将从该buffer中读取并写入到out数组中。
+     * @param out    目标byte数组，buffer中的数据将被写入到该数组中。
+     * @throws IOException 如果操作过程中发生I/O错误。
+     */
     public static void writeTo(ByteBuffer buffer, byte[] out) throws IOException {
-        if (buffer.hasArray()) {
+        // 检查参数是否合法
+        if (buffer == null || out == null) {
+            throw new IllegalArgumentException("Buffer and out byte array cannot be null.");
+        }
 
-            if (buffer.remaining() >= out.length) {
-                // 如果ByteBuffer支持直接访问其数组，直接写入
-                System.arraycopy(buffer.array(), buffer.arrayOffset() + buffer.position(), out, 0, out.length);
-                // 更新buffer的位置，类似非数组版本的writeTo
-                buffer.position(buffer.position() + out.length);
+        if (buffer.hasArray()) {
+            int position = buffer.position();
+            int limit = buffer.limit();
+
+            if (limit - position >= out.length) {
+                // 当ByteBuffer剩余空间足够时，直接通过系统数组拷贝方法进行拷贝
+                System.arraycopy(buffer.array(), buffer.arrayOffset() + position, out, 0, out.length);
+                buffer.position(position + out.length);
             } else {
-                System.arraycopy(buffer.array(), buffer.arrayOffset() + buffer.position(), out, 0, buffer.remaining());
-                // 更新buffer的位置，类似非数组版本的writeTo
-                buffer.position(buffer.position() + buffer.remaining());
+                // 当ByteBuffer剩余空间不足时，只拷贝剩余部分
+                System.arraycopy(buffer.array(), buffer.arrayOffset() + position, out, 0, limit - position);
+                buffer.position(limit);
             }
         } else {
-            // 如果ByteBuffer不支持直接访问数组，需要逐块读取并写入输出流
-            if (buffer.hasRemaining()) {
-                buffer.get(out);
+            for (int i = 0; i < out.length && buffer.hasRemaining(); i++) {
+                out[i] = buffer.get();
             }
         }
+
+
+//        if (buffer.hasArray()) {
+//
+//            if (buffer.remaining() >= out.length) {
+//                // 当ByteBuffer支持直接访问且剩余空间足够时，直接通过系统数组拷贝方法进行拷贝
+//                System.arraycopy(buffer.array(), buffer.arrayOffset() + buffer.position(), out, 0, out.length);
+//                // 更新buffer的位置
+//                buffer.position(buffer.position() + out.length);
+//            } else {
+//                // 当ByteBuffer支持直接访问但剩余空间不足时，只拷贝剩余部分
+//                System.arraycopy(buffer.array(), buffer.arrayOffset() + buffer.position(), out, 0, buffer.remaining());
+//                // 更新buffer的位置
+//                buffer.position(buffer.position() + buffer.remaining());
+//            }
+//        } else {
+//            // 当ByteBuffer不支持直接访问数组时，逐个字节读取并写入到out数组中
+//            if (buffer.hasRemaining()) {
+//                buffer.get(out);
+//            }
+//        }
     }
 
 
