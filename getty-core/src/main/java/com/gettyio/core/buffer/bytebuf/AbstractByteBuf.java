@@ -23,26 +23,33 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 /**
- * 缓冲区的骨架实现。
+ * AbstractByteBuf类是ByteBuf接口的一个抽象实现，提供了ByteBuf的一些通用实现。
+ * 它旨在为具体的ByteBuf实现提供基础的结构和常用操作的实现，以减少重复代码。
  */
 public abstract class AbstractByteBuf extends ByteBuf {
 
+
     /**
-     * 读下标
-     */
+     *  读取索引，指示当前应该从ByteBuffer的哪个位置开始读取数据
+      */
+
     protected int readerIndex;
+
     /**
-     * 写下标
+     * 写入索引，指示当前应该将新数据写入到ByteBuffer的哪个位置
      */
     protected int writerIndex;
+
     /**
-     * 最大容量
+     * ByteBuffer的最大容量，用于确保不超出ByteBuffer的分配大小
      */
     private int maxCapacity;
+
     /**
-     * 对应的nio ByteBuffer
+     * 用于存储数据的ByteBuffer，它是线程不安全的，因此在多线程环境中需要额外的同步机制
      */
     protected ByteBuffer byteBuffer;
+
 
     protected AbstractByteBuf(int maxCapacity) {
         if (maxCapacity < 0) {

@@ -19,15 +19,19 @@ package com.gettyio.core.buffer.bytebuf;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
- * 计数引用的{@link ByteBuf}实现的抽象基类。
+ * 抽象ReferenceCountedByteBuf类是对ByteBuf接口的实现，它添加了引用计数的逻辑。
+ * 这个类是抽象的，意味着它不提供具体的实现，而是为具体的实现提供了一个框架。
+ * 引用计数机制用于管理资源的生命周期，确保当没有更多的引用指向一个对象时，对象可以被安全地释放。
  */
 public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
 
+
     /**
-     * AtomicIntegerFieldUpdater 可以线程安全地更新对象中的整型变量
+     * 使用AtomicIntegerFieldUpdater来安全地更新AbstractReferenceCountedByteBuf类中的refCnt字段。
+     * 由于refCnt字段的访问和更新可能在多线程环境中发生，因此使用AtomicIntegerFieldUpdater确保了字段更新的原子性和线程安全性。
+     * 通过这种方式，可以避免在高并发场景下对refCnt字段进行同步控制所带来的性能瓶颈。
      */
     private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> refCntUpdater;
-
     static {
         //创建并返回一个具有给定字段的更新器
         refCntUpdater = AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
@@ -48,12 +52,19 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
         return refCnt;
     }
 
+
     /**
-     * 一种不安全的操作，由子类直接设置缓冲区的引用计数
+     * 设置引用计数。
+     * <p>
+     * 该方法用于直接设置当前对象的引用计数。引用计数是一个重要的内部状态，用于管理对象的生命周期和共享状态。
+     * 通过调整引用计数，可以决定对象是否应该被释放或者继续存在。
+     *
+     * @param refCnt 新的引用计数值。这个值被直接赋给当前对象的引用计数字段。
      */
     protected final void setRefCnt(int refCnt) {
         this.refCnt = refCnt;
     }
+
 
     @Override
     public ByteBuf retain() {
@@ -108,8 +119,13 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
         }
     }
 
+
     /**
-     * 调用一次{@link #refCnt()}等于0。
+     * 抽象方法，用于释放资源或进行清理工作。
+     * 该方法被设计为由子类实现，以在对象不再需要时释放资源，降低内存泄漏的风险。
+     * 具体的释放逻辑由子类根据实际需求来实现。
+     * 注意，该方法没有返回值，它的目的是在调用后释放或清理对象所持有的资源。
      */
     protected abstract void deallocate();
+
 }

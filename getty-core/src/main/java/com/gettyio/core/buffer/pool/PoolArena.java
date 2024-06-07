@@ -27,44 +27,58 @@ import com.gettyio.core.util.StringUtil;
 public abstract class PoolArena<T> {
 
     /**
-     * System.out.println(Integer.toBinaryString(512 >>> 4));
-     * 内存池子页池子大小
+     * 计算并设置tiny子页池的数量，每个子页池的大小为512字节。
+     * 通过右移操作将512（二进制为10000000000000000）向右移动4位，
+     * 相当于除以16，结果为100000（二进制）。
      */
     static final int numTinySubpagePools = 512 >>> 4; //100000
+
     /**
-     * 池化缓冲区构造器
+     * 指向池化缓冲区构造器的引用，用于创建和管理池化缓冲区。
      */
     public final PooledByteBufAllocator parent;
+
     /**
-     * 平衡二叉树的深度
+     * 平衡二叉树的最大深度，用于管理内存块的分配和回收。
      */
     private final int maxOrder;
+
     /**
-     * 每个PoolSubpage的大小
+     * 每个PoolSubpage的大小，即内存页的大小。
      */
     final int pageSize;
+
     /**
-     * pageSize 2的 pageShifts幂
+     * pageSize的2的幂次，用于计算内存地址。
      */
     final int pageShifts;
+
     /**
-     * PoolChunk的总内存大小
+     * PoolChunk的总内存大小，即每个内存块的大小。
      */
     final int chunkSize;
+
     /**
-     * 用来判断申请的内存是否超过pageSize的掩码，等于  ~(pageSize-1)
+     * 用于判断申请的内存是否超过pageSize的掩码，等于 ~(pageSize-1)。
+     * 该掩码用于快速判断内存申请是否需要新的页。
      */
     final int subpageOverflowMask;
+
+    /**
+     * 小于pageSize的内存池子页池的数量。
+     */
     final int numSmallSubpagePools;
 
     /**
-     * 一组连续的内存空间
+     * 一组连续的内存空间，tinySubpagePools用于管理小于pageSize的内存块，
+     * smallSubpagePools用于管理大于等于pageSize且小于2 * pageSize的内存块。
      */
     private final PoolSubpage<T>[] tinySubpagePools;
     private final PoolSubpage<T>[] smallSubpagePools;
 
     /**
-     * 不同使用频率的内存块列表
+     * 不同使用频率的内存块列表，根据使用频率将内存块分类管理，
+     * 以提高内存的利用率和回收效率。
      */
     private final PoolChunkList<T> q100;
     private final PoolChunkList<T> q075;
@@ -73,24 +87,38 @@ public abstract class PoolArena<T> {
     private final PoolChunkList<T> q000;
     private final PoolChunkList<T> qInit;
 
+    /**
+     * 构造函数用于创建一个PoolArena实例。
+     *
+     * @param parent 指向PooledByteBufAllocator的引用，是这个PoolArena的父对象。
+     * @param pageSize 每个内存页的大小。
+     * @param maxOrder 平衡二叉树的最大深度，用于内存块的管理。
+     * @param pageShifts 内存页大小的2的幂次，用于计算内存偏移。
+     * @param chunkSize 每个PoolChunk的大小，即内存块的大小。
+     */
     protected PoolArena(PooledByteBufAllocator parent, int pageSize, int maxOrder, int pageShifts, int chunkSize) {
         this.parent = parent;
         this.pageSize = pageSize;
         this.maxOrder = maxOrder;
         this.pageShifts = pageShifts;
         this.chunkSize = chunkSize;
+        // 计算用于判断是否需要新分配内存页的掩码
         subpageOverflowMask = ~(pageSize - 1);
+
+        // 初始化tiny子页池数组
         tinySubpagePools = newSubpagePoolArray(numTinySubpagePools);
         for (int i = 0; i < tinySubpagePools.length; i++) {
             tinySubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
+        // 计算并初始化small子页池数组
         numSmallSubpagePools = pageShifts - 9;
         smallSubpagePools = newSubpagePoolArray(numSmallSubpagePools);
         for (int i = 0; i < smallSubpagePools.length; i++) {
             smallSubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
+        // 初始化不同利用率的内存块列表
         q100 = new PoolChunkList<T>(this, null, 100, Integer.MAX_VALUE);
         q075 = new PoolChunkList<T>(this, q100, 75, 100);
         q050 = new PoolChunkList<T>(this, q075, 50, 100);
@@ -98,6 +126,7 @@ public abstract class PoolArena<T> {
         q000 = new PoolChunkList<T>(this, q025, 1, 50);
         qInit = new PoolChunkList<T>(this, q000, Integer.MIN_VALUE, 25);
 
+        // 设置内存块列表之间的链接
         q100.prevList = q075;
         q075.prevList = q050;
         q050.prevList = q025;
@@ -106,50 +135,80 @@ public abstract class PoolArena<T> {
         qInit.prevList = qInit;
     }
 
+    /**
+     * 分配一个池化的ByteBuf。
+     * <p>
+     * 此方法将创建一个新的ByteBuf实例，根据给定的需求容量和最大容量进行初始化，并将其缓存到线程缓存中（如果适用）。
+     *
+     * @param cache 线程缓存，用于缓存ByteBuf以提高分配效率。
+     * @param reqCapacity 请求的容量，表示ByteBuf至少需要的容量。
+     * @param maxCapacity 最大容量，表示ByteBuf可以被分配的最大大小。
+     * @return 分配并初始化的PooledByteBuf实例。
+     */
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
+        // 创建一个新的ByteBuf实例，最大容量为maxCapacity
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
+        // 为这个ByteBuf实例分配指定的容量，并进行相关初始化
         allocate(cache, buf, reqCapacity);
         return buf;
     }
 
+    /**
+     * 重新分配缓冲区的容量。
+     * 此方法会根据提供的新容量重新分配给定的PooledByteBuf的内存。如果新容量与旧容量相同，则不执行任何操作。
+     * 如果新容量大于旧容量，则会扩容内存并复制旧内存中的数据到新内存中。如果新容量小于旧容量，则会截断内存并调整读写索引。
+     * 当freeOldMemory为true时，会释放旧的内存资源。
+     *
+     * @param buf 需要重新分配容量的PooledByteBuf实例。
+     * @param newCapacity 想要的新容量。必须在0到maxCapacity之间，否则会抛出IllegalArgumentException。
+     * @param freeOldMemory 当为true时，会释放PooledByteBuf之前分配的内存。
+     * @throws IllegalArgumentException 如果newCapacity不在有效范围内。
+     */
     public void reallocate(PooledByteBuf<T> buf, int newCapacity, boolean freeOldMemory) {
+        // 校验新容量是否合法
         if (newCapacity < 0 || newCapacity > buf.maxCapacity()) {
             throw new IllegalArgumentException("newCapacity: " + newCapacity);
         }
 
-        int oldCapacity = buf.length;
+        int oldCapacity = buf.length; // 获取当前缓冲区的容量
+        // 如果新旧容量相同，则无需重新分配
         if (oldCapacity == newCapacity) {
             return;
         }
 
+        // 获取与当前缓冲区关联的旧内存块信息
         PoolChunk<T> oldChunk = buf.chunk;
         long oldHandle = buf.handle;
         T oldMemory = buf.memory;
         int oldOffset = buf.offset;
         int oldMaxLength = buf.maxLength;
-        int readerIndex = buf.readerIndex();
-        int writerIndex = buf.writerIndex();
+        int readerIndex = buf.readerIndex(); // 获取读索引
+        int writerIndex = buf.writerIndex(); // 获取写索引
 
+        // 分配新的内存块以适应新的容量
         allocate(parent.threadCache.get(), buf, newCapacity);
+        // 扩容场景，将旧数据复制到新内存中
         if (newCapacity > oldCapacity) {
             memoryCopy(
                     oldMemory, oldOffset,
                     buf.memory, buf.offset, oldCapacity);
+        // 缩容场景，根据读写索引调整并复制数据
         } else if (newCapacity < oldCapacity) {
             if (readerIndex < newCapacity) {
                 if (writerIndex > newCapacity) {
-                    writerIndex = newCapacity;
+                    writerIndex = newCapacity; // 调整写索引
                 }
                 memoryCopy(
                         oldMemory, oldOffset + readerIndex,
                         buf.memory, buf.offset + readerIndex, writerIndex - readerIndex);
             } else {
-                readerIndex = writerIndex = newCapacity;
+                readerIndex = writerIndex = newCapacity; // 缩容时调整读写索引到新的容量
             }
         }
 
-        buf.setIndex(readerIndex, writerIndex);
+        buf.setIndex(readerIndex, writerIndex); // 更新缓冲区的读写索引
 
+        // 如果需要，则释放旧的内存资源
         if (freeOldMemory) {
             free(oldChunk, oldHandle, oldMaxLength, buf.initThread == Thread.currentThread());
         }
@@ -173,24 +232,33 @@ public abstract class PoolArena<T> {
         }
     }
 
+    /**
+     * 查找指定元素大小的子页池头
+     * @param elemSize 元素大小，单位为字节
+     * @return PoolSubpage<T> 对象，表示找到的子页池头
+     */
     PoolSubpage<T> findSubpagePoolHead(int elemSize) {
         int tableIdx;
         PoolSubpage<T>[] table;
-        // < 512
+
+        // 判断元素大小是否属于tiny类别
         if (isTiny(elemSize)) {
-            tableIdx = elemSize >>> 4;
-            table = tinySubpagePools;
+            // 计算tiny类别元素在池中的索引
+            tableIdx = elemSize >>> 4; // 通过右移操作计算索引
+            table = tinySubpagePools; // 使用tiny子页池数组
         } else {
-            tableIdx = 0;
-            elemSize >>>= 10;
+            // 处理非tiny类别的元素
+            tableIdx = 0; // 初始化索引
+            elemSize >>>= 10; // 对元素大小进行右移操作，用于计算在small类别池中的索引
+            // 循环计算索引
             while (elemSize != 0) {
-                elemSize >>>= 1;
-                tableIdx++;
+                elemSize >>>= 1; // 继续右移
+                tableIdx++; // 索引递增
             }
-            table = smallSubpagePools;
+            table = smallSubpagePools; // 使用small子页池数组
         }
 
-        return table[tableIdx];
+        return table[tableIdx]; // 返回找到的子页池头
     }
 
     static int tinyIdx(int normCapacity) {

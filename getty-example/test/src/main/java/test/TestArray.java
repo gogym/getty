@@ -108,7 +108,7 @@ public class TestArray {
         long ct = System.currentTimeMillis();
         for (int i=0;i<1000000;i++){
             ByteBuf buf=byteBufAllocator.buffer(64);
-            buf.release();
+            //buf.release();
         }
         long lt = System.currentTimeMillis();
         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");

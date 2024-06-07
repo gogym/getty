@@ -15,44 +15,51 @@
  */
 package com.gettyio.core.buffer.bytebuf;
 
+
 /**
- * 需要显式重分配的引用计数对象。
- * <p>
- * 当一个新的 {@link ReferenceCounted}被实例化时，它从{@code 1}.的引用计数开始。
- * {@link #retain()} 增加引用计数 {@link #release()} 减少引用计数。
- * 如果引用计数减少到 {@code 0}, 对象将被显式释放, 并且访问被释放的对象通常会导致访问冲突。
- * </p>
- * 如果一个实现 {@link ReferenceCounted} 的对象是其他实现{@link ReferenceCounted}的对象的容器 {@link #release()}，其所包含的对象也将通过
- * 释放引用计数变为0。
- * </p>
+ * 接口ReferenceCounted定义了对象的引用计数管理方法。
+ * 引用计数是一种内存管理技术，用于跟踪和管理对象的生命周期，特别是在并发环境中。
+ * 对象的引用计数增加时表示对该对象的额外持有，减少时表示释放对该对象的持有。
+ * 当对象的引用计数减少到0时，通常表示该对象不再被需要，可以被安全地释放。
  */
 public interface ReferenceCounted {
+
     /**
-     * 返回此对象的引用计数。如果{@code 0}，则表示该对象已被释放。
+     * 获取当前对象的引用计数。
+     *
+     * @return 当前对象的引用计数。
      */
     int refCnt();
 
     /**
-     * 将引用计数增加{@code 1}。
+     * 将对象的引用计数增加1。
+     *
+     * @return 增加引用计数后的对象本身，以便支持链式调用。
      */
+
     ReferenceCounted retain();
 
     /**
-     * 按指定的{@code increment}增加到引用计数。
+     * 将对象的引用计数增加指定的数量。
+     *
+     * @param increment 引用计数增加的数量。
+     * @return 增加引用计数后的对象本身，以便支持链式调用。
      */
     ReferenceCounted retain(int increment);
 
     /**
-     * 通过{@code 1}减少引用计数并在引用计数达到{@code 0}时释放该对象
+     * 尝试将对象的引用计数减少1，并检查是否可以释放对象。
      *
-     * @return {@code true} 当且仅当引用计数变为{@code 0}且该对象已被释放时
+     * @return 如果引用计数减少后不为0，则返回true；如果减少后为0，表示对象可以被释放，返回false。
      */
     boolean release();
 
     /**
-     * 根据指定的{@code 递减}减少引用计数，如果引用count达到{@code 0}。
+     * 尝试将对象的引用计数减少指定的数量，并检查是否可以释放对象。
      *
-     * @return {@code true} 当且仅当引用计数变为{@code 0}且该对象已被释放时
+     * @param decrement 引用计数减少的数量。
+     * @return 如果引用计数减少后不为0，则返回true；如果减少后为0，表示对象可以被释放，返回false。
      */
     boolean release(int decrement);
 }
+

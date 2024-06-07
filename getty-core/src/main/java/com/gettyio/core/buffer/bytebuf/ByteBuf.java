@@ -32,11 +32,14 @@ public abstract class ByteBuf implements ReferenceCounted {
      */
     public abstract int capacity();
 
+
     /**
-     * 调整此缓冲区的容量。如果{@code newCapacity}小于当前
-     * 容量，此缓冲区的内容被截断。如果{@code newCapacity}更大
-     * 如果缓冲区的容量大于当前容量，则会追加长度为的未指定数据
-     * {@code (newCapacity - currentCapacity)}。
+     * 设置缓冲区的容量。
+     * <p>此方法是抽象方法，需要在子类中实现具体的容量设置逻辑。它的目的是为了调整缓冲区的容量，以适应不同的数据处理需求。</p>
+     *
+     * @param newCapacity 指定的新容量。新容量应该大于等于当前已使用容量。
+     * @return 返回容量被修改后的缓冲区实例。通常，这会是调用此方法的实例本身，以支持方法链式调用。
+     * @throws IllegalArgumentException 如果指定的容量小于当前已使用容量，则抛出此异常。
      */
     public abstract ByteBuf capacity(int newCapacity);
 
@@ -53,9 +56,13 @@ public abstract class ByteBuf implements ReferenceCounted {
     public abstract ByteBufAllocator alloc();
 
     /**
-     * 返回该缓冲区的深度。
+     * 返回该缓冲区的字节顺序。
+     * <p>此方法是一个抽象方法，需要在子类中实现，以返回特定于实现的字节顺序。字节顺序对于处理多字节数据类型（如int或long）时非常重要，它定义了这些数据类型中字节的排列方式。</p>
+     *
+     * @return 缓冲区的字节顺序。这可以是大端在前（Big-Endian）或小端在前（Little-Endian）。
      */
     public abstract ByteOrder order();
+
 
     /**
      * 如果该缓冲区是另一个缓冲区的包装器，则返回底层缓冲区实例。

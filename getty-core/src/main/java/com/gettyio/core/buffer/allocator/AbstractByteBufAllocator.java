@@ -18,20 +18,26 @@ package com.gettyio.core.buffer.allocator;
 import com.gettyio.core.buffer.bytebuf.ByteBuf;
 
 /**
- * 缓冲区分配者基类
+ * 抽象ByteBuf分配器类，作为ByteBufAllocator接口的实现基础。
+ * 该类为ByteBuf的分配提供了一种抽象，允许子类实现不同的分配策略。
  */
 public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
 
     /**
      * 默认的初始化容量
+     * 选择256作为默认初始容量是因为它是一个大于128（即2的7次方）的典型值，128是字符集UTF-8中一个字节能表示的最大字符数。
+     * 这样可以确保字符串常量池在初始状态下有足够的容量来存储常见的字符串，而不需要立即进行扩容操作。
      */
     private static final int DEFAULT_INITIAL_CAPACITY = 256;
 
+
     /**
-     * 创建新实例
+     * 构造函数保护级别声明，确保只能在类的内部或子类中实例化。
+     * 该构造函数为空，不接受任何参数。
      */
     protected AbstractByteBufAllocator() {
     }
+
 
     @Override
     public ByteBuf buffer() {
@@ -54,6 +60,19 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
     }
 
     /**
+     * 验证初始容量和最大容量的合法性。
+     *
+     * 此方法用于在创建容器或数据结构时，验证传入的初始容量和最大容量参数是否满足预定义的条件。
+     * 通过抛出IllegalArgumentException来指示调用方传入了非法的参数值。
+     *
+     * @param initialCapacity 初始化容量，即容器或数据结构开始时的容量。
+     * @param maxCapacity 最大容量，即容器或数据结构能容纳的最大元素数量。
+     *
+     * 参数验证逻辑：
+     * 1. 如果初始容量小于等于0，即非正数，则抛出异常，因为容器的初始容量应为正数。
+     * 2. 如果初始容量大于最大容量，则抛出异常，因为初始容量不能大于最大容量。
+     */
+    /**
      * 验证初始化大小是否超出最大
      */
     private static void validate(int initialCapacity, int maxCapacity) {
@@ -65,9 +84,23 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
         }
     }
 
+
     /**
-     * 用给定的initialCapacity和maxCapacity创建一个堆{@link ByteBuf}。
+     * 创建一个堆内存中的ByteBuf实例。
+     * <p>
+     * 该方法是抽象的，需要在子类中具体实现。实现时应考虑如何根据指定的初始容量和最大容量创建一个堆内存缓冲区。
+     * 初始容量是缓冲区创建时分配的字节数量，而最大容量则是缓冲区能够增长到的最大字节数量。
+     * <p>
+     * 子类实现时应确保创建的缓冲区既能满足初始和最大容量的限制，又要考虑效率和内存使用优化。
+     * <p>
+     * 参数:
+     * initialCapacity - 指定的初始容量。
+     * maxCapacity - 指定的最大容量。
+     * <p>
+     * 返回:
+     * 返回一个堆内存中的ByteBuf实例，该实例的初始容量和最大容量分别不小于initialCapacity和maxCapacity。
      */
     protected abstract ByteBuf newHeapBuffer(int initialCapacity, int maxCapacity);
+
 
 }
