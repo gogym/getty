@@ -59,7 +59,7 @@ public class AioServer {
                     //设置单向验证或双向验证
                     sSLConfig.setClientAuth(ClientAuth.NONE);
                     //初始化ssl服务
-                    defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                    //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                     //流量统计
 //                    ChannelTrafficShapingHandler channelTrafficShapingHandler = new ChannelTrafficShapingHandler(5000, new TrafficShapingHandler() {

@@ -89,65 +89,80 @@ public final class ThreadDeathWatcher {
         schedule(thread, task, false);
     }
 
+    /**
+     * 定义一个方法用于安排任务的执行。
+     * 此方法用于将一个新的任务加入到待执行的任务队列中，并根据情况启动一个监控线程。
+     * 如果监控线程尚未启动，则会通过原子操作启动它。
+     *
+     * @param thread 用于执行任务的线程。
+     * @param task 待执行的任务。
+     * @param isWatch 指示是否为监控任务，用于决定是否启动监控线程。
+     */
     private static void schedule(Thread thread, Runnable task, boolean isWatch) {
+        // 将新的任务加入到待执行的任务队列中
         pendingEntries.add(new Entry(thread, task, isWatch));
 
+        // 如果监控线程尚未启动，并且通过compareAndSet操作成功将started标记为true，则启动监控线程
         if (started.compareAndSet(false, true)) {
+            // 使用线程工厂创建一个新的监控线程
             Thread watcherThread = threadFactory.newThread(watcher);
+            // 启动监控线程
             watcherThread.start();
         }
     }
 
 
-    private static final class Watcher implements Runnable {
 
+    /**
+     * Watcher类是一个内部私有静态类，实现了Runnable接口，用于监控和处理特定的Entry对象。
+     * 它的主要职责是周期性地从一个队列中获取Entry对象，根据对象的状态决定是添加到监控列表还是从列表中移除，
+     * 并且对不再关联活着的线程的Entry对象执行相应的任务。
+     */
+    private static final class Watcher implements Runnable {
+        // 存储正在监控的Entry对象的列表
         private final List<Entry> watchees = new ArrayList<Entry>();
 
+        /**
+         * Watcher的主要运行循环。
+         * 它不断地从pendingEntries队列中获取Entry对象，根据对象的isWatch标志决定是否添加到watchees列表中，
+         * 然后检查watchees列表中的每个对象，如果关联的线程不再存活，则执行任务并从列表中移除。
+         */
         @Override
         public void run() {
             for (; ; ) {
                 fetchWatchees();
                 notifyWatchees();
-
-                // 再试一次，以防notifyWatchees()触发watch()或unwatch()。
                 fetchWatchees();
                 notifyWatchees();
 
                 try {
+                    // 每秒检查一次
                     Thread.sleep(1000);
                 } catch (InterruptedException ignore) {
-                    // 忽略中断;在所有任务运行完毕之前不要终止。
+                    // 忽略中断异常
                 }
 
+                // 如果watchees和pendingEntries都为空，尝试停止Watcher
                 if (watchees.isEmpty() && pendingEntries.isEmpty()) {
-
-                    //将当前工作线程标记为已停止。以下CAS必须总是成功且必须是无竞争的，因为在同一时间只能运行一个监视线程。
                     boolean stopped = started.compareAndSet(true, false);
                     assert stopped;
 
-                    // 在我们进行CAS时，检查watch()是否添加了待处理的条目。
+                    // 如果pendingEntries仍然为空，结束循环
                     if (pendingEntries.isEmpty()) {
-                        // A) watch() was not invoked and thus there's nothing to handle
-                        //    -> safe to terminate because there's nothing left to do
-                        // B) a new watcher thread started and handled them all
-                        //    -> safe to terminate the new watcher thread will take care the rest
                         break;
                     }
 
-                    // 还有一些待定条目，是由watch()添加的
+                    // 如果无法重新启动Watcher，结束循环
                     if (!started.compareAndSet(false, true)) {
-                        // watch() started a new watcher thread and set 'started' to true.
-                        // -> terminate this thread so that the new watcher reads from pendingEntries exclusively.
                         break;
                     }
-
-                    // watch() added an entry, but this worker was faster to set 'started' to true.
-                    // i.e. a new watcher thread was not started
-                    // -> keep this thread alive to handle the newly added entries.
                 }
             }
         }
 
+        /**
+         * 从pendingEntries队列中获取Entry对象，并根据isWatch标志决定是否添加到watchees列表中或从列表中移除。
+         */
         private void fetchWatchees() {
             for (; ; ) {
                 Entry e = pendingEntries.poll();
@@ -163,6 +178,9 @@ public final class ThreadDeathWatcher {
             }
         }
 
+        /**
+         * 遍历watchees列表，对不再关联活着的线程的Entry对象执行任务，并从列表中移除。
+         */
         private void notifyWatchees() {
             List<Entry> watchees = this.watchees;
             for (int i = 0; i < watchees.size(); ) {
@@ -183,22 +201,56 @@ public final class ThreadDeathWatcher {
         }
     }
 
+
+    /**
+     * 用于存储线程和任务的关联实体类，可以标识某个线程正在执行或即将执行的任务。
+     * 此类还区分了是否为监控任务，以便进行不同的管理。
+     */
     private static final class Entry {
+        /**
+         * 关联的线程。
+         */
         final Thread thread;
+        /**
+         * 关联的任务。
+         */
         final Runnable task;
+        /**
+         * 标志位，表示该条目是否为监控任务。
+         */
         final boolean isWatch;
 
+        /**
+         * 构造函数，初始化Entry对象。
+         *
+         * @param thread 关联的线程。
+         * @param task 关联的任务。
+         * @param isWatch 标志位，表示该条目是否为监控任务。
+         */
         Entry(Thread thread, Runnable task, boolean isWatch) {
             this.thread = thread;
             this.task = task;
             this.isWatch = isWatch;
         }
 
+        /**
+         * 重写hashCode方法，根据线程和任务的hashCode计算Entry的hashCode。
+         * 这样可以将Entry对象放入基于hash的集合中，如HashMap。
+         *
+         * @return Entry的hashCode。
+         */
         @Override
         public int hashCode() {
             return thread.hashCode() ^ task.hashCode();
         }
 
+        /**
+         * 重写equals方法，判断两个Entry对象是否相等。
+         * 两个Entry对象相等的条件是它们关联的线程和任务相同。
+         *
+         * @param obj 要比较的对象。
+         * @return 如果两个对象相等返回true，否则返回false。
+         */
         @Override
         public boolean equals(Object obj) {
             if (obj == this) {
@@ -214,42 +266,50 @@ public final class ThreadDeathWatcher {
         }
     }
 
+    /**
+     * 清理指定线程的ThreadLocal变量。
+     *
+     * ThreadLocal为线程局部变量，提供线程之间的隔离。然而，如果不适当管理，ThreadLocal可能会导致内存泄露。
+     * 本方法旨在显式清理指定线程的ThreadLocal变量，以避免潜在的内存泄露问题。
+     *
+     * @param thread 需要被清理ThreadLocal变量的线程。
+     */
     private static void cleanThreadLocals(Thread thread) {
         try {
-            // Get a reference to the thread locals table of the current thread
-            //Thread thread = Thread.currentThread();
+            // 访问Thread类中私有的threadLocals字段，用于存储线程局部变量。
             Field threadLocalsField = Thread.class.getDeclaredField("threadLocals");
             threadLocalsField.setAccessible(true);
             Object threadLocalTable = threadLocalsField.get(thread);
+            // 如果threadLocalTable为空，则无需进行清理。
             if (threadLocalTable == null) {
                 return;
             }
-            // Get a reference to the array holding the thread local variables inside the
-            // ThreadLocalMap of the current thread
+
+            // 获取ThreadLocalMap类，这是ThreadLocal的内部类，用于实际存储线程局部变量。
             Class threadLocalMapClass = Class.forName("java.lang.ThreadLocal$ThreadLocalMap");
+            // 访问ThreadLocalMap中的table字段，这是一个Entry数组，存储着线程局部变量。
             Field tableField = threadLocalMapClass.getDeclaredField("table");
             tableField.setAccessible(true);
             Object table = tableField.get(threadLocalTable);
 
-            // The key to the ThreadLocalMap is a WeakReference object. The referent field of this object
-            // is a reference to the actual ThreadLocal variable
+            // 获取Reference类中的referent字段，这个字段引用着ThreadLocalMap中的键对象。
             Field referentField = Reference.class.getDeclaredField("referent");
             referentField.setAccessible(true);
 
+            // 遍历table数组，清理每个非空的Entry。
             for (int i = 0; i < Array.getLength(table); i++) {
-                // Each entry in the table array of ThreadLocalMap is an Entry object
-                // representing the thread local reference and its value
                 Object entry = Array.get(table, i);
+                // 如果entry不为空，则尝试清理对应的ThreadLocal变量。
                 if (entry != null) {
-                    // Get a reference to the thread local object and remove it from the table
                     ThreadLocal threadLocal = (ThreadLocal) referentField.get(entry);
                     threadLocal.remove();
                 }
             }
         } catch (Exception e) {
-            // We will tolerate an exception here and just log it
+            // 如果在清理过程中发生异常，抛出IllegalStateException。
             throw new IllegalStateException(e);
         }
     }
+
 
 }

@@ -90,42 +90,60 @@ final class PoolChunkList<T> {
         }
     }
 
+
     /**
-     * 释放一个内存块
+     * 释放池块中的特定资源。
      *
-     * @param chunk
-     * @param handle
+     * 此方法将指定的资源从池块中释放，并根据池块的使用情况决定是否从列表中移除该池块。
+     * 如果池块的使用率低于最小使用率，且该池块是当前列表中的第一个池块，那么将销毁这个池块。
+     * 否则，将该池块移动到前一个列表中，以备后续使用。
+     *
+     * @param chunk 要释放资源的池块。
+     * @param handle 要释放的具体资源的句柄。
      */
     void free(PoolChunk<T> chunk, long handle) {
+        // 释放指定的资源。
         chunk.free(handle);
+        // 检查池块的当前使用率是否低于最小使用率。
         if (chunk.usage() < minUsage) {
+            // 如果使用率低于最小使用率，从当前列表中移除该池块。
             remove(chunk);
+            // 检查前一个列表是否为空。
             if (prevList == null) {
+                // 如果前一个列表为空，断言该池块的使用率为0，然后销毁池块。
                 assert chunk.usage() == 0;
                 arena.destroyChunk(chunk);
             } else {
+                // 如果前一个列表不为空，将池块添加到前一个列表中。
                 prevList.add(chunk);
             }
         }
     }
 
+
     /**
-     * 添加一个内存块
+     * 将一个池块添加到当前池列表中。
+     * 如果池块的使用率超过了最大使用率，则将其转移到下一个列表中。
+     * 否则，将池块添加到当前列表的头部。
      *
-     * @param chunk
+     * @param chunk 要添加到池列表的池块。
      */
     void add(PoolChunk<T> chunk) {
+        // 检查池块的使用率是否超过最大使用率
         if (chunk.usage() >= maxUsage) {
-            nextList.add(chunk);
+            nextList.add(chunk); // 如果超过，将其添加到下一个列表中
             return;
         }
 
+        // 将当前列表设置为池块的父列表
         chunk.parent = this;
+        // 如果当前列表为空，将池块设置为头部，并初始化其链接
         if (head == null) {
             head = chunk;
             chunk.prev = null;
             chunk.next = null;
         } else {
+            // 如果当前列表不为空，将池块插入头部，并更新链接
             chunk.prev = null;
             chunk.next = head;
             head.prev = chunk;

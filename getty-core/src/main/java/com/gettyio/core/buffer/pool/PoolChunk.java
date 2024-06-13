@@ -180,6 +180,17 @@ public final class PoolChunk<T> {
     PoolChunk<T> prev;
     PoolChunk<T> next;
 
+    /**
+     * PoolChunk类的构造函数，用于初始化一个池块。
+     * 池块是对象池管理内存的的基本单位，包含了一块内存区域及其管理信息。
+     *
+     * @param arena 池块所属的Arena，用于管理多个池块。
+     * @param memory 池块对应的内存区域。
+     * @param pageSize 每页的大小，影响池块的内存分配策略。
+     * @param maxOrder 页大小的最大指数，用于计算最大分配单元。
+     * @param pageShifts 页大小的位移量，用于快速计算页相关的内存偏移。
+     * @param chunkSize 池块的总大小，即可用于分配的内存大小。
+     */
     PoolChunk(PoolArena<T> arena, T memory, int pageSize, int maxOrder, int pageShifts, int chunkSize) {
         unpooled = false;
         this.arena = arena;
@@ -213,56 +224,105 @@ public final class PoolChunk<T> {
         subpages = newSubpageArray(maxSubpageAllocs);
     }
 
+
     /**
-     * 创建一个未被池化的特殊块。
+     * 构造函数初始化PoolChunk对象。
+     * 该构造函数用于创建一个未分配的池块，主要用于管理内存块的分配和释放。
+     *
+     * @param arena 池块所属的竞技场，用于管理多个池块。
+     * @param memory 与池块关联的内存块。
+     * @param size 池块的大小。
      */
     PoolChunk(PoolArena<T> arena, T memory, int size) {
+        // 标记此池块为未分配，即不在池中管理的内存。
         unpooled = true;
+        // 设置池块所属的竞技场。
         this.arena = arena;
+        // 设置与池块关联的内存块。
         this.memory = memory;
+        // 未使用的内存映射表，对于未分配的池块来说不需要。
         memoryMap = null;
+        // 未使用的深度映射表，对于未分配的池块来说不需要。
         depthMap = null;
+        // 未使用的子页数组，对于未分配的池块来说不需要。
         subpages = null;
+        // 子页溢出掩码初始化为0，对于未分配的池块来说没有意义。
         subpageOverflowMask = 0;
+        // 页大小初始化为0，对于未分配的池块来说没有意义。
         pageSize = 0;
+        // 页位移初始化为0，对于未分配的池块来说没有意义。
         pageShifts = 0;
+        // 最大订单初始化为0，对于未分配的池块来说没有意义。
         maxOrder = 0;
+        // 无法使用的标记设置为(maxOrder + 1)，表示此池块不可用。
         unusable = (byte) (maxOrder + 1);
+        // 设置池块的大小。
         chunkSize = size;
+        // 计算池块大小的对数，用于快速计算。
         log2ChunkSize = log2(chunkSize);
+        // 最大子页分配数初始化为0，对于未分配的池块来说没有意义。
         maxSubpageAllocs = 0;
     }
 
+
     /**
-     * 创建内存子页数组
+     * 根据给定的大小创建一个PoolSubpage数组。
+     * 该方法用于动态地分配PoolSubpage数组，以适应对象池管理的需要。
+     * 由于Java的类型擦除，这里使用了@SuppressWarnings注解来抑制编译器警告。
      *
-     * @param size
-     * @return
+     * @param size 数组的大小。指定数组将包含的PoolSubpage元素的数量。
+     * @return 新创建的PoolSubpage数组。这个数组将被用来存储和管理对象池中的对象。
      */
     @SuppressWarnings("unchecked")
     private PoolSubpage<T>[] newSubpageArray(int size) {
         return new PoolSubpage[size];
     }
 
+
+
     /**
-     * 计算当前块使用率
+     * 计算存储空间的使用率。
+     * 使用率是根据当前可用的字节数与chunkSize的比值来计算的。如果没有任何可用空间（freeBytes为0），
+     * 则使用率视为100%。如果可用空间占总空间的百分比非常小（即freePercentage为0），为了防止计算结果为0，
+     * 使用率被视为99%。这种处理方式是为了避免因分母过小导致的精度问题。
      *
-     * @return
+     * @return 存储空间的使用率，以百分比形式表示。
      */
     int usage() {
+        // 获取当前可用的字节数
         final int freeBytes = this.freeBytes;
+
+        // 如果没有可用空间，返回100，表示使用率为100%
         if (freeBytes == 0) {
             return 100;
         }
 
+        // 计算可用空间占总空间的百分比
         int freePercentage = (int) (freeBytes * 100L / chunkSize);
+
+        // 如果可用空间百分比为0，返回99，避免计算结果为0
         if (freePercentage == 0) {
             return 99;
         }
+
+        // 返回使用率，即100减去可用空间的百分比
         return 100 - freePercentage;
     }
 
+
+    /**
+     * 根据给定的容量分配内存。
+     * 此方法负责决定是分配一个子页还是一个运行（取决于容量是否超过子页大小）。
+     *
+     * @param normCapacity 请求的容量，已规范化，即小于或等于最大容量。
+     * @return 分配的内存块的起始地址。
+     */
     long allocate(int normCapacity) {
+        /*
+         * 检查请求的容量是否超过子页的容量限制。
+         * 如果请求的容量超过子页容量，将通过allocateRun方法分配内存，
+         * 否则通过allocateSubpage方法分配内存。
+         */
         //(normCapacity & subpageOverflowMask) 可以理解为判断两个变量不为0
         if ((normCapacity & subpageOverflowMask) != 0) {
             // >= pageSize
@@ -271,6 +331,7 @@ public final class PoolChunk<T> {
             return allocateSubpage(normCapacity);
         }
     }
+
 
     /**
      * 由allocate使用的更新方法
@@ -416,66 +477,185 @@ public final class PoolChunk<T> {
         updateParentsFree(memoryMapIdx);
     }
 
+    /**
+     * 初始化缓冲区。
+     * 根据提供的handle分解出memoryMapIdx和bitmapIdx，用于不同情况下的缓冲区初始化。
+     * 如果bitmapIdx为0，表示数据位于page内，直接初始化缓冲区；
+     * 否则，表示数据位于subpage内，需进一步处理。
+     *
+     * @param buf       要初始化的缓冲区对象
+     * @param handle    给定的handle，包含memoryMapIdx和bitmapIdx信息
+     * @param reqCapacity 请求的容量，用于初始化缓冲区
+     */
     void initBuf(PooledByteBuf<T> buf, long handle, int reqCapacity) {
+        // 提取handle中的memoryMapIdx
         int memoryMapIdx = (int) handle;
+        // 提取handle中的bitmapIdx
         int bitmapIdx = (int) (handle >>> Integer.SIZE);
+
+        // 当bitmapIdx为0时，表示数据位于page内
         if (bitmapIdx == 0) {
+            // 验证memoryMapIdx对应的位置是否未被使用
             byte val = value(memoryMapIdx);
             assert val == unusable : String.valueOf(val);
+            // 使用相关信息初始化缓冲区
             buf.init(this, handle, runOffset(memoryMapIdx), reqCapacity, runLength(memoryMapIdx));
         } else {
+            // 当bitmapIdx不为0时，表示数据位于subpage内，调用相应方法处理
             initBufWithSubpage(buf, handle, bitmapIdx, reqCapacity);
         }
     }
 
+
+    /**
+     * 使用子页面初始化缓冲区。
+     *
+     * 此方法通过使用给定的句柄和请求的容量来初始化缓冲区，具体实现是通过调用另一个重载的initBufWithSubpage方法来完成。
+     * 它的主要作用是处理大容量数据的存储，通过将数据分割成更小的子页面，以便更有效地管理和访问这些数据。
+     *
+     * @param buf 待初始化的缓冲区对象，这是一个池化的字节缓冲区。
+     * @param handle 子页面的句柄，用于标识和访问特定的子页面。
+     * @param reqCapacity 请求的容量，即初始化缓冲区时希望的容量大小。
+     */
     void initBufWithSubpage(PooledByteBuf<T> buf, long handle, int reqCapacity) {
+        // 调用重载的initBufWithSubpage方法，实际初始化缓冲区。
         initBufWithSubpage(buf, handle, (int) (handle >>> Integer.SIZE), reqCapacity);
     }
 
+    /**
+     * 使用子页面初始化缓冲区。
+     * 此方法用于将一个PooledByteBuf与池化的子页面相关联，子页面是从一个更大的内存页中划分出来的。
+     * 它通过给定的句柄和位图索引来定位具体的子页面，并初始化缓冲区，以便它可以从子页面中分配内存。
+     *
+     * @param buf 要初始化的缓冲区对象。
+     * @param handle 子页面的句柄，用于在内存映射中定位子页面。
+     * @param bitmapIdx 位图索引，用于在子页面中定位具体的元素。
+     * @param reqCapacity 请求的容量，即初始化缓冲区时希望分配的字节数。
+     */
     private void initBufWithSubpage(PooledByteBuf<T> buf, long handle, int bitmapIdx, int reqCapacity) {
+        // 确保位图索引不为0，因为0表示空闲状态。
         assert bitmapIdx != 0;
 
+        // 提取句柄中的内存映射索引。
         int memoryMapIdx = (int) handle;
 
+        // 根据内存映射索引获取对应的子页面。
         PoolSubpage<T> subpage = subpages[subpageIdx(memoryMapIdx)];
+        // 确保该子页面标记为不可销毁，以防止在初始化过程中被错误地释放。
         assert subpage.doNotDestroy;
+        // 确保请求的容量不超过子页面单个元素的大小。
         assert reqCapacity <= subpage.elemSize;
 
+        // 初始化缓冲区，设置其基础属性，包括所属池、句柄、实际内存地址、请求容量和元素大小。
         buf.init(
                 this, handle,
                 runOffset(memoryMapIdx) + (bitmapIdx & 0x3FFFFFFF) * subpage.elemSize, reqCapacity, subpage.elemSize);
     }
 
+
+    /**
+     * 根据给定的ID从内存映射中获取对应的字节值。
+     * 此方法假设内存映射（memoryMap）是一个已经初始化并存储了相关数据的数据结构。
+     *
+     * @param id 内存映射中的元素索引，用于定位具体的字节数据。
+     * @return 返回位于内存映射中指定ID位置的字节值。
+     */
     private byte value(int id) {
         return memoryMap[id];
     }
 
+
+    /**
+     * 设置指定内存位置的值。
+     *
+     * 此方法用于更新内存映射表中特定位置的值。内存映射表是一个数组，通过索引（id）可以访问和修改其元素。
+     * 使用byte类型作为值，可以确保对内存的低级别操作具有更高的灵活性和效率。
+     *
+     * @param id 内存位置的索引。此索引用于在内存映射表中定位要修改的内存位置。
+     * @param val 要设置的新值。这是一个byte类型的值，将被存储在指定的内存位置。
+     */
     private void setValue(int id, byte val) {
         memoryMap[id] = val;
     }
 
+
+    /**
+     * 获取给定ID对应的深度值。
+     *
+     * 此方法通过查询depthMap数组来获取特定ID的深度值。depthMap是一个映射数组，
+     * 其中每个ID都与其相应的深度值对应。使用此方法可以快速检索到特定ID的深度信息，
+     * 而不需要进行复杂的计算或搜索。
+     *
+     * @param id 需要查询深度的ID。
+     * @return 与给定ID对应的深度值。
+     */
     private byte depth(int id) {
         return depthMap[id];
     }
 
+
+    /**
+     * 计算给定整数的二进制表示中最高位的位置。
+     * 该方法通过计算val的二进制表示中最高位的位置来实现，这等同于计算val的二进制表示中最高位的索引。
+     * 由于Java中的整数是用补码表示的，最高位是符号位，因此对于正数，结果是其二进制表示中最高位的位置，
+     * 对于负数，结果是其二进制表示中最高位的位置减去1（因为负数的最高位被用作符号位）。
+     *
+     * @param val 待计算的整数，可以是正数或负数。
+     * @return 整数val的二进制表示中最高位的位置索引。
+     */
     private static int log2(int val) {
-        // compute the (0-based, with lsb = 0) position of highest set bit i.e, log2
+        // 使用Integer.SIZE获取int类型的二进制位数，然后减去val的最高位前面的0的个数。
+        // 这样做的结果是得到val的最高位的索引，对于负数，由于符号位的原因，需要再减去1。
         return Integer.SIZE - 1 - Integer.numberOfLeadingZeros(val);
     }
 
+
+    /**
+     * 计算给定ID的运行长度。
+     * 运行长度是基于ID在分块结构中的深度计算得出的，用于确定一个ID所代表的值在编码后的连续长度。
+     * 此函数通过利用块大小的对数和ID的深度来计算这个长度，体现了数据结构的特性和编码策略。
+     *
+     * @param id 待计算运行长度的ID。
+     * @return 返回计算得到的运行长度。
+     */
     private int runLength(int id) {
-        // represents the size in #bytes supported by node 'id' in the tree
+        // 使用位移操作符将1左移log2ChunkSize - depth(id)位，结果即为ID的运行长度。
+        // 这里利用了位运算的高效性和对数运算的关系，巧妙地计算了运行长度，体现了算法的精妙之处。
         return 1 << log2ChunkSize - depth(id);
     }
 
+
+    /**
+     * 计算给定id对应的偏移量。
+     * 该方法通过位运算和深度计算，结合运行长度，来确定特定id在序列中的偏移量。
+     * 这对于理解序列中元素的排列和分布具有重要意义。
+     *
+     * @param id 待计算偏移量的id。
+     * @return 返回计算得到的偏移量。
+     */
     private int runOffset(int id) {
-        // represents the 0-based offset in #bytes from start of the byte-array chunk
+        // 使用异或运算和左移操作计算shift值，用于确定偏移量。
+        // 异或运算保证了对称性，左移操作的位数由深度决定，这影响了偏移量的大小。
         int shift = id ^ 1 << depth(id);
+        // 将shift值乘以运行长度，得到最终的偏移量。
+        // 这里运行长度的作用是进一步调整偏移量，确保其符合序列的特定排列规律。
         return shift * runLength(id);
     }
 
+
+    /**
+     * 计算子页面索引。
+     *
+     * 该方法通过位运算来计算给定内存映射索引所对应的子页面索引。子页面索引的计算是基于内存映射索引和最大子页面分配数量的异或操作。
+     * 这种计算方式旨在快速定位到特定的子页面，而无需通过复杂的计算或查找过程。
+     *
+     * @param memoryMapIdx 内存映射索引，用于确定子页面的位置。
+     * @return 子页面索引，作为内存映射索引的某种转换结果。
+     */
     private int subpageIdx(int memoryMapIdx) {
-        return memoryMapIdx ^ maxSubpageAllocs; // remove highest set bit, to get offset
+        // 使用异或操作符来计算子页面索引，异或操作可以快速地在不改变原始数据的基础上进行位运算。
+        return memoryMapIdx ^ maxSubpageAllocs;
     }
+
 
 }

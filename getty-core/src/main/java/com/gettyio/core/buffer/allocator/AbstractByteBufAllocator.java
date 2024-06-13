@@ -39,6 +39,15 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
     }
 
 
+    /**
+     * 创建一个默认的堆缓冲区。
+     * <p>
+     * 该方法旨在提供一个默认的堆缓冲区实例，用于满足常见场景下的数据存储和传输需求。默认情况下，
+     * 缓冲区的初始容量为指定的默认值，最大容量为Integer.MAX_VALUE，即理论上允许的最大整数值。
+     * 这种配置旨在平衡内存使用和性能需求，适用于大多数情况，而无需手动调整容量。
+     *
+     * @return 返回一个具有默认初始容量和最大容量的堆缓冲区。
+     */
     @Override
     public ByteBuf buffer() {
         return heapBuffer(DEFAULT_INITIAL_CAPACITY, Integer.MAX_VALUE);
@@ -54,8 +63,20 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
         return heapBuffer(initialCapacity, maxCapacity);
     }
 
+    /**
+     * 创建一个堆缓冲区。
+     * <p>
+     * 此方法用于生成一个堆缓冲区实例，堆缓冲区是一种在Java堆内存中分配的缓冲区，适合于当内存效率和访问速度相对较重要时使用。
+     * 通过传入初始容量和最大容量参数，可以对缓冲区的大小进行精确控制，以满足特定场景的需求。
+     *
+     * @param initialCapacity 缓冲区的初始容量。这是分配给缓冲区的初始字节大小。
+     * @param maxCapacity     缓冲区的最大容量。这是缓冲区能够增长到的最大字节大小。
+     * @return 返回一个新的堆缓冲区实例。
+     */
     private ByteBuf heapBuffer(int initialCapacity, int maxCapacity) {
+        // 验证初始容量和最大容量的合法性。
         validate(initialCapacity, maxCapacity);
+        // 实际创建并返回堆缓冲区对象。
         return newHeapBuffer(initialCapacity, maxCapacity);
     }
 

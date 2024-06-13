@@ -29,13 +29,38 @@ import java.nio.ByteBuffer;
  */
 public final class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
 
+    /**
+     * 使用Recycler来管理PooledHeapByteBuf实例，以实现内存的复用，减少垃圾收集的压力。
+     * 这里通过匿名内部类的方式实现了Recycler<PooledHeapByteBuf>的定制。
+     * 当需要一个新的PooledHeapByteBuf实例时，Recycler会提供一个已经初始化过的对象，
+     * 而不是创建一个新的对象，这样可以减少内存分配的开销。
+     */
     private static final Recycler<PooledHeapByteBuf> RECYCLER = new Recycler<PooledHeapByteBuf>() {
+        /**
+         * 当Recycler需要一个新的PooledHeapByteBuf对象时，调用此方法。
+         * 该方法使用了延迟初始化的策略，只有在真正需要时才会创建对象。
+         *
+         * @param handle 回收器的句柄，用于管理这个对象的生命周期。
+         * @return 返回一个新的或已回收的PooledHeapByteBuf实例。
+         */
         @Override
         protected PooledHeapByteBuf newObject(Handle<PooledHeapByteBuf> handle) {
             return new PooledHeapByteBuf(handle, 0);
         }
     };
 
+
+    /**
+     * 创建一个新实例的PooledHeapByteBuf。
+     *
+     * 该方法通过重用机制获取一个PooledHeapByteBuf实例，避免了对象的频繁创建和销毁，从而提高了性能。
+     * 如果没有可用的实例，将会创建一个新的实例。
+     *
+     * @param maxCapacity 指定新实例的最大容量。这个参数用于确保新创建的ByteBuf能够容纳指定数量的字节，
+     *                    从而避免了在后续操作中需要频繁扩容的问题。
+     * @return 返回一个新实例的PooledHeapByteBuf。这个实例已经初始化了最大容量和引用计数，
+     *         可以直接使用。
+     */
     public static PooledHeapByteBuf newInstance(int maxCapacity) {
         PooledHeapByteBuf buf = RECYCLER.get();
         buf.setRefCnt(1);

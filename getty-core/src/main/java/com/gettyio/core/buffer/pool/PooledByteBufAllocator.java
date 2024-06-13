@@ -30,34 +30,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     private final static Logger logger = LoggerFactory.getLogger(PooledByteBufAllocator.class);
 
-    /**
-     * 堆内存
-     */
+
+    // 默认的堆区域数量
     private static final int DEFAULT_NUM_HEAP_ARENA;
 
-    /**
-     * 单内存页的大小
-     */
+    // 默认的页面大小
     private static final int DEFAULT_PAGE_SIZE;
 
-    /**
-     * 最大的order，默认为11
-     */
+    // 默认的最大订单，决定最大块的大小
     private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
 
-
+    // 默认的小缓存大小
     private static final int DEFAULT_TINY_CACHE_SIZE;
+    // 默认的小缓存大小
     private static final int DEFAULT_SMALL_CACHE_SIZE;
+    // 默认的正常缓存大小
     private static final int DEFAULT_NORMAL_CACHE_SIZE;
+    // 默认的最大缓存容量
     private static final int DEFAULT_MAX_CACHED_BUFFER_CAPACITY;
+    // 默认的缓存修剪间隔
     private static final int DEFAULT_CACHE_TRIM_INTERVAL;
 
+    // 最小页面大小，确保页面大小至少为4096字节
     private static final int MIN_PAGE_SIZE = 4096;
 
-    /**
-     * 最大的单chunk的大小为1G
-     */
+    // 最大块大小，防止创建过大的块，最大的单chunk的大小为1G
     private static final int MAX_CHUNK_SIZE = (int) (((long) Integer.MAX_VALUE + 1) / 2);
+
 
     static {
         // 设置内存页的大小
@@ -128,11 +127,37 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         }
     }
 
+    /**
+     * 堆内存池数组，用于存储不同大小的内存池。
+     * 这些内存池分别用于分配小、中、大型的 ByteBuf。
+     */
     private final PoolArena<byte[]>[] heapArenas;
+
+    /**
+     * 小对象缓存区的大小设置。
+     * 这里定义了小对象缓存区能够存储的对象数量。
+     * 小对象是指长度小于等于 tinyCacheSize 的 ByteBuf。
+     */
     private final int tinyCacheSize;
+
+    /**
+     * 中等对象缓存区的大小设置。
+     * 这里定义了中等对象缓存区能够存储的对象数量。
+     * 中等对象是指长度小于 smallCacheSize 的 ByteBuf。
+     */
     private final int smallCacheSize;
+
+    /**
+     * 标准对象缓存区的大小设置。
+     * 这里定义了标准对象缓存区能够存储的对象数量。
+     * 标准对象是指长度小于 normalCacheSize 的 ByteBuf。
+     */
     private final int normalCacheSize;
 
+    /**
+     * ThreadLocal缓存实例，用于每个线程私有的缓存数据。
+     * 这样设计可以减少跨线程的数据共享和同步开销，提高缓存的访问效率。
+     */
     final PoolThreadLocalCache threadCache;
 
 
@@ -146,27 +171,46 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
                 DEFAULT_SMALL_CACHE_SIZE, DEFAULT_NORMAL_CACHE_SIZE);
     }
 
+    /**
+     * 构造函数用于创建一个PooledByteBufAllocator。
+     *
+     * @param nHeapArena 分配的堆内存区域数量。堆内存区域用于管理Java堆上的内存分配。
+     * @param pageSize 每个内存页的大小。内存页是分配内存的基本单位。
+     * @param maxOrder 内存页大小的最大对数。这影响了可以分配的最大块大小。
+     * @param tinyCacheSize 小块缓存的大小。小块是指小于某个阈值的内存块。
+     * @param smallCacheSize 中等大小块缓存的大小。中等大小块是指介于小块和正常大小块之间的内存块。
+     * @param normalCacheSize 正常大小块缓存的大小。正常大小块是指大于中等大小块的内存块。
+     */
     public PooledByteBufAllocator(int nHeapArena, int pageSize, int maxOrder,
-                                  int tinyCacheSize, int smallCacheSize, int normalCacheSize) {
+                                      int tinyCacheSize, int smallCacheSize, int normalCacheSize) {
         super();
+        // 初始化线程本地缓存，用于存储每个线程的缓存块，提高缓存效率。
         threadCache = new PoolThreadLocalCache();
+        // 设置小、中、正常缓存的大小，用于管理不同大小的内存块。
         this.tinyCacheSize = tinyCacheSize;
         this.smallCacheSize = smallCacheSize;
         this.normalCacheSize = normalCacheSize;
+        // 校验并计算内存块的大小，这是分配内存的基本单元。
         final int chunkSize = validateAndCalculateChunkSize(pageSize, maxOrder);
 
+        // 校验nHeapArena参数是否合法，不允许负数。
         if (nHeapArena < 0) {
             throw new IllegalArgumentException("nHeapArena: " + nHeapArena + " (expected: >= 0)");
         }
 
+        // 校验并计算内存页的位移，用于计算内存分配。
         int pageShifts = validateAndCalculatePageShifts(pageSize);
 
+        // 根据nHeapArena的值决定是否创建堆内存区域。
         if (nHeapArena > 0) {
+            // 初始化堆内存区域数组。
             heapArenas = newArenaArray(nHeapArena);
+            // 为每个堆内存区域分配资源。
             for (int i = 0; i < heapArenas.length; i++) {
                 heapArenas[i] = new PoolArena.HeapArena(this, pageSize, maxOrder, pageShifts, chunkSize);
             }
         } else {
+            // 如果不需要堆内存区域，则设置为null。
             heapArenas = null;
         }
     }
@@ -217,35 +261,66 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         return chunkSize;
     }
 
+    /**
+     * 创建一个新的堆内存缓冲区。
+     *
+     * 当需要在堆内存中分配一个新的ByteBuf时，这个方法会被调用。它首先尝试从线程缓存中获取一个池化区域（heapArena）。
+     * 如果获取成功，那么它会尝试在这个池化区域中分配内存；如果获取失败（即heapArena为null），那么它会退回到使用
+     * UnpooledHeapByteBuf的分配方式。这种方式不利用池化技术，而是直接在堆内存中分配一块连续的空间。
+     *
+     * @param initialCapacity 新缓冲区的初始容量。这是实际分配的内存大小。
+     * @param maxCapacity 新缓冲区的最大容量。这是缓冲区允许增长到的最大值。
+     * @return 返回一个新的堆内存缓冲区实例。
+     */
     @Override
     protected ByteBuf newHeapBuffer(int initialCapacity, int maxCapacity) {
+        // 尝试从线程缓存中获取PoolThreadCache实例。
         PoolThreadCache cache = threadCache.get();
+        // 从线程缓存中获取heapArena，用于后续的堆内存分配。
         PoolArena<byte[]> heapArena = cache.heapArena;
 
         ByteBuf buf;
+        // 如果heapArena不为空，尝试使用池化的heapArena进行内存分配。
         if (heapArena != null) {
             buf = heapArena.allocate(cache, initialCapacity, maxCapacity);
         } else {
+            // 如果heapArena为空，则退回到非池化的内存分配方式。
             buf = new UnpooledHeapByteBuf(this, initialCapacity, maxCapacity);
         }
 
         return buf;
     }
 
+
+    /**
+     * 自定义ThreadLocal类，用于缓存PoolThreadCache对象。
+     * 该类的作用是在每个线程中维护一个独立的缓存空间，用于存放池化的缓存对象，以提高缓存的效率和线程安全性。
+     */
     final class PoolThreadLocalCache extends ThreadLocal<PoolThreadCache> {
+        // 用于线程安全的索引自增，确保每个线程获取到的缓存对象是独立的。
         private final AtomicInteger index = new AtomicInteger();
 
+        /**
+         * 重写ThreadLocal的initialValue方法，用于初始化每个线程的缓存对象。
+         * 这里创建了一个PoolThreadCache实例，它可能与一个heapArena相关联，heapArena是根据线程索引计算得到的。
+         *
+         * @return 返回一个新的PoolThreadCache实例，该实例根据线程索引和预设的缓存大小参数初始化。
+         */
         @Override
         protected PoolThreadCache initialValue() {
+            // 获取当前线程的索引，并自增以保证每个线程的索引唯一。
             final int idx = index.getAndIncrement();
+            // 根据索引计算并获取对应的heapArena
             final PoolArena<byte[]> heapArena;
 
             if (heapArenas != null) {
+                // 使用取模运算确保索引不会超出heapArenas的长度，并保证缓存的均匀分配。
                 heapArena = heapArenas[Math.abs(idx % heapArenas.length)];
             } else {
                 heapArena = null;
             }
 
+            // 创建并返回一个新的PoolThreadCache实例，它可能与一个heapArena相关联，并根据预设的缓存大小参数初始化。
             return new PoolThreadCache(heapArena, tinyCacheSize, smallCacheSize, normalCacheSize,
                     DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);
         }
