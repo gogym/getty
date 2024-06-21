@@ -6,7 +6,6 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -268,84 +267,6 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
     }
 
     /**
-     * 获取池化直接 ByteBuffers 的数量
-     *
-     * @return 直接 ByteBuffers 的池化数量，以长整型表示
-     */
-    public long getDirectByteBufferCount() {
-        return getByteBufferCount(true);
-    }
-
-    /**
-     * 获取池化堆 ByteBuffers 的数量
-     *
-     * @return 堆 ByteBuffers 的池化数量，以长整型表示
-     */
-    public long getHeapByteBufferCount() {
-        return getByteBufferCount(false);
-    }
-
-    /**
-     * 根据指定类型获取池化 ByteBuffers 的数量
-     *
-     * @param direct 指示是否获取直接 ByteBuffers 的数量，为 true 时获取直接 ByteBuffers，为 false 时获取堆 ByteBuffers
-     * @return 池化 ByteBuffers 的数量，以长整型表示
-     */
-    private long getByteBufferCount(boolean direct) {
-        // 根据 direct 参数选择对应的桶数组
-        RetainedBucket[] buckets = direct ? _direct : _indirect;
-        // 流式操作，计算所有桶中 ByteBuffers 的数量总和
-        return Arrays.stream(buckets).mapToLong(RetainedBucket::size).sum();
-    }
-
-
-    /**
-     * 获取当前可用的池化直接ByteBuffers的数量
-     */
-    public long getAvailableDirectByteBufferCount() {
-        return getAvailableByteBufferCount(true);
-    }
-
-    /**
-     * 获取当前可用的池化堆ByteBuffers的数量
-     */
-    public long getAvailableHeapByteBufferCount() {
-        return getAvailableByteBufferCount(false);
-    }
-
-    /**
-     * 根据指定类型获取当前可用的池化ByteBuffers的数量
-     *
-     * @param direct 指示是否获取直接ByteBuffers的数量，为true时获取直接ByteBuffers，为false时获取堆ByteBuffers
-     * @return 当前可用的池化ByteBuffers的数量
-     */
-    private long getAvailableByteBufferCount(boolean direct) {
-        // 根据参数选择对应的桶数组
-        RetainedBucket[] buckets = direct ? _direct : _indirect;
-        // 计算所有桶中可用（闲置）ByteBuffers的数量总和
-        return Arrays.stream(buckets).mapToLong(Pool::getIdleCount).sum();
-    }
-
-
-    /**
-     * 获取由直接ByteBuffers保留的字节
-     *
-     * @return 直接ByteBuffers保留的字节总量
-     */
-    public long getDirectMemory() {
-        return getMemory(true);
-    }
-
-    /**
-     * 获取由堆ByteBuffers保留的字节
-     *
-     * @return 堆ByteBuffers保留的字节总量
-     */
-    public long getHeapMemory() {
-        return getMemory(false);
-    }
-
-    /**
      * 根据指定类型获取保留的内存大小
      *
      * @param direct 指示是否获取直接ByteBuffers保留的内存，为true时获取直接内存，为false时获取堆内存
@@ -361,43 +282,6 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
             return _currentHeapMemory.get();
         }
     }
-
-
-    /**
-     * 获取直接ByteBuffers当前可用的字节数量
-     */
-    public long getAvailableDirectMemory() {
-        return getAvailableMemory(true);
-    }
-
-    /**
-     * 获取堆ByteBuffers当前可用的字节数量
-     */
-    public long getAvailableHeapMemory() {
-        return getAvailableMemory(false);
-    }
-
-    /**
-     * 根据类型获取当前可用的内存字节数量
-     *
-     * @param direct 指示是获取直接ByteBuffers的可用内存还是堆ByteBuffers的可用内存，true表示直接内存，false表示堆内存
-     * @return 返回指定类型当前可用的内存字节数量
-     */
-    private long getAvailableMemory(boolean direct) {
-        // 根据是否直接内存选择对应的存储桶数组
-        RetainedBucket[] buckets = direct ? _direct : _indirect;
-        long total = 0L; // 记录总可用内存
-
-        // 遍历存储桶，累加每个存储桶中空闲状态的Entry所占据的内存容量
-        for (RetainedBucket bucket : buckets) {
-            // 每个Entry的容量
-            int capacity = bucket._capacity;
-            // 统计空闲（isIdle返回true）的Entry数量，并乘以容量，累加到总可用内存中
-            total += (long) bucket.getIdleCount() * capacity;
-        }
-        return total;
-    }
-
 
     /**
      * 清空当前的RetainableByteBufferPool
