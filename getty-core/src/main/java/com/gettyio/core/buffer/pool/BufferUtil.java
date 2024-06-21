@@ -1,18 +1,3 @@
-/*
- * Copyright 2019 The Getty Project
- *
- * The Getty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
 package com.gettyio.core.buffer.pool;
 
 import java.io.*;
@@ -29,18 +14,27 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 
 /**
- * BufferUtil类提供了一系列静态方法，用于处理和操作缓冲区相关的任务。
- * 这个类旨在简化缓冲区的使用，提高性能和内存管理效率。ø
+ * BufferUtil 类提供了一组静态方法，用于操作和管理缓冲区。
+ * 该类的设计目的是提高缓冲区的使用效率和安全性。
  */
 public class BufferUtil {
+    private static final String TAG = BufferUtil.class.getSimpleName();
 
-    // 定义临时缓冲区的大小，用于各种操作中的临时数据存储
+    /**
+     * 定义临时缓冲区的大小，用于各种操作中的临时数据存储
+     */
     static final int TEMP_BUFFER_SIZE = 4096;
-    // 定义空格字符的ASCII码
+    /**
+     * 定义空格字符的ASCII码
+     */
     static final byte SPACE = 0x20;
-    // 定义减号字符的ASCII码
+    /**
+     * 定义减号字符的ASCII码
+     */
     static final byte MINUS = '-';
-    // 定义一个包含数字和字母的字节数组，用于转换数字和十六进制字符
+    /**
+     * 定义一个包含数字和字母的字节数组，用于转换数字和十六进制字符
+     */
     static final byte[] DIGIT =
             {
                     (byte) '0', (byte) '1', (byte) '2', (byte) '3', (byte) '4', (byte) '5', (byte) '6', (byte) '7', (byte) '8', (byte) '9',
@@ -48,9 +42,10 @@ public class BufferUtil {
                     (byte) 'E', (byte) 'F'
             };
 
-    // 定义一个空的ByteBuffer，用于表示没有数据的情况
+    /**
+     * 定义一个空的ByteBuffer，用于表示没有数据的情况
+     */
     public static final ByteBuffer EMPTY_BUFFER = ByteBuffer.wrap(new byte[0]);
-
 
     /**
      * 以刷新模式分配ByteBuffer。
@@ -60,8 +55,10 @@ public class BufferUtil {
      * @return ByteBuffer对象
      */
     public static ByteBuffer allocate(int capacity) {
-        ByteBuffer buf = ByteBuffer.allocate(capacity); // 分配具有指定容量的ByteBuffer
-        buf.limit(0); // 将限制设置为0，标记缓冲区当前为空
+        // 分配具有指定容量的ByteBuffer
+        ByteBuffer buf = ByteBuffer.allocate(capacity);
+        // 将限制设置为0，标记缓冲区当前为空
+        buf.limit(0);
         return buf;
     }
 
@@ -75,8 +72,10 @@ public class BufferUtil {
      * @return ByteBuffer对象
      */
     public static ByteBuffer allocateDirect(int capacity) {
-        ByteBuffer buf = ByteBuffer.allocateDirect(capacity); // 直接分配指定容量的ByteBuffer
-        buf.limit(0); // 将限制设置为0，表示缓冲区为空
+        // 直接分配指定容量的ByteBuffer
+        ByteBuffer buf = ByteBuffer.allocateDirect(capacity);
+        // 将限制设置为0，表示缓冲区为空
+        buf.limit(0);
         return buf;
     }
 
@@ -134,8 +133,8 @@ public class BufferUtil {
      * @param buffer 需要重置的ByteBuffer对象。
      */
     public static void reset(ByteBuffer buffer) {
-        if (buffer != null) // 检查buffer是否为null
-        {
+        // 检查buffer是否为null
+        if (buffer != null) {
             // 重置字节序为大端字节序
             buffer.order(ByteOrder.BIG_ENDIAN);
             // 将位置和限制都设置为0，实现缓冲区的清空和重置
@@ -152,8 +151,8 @@ public class BufferUtil {
      * @param buffer 需要清空的ByteBuffer对象。
      */
     public static void clear(ByteBuffer buffer) {
-        if (buffer != null) // 检查buffer是否为null
-        {
+        // 检查buffer是否为null
+        if (buffer != null) {
             // 将位置和限制设置为0，实现缓冲区的清空
             buffer.position(0);
             buffer.limit(0);
@@ -169,8 +168,8 @@ public class BufferUtil {
      * @param buffer 需要清空并切换到填充模式的ByteBuffer对象。
      */
     public static void clearToFill(ByteBuffer buffer) {
-        if (buffer != null) // 检查buffer是否为null
-        {
+        // 检查buffer是否为null
+        if (buffer != null) {
             // 重置位置，设置限制为容量，准备填充缓冲区
             buffer.position(0);
             buffer.limit(buffer.capacity());
@@ -190,8 +189,10 @@ public class BufferUtil {
      * @return 在切换位置之前有效数据的位置。该值应该传递给后续的 {@link #flipToFlush(ByteBuffer, int)} 调用中。
      */
     public static int flipToFill(ByteBuffer buffer) {
-        int position = buffer.position(); // 获取当前位置
-        int limit = buffer.limit(); // 获取当前限制
+        // 获取当前位置
+        int position = buffer.position();
+        // 获取当前限制
+        int limit = buffer.limit();
         if (position == limit) {
             // 如果当前位置等于限制，即缓冲区为空，则重置位置和限制为容量
             buffer.position(0);
@@ -199,7 +200,8 @@ public class BufferUtil {
             return 0;
         }
 
-        int capacity = buffer.capacity(); // 获取缓冲区容量
+        // 获取缓冲区容量
+        int capacity = buffer.capacity();
         if (limit == capacity) {
             // 如果限制等于容量，即没有未使用的空间，则进行压缩操作
             buffer.compact();
@@ -223,8 +225,10 @@ public class BufferUtil {
      * @param position 切换到的有效数据位置。这应该是之前调用{@link #flipToFill(ByteBuffer)}返回的值。
      */
     public static void flipToFlush(ByteBuffer buffer, int position) {
-        buffer.limit(buffer.position()); // 将限制设置为当前位置，准备读取数据
-        buffer.position(position); // 将位置设置为传入的位置，确定有效数据的开始点
+        // 将限制设置为当前位置，准备读取数据
+        buffer.limit(buffer.position());
+        // 将位置设置为传入的位置，确定有效数据的开始点
+        buffer.position(position);
     }
 
 
@@ -240,7 +244,6 @@ public class BufferUtil {
         flipToFlush(buffer, 0); // 使用0作为位置参数，将缓冲区的有效数据起始位置重置为开始处
     }
 
-
     /**
      * 将一个整数以小端格式存入ByteBuffer中。
      *
@@ -251,10 +254,15 @@ public class BufferUtil {
         // 先将buffer切换到填充模式，以便于写入数据
         int p = flipToFill(buffer);
         // 逐字节存入整数的各个位，采用小端格式
-        buffer.put((byte) (value & 0xFF)); // 存放最低8位
-        buffer.put((byte) ((value >>> 8) & 0xFF)); // 存放次低8位
-        buffer.put((byte) ((value >>> 16) & 0xFF)); // 存放次高8位
-        buffer.put((byte) ((value >>> 24) & 0xFF)); // 存放最高8位
+
+        // 存放最低8位
+        buffer.put((byte) (value & 0xFF));
+        // 存放次低8位
+        buffer.put((byte) ((value >>> 8) & 0xFF));
+        // 存放次高8位
+        buffer.put((byte) ((value >>> 16) & 0xFF));
+        // 存放最高8位
+        buffer.put((byte) ((value >>> 24) & 0xFF));
         // 数据写入完成后，切换buffer回刷新模式
         flipToFlush(buffer, p);
     }
@@ -269,15 +277,20 @@ public class BufferUtil {
     public static byte[] toArray(ByteBuffer buffer) {
         // 如果buffer支持直接访问其内部数组
         if (buffer.hasArray()) {
-            byte[] array = buffer.array(); // 获取buffer的内部数组
-            int from = buffer.arrayOffset() + buffer.position(); // 计算起始复制位置
+            // 获取buffer的内部数组
+            byte[] array = buffer.array();
+            // 计算起始复制位置
+            int from = buffer.arrayOffset() + buffer.position();
             // 从起始位置复制buffer中剩余的部分到新数组并返回
             return Arrays.copyOfRange(array, from, from + buffer.remaining());
         } else {
             // 如果buffer不支持直接访问其内部数组，则创建一个新数组并逐个元素复制
-            byte[] to = new byte[buffer.remaining()]; // 根据buffer剩余容量创建新数组
-            buffer.slice().get(to); // 从buffer的切片中获取数据到新数组to
-            return to; // 返回复制后的数组
+            // 根据buffer剩余容量创建新数组
+            byte[] to = new byte[buffer.remaining()];
+            // 从buffer的切片中获取数据到新数组to
+            buffer.slice().get(to);
+            // 返回复制后的数组
+            return to;
         }
     }
 
@@ -335,16 +348,21 @@ public class BufferUtil {
      * @return 所有ByteBuffer中剩余字节的总数。
      */
     public static long remaining(ByteBuffer... buf) {
-        long remaining = 0; // 初始化剩余字节总数为0
-        if (buf != null) { // 检查传入的ByteBuffer数组是否为null
-            for (ByteBuffer b : buf) // 遍历ByteBuffer数组
-            {
-                if (b != null) { // 检查每个ByteBuffer对象是否为null
-                    remaining += b.remaining(); // 累加每个非null ByteBuffer对象的剩余字节数
+        // 初始化剩余字节总数为0
+        long remaining = 0;
+        // 检查传入的ByteBuffer数组是否为null
+        if (buf != null) {
+            // 遍历ByteBuffer数组
+            for (ByteBuffer b : buf) {
+                // 检查每个ByteBuffer对象是否为null
+                if (b != null) {
+                    // 累加每个非null ByteBuffer对象的剩余字节数
+                    remaining += b.remaining();
                 }
             }
         }
-        return remaining; // 返回累计的剩余字节总数
+        // 返回累计的剩余字节总数
+        return remaining;
     }
 
 
@@ -440,28 +458,39 @@ public class BufferUtil {
         if (remaining > 0) {
             // 如果from中剩余的字节数不超过to中的剩余空间，则直接复制
             if (remaining <= to.remaining()) {
-                to.put(from); // 直接将from中的数据复制到to中
-                put = remaining; // 移动的字节数为from中剩余的字节数
-                from.position(from.limit()); // 将from的位置设置为其限制，标记数据已全部读取
+                // 直接将from中的数据复制到to中
+                to.put(from);
+                // 移动的字节数为from中剩余的字节数
+                put = remaining;
+                // 将from的位置设置为其限制，标记数据已全部读取
+                from.position(from.limit());
             } else if (from.hasArray()) {
                 // 如果from有数组，并且from中的剩余字节数大于to中的剩余空间
-                put = to.remaining(); // 将要移动的字节数设置为to中的剩余空间大小
-                to.put(from.array(), from.arrayOffset() + from.position(), put); // 通过数组直接复制数据
-                from.position(from.position() + put); // 更新from的位置
+                // 将要移动的字节数设置为to中的剩余空间大小
+                put = to.remaining();
+                // 通过数组直接复制数据
+                to.put(from.array(), from.arrayOffset() + from.position(), put);
+                // 更新from的位置
+                from.position(from.position() + put);
             } else {
                 // 如果from没有数组，但from中的剩余字节数大于to中的剩余空间
-                put = to.remaining(); // 将要移动的字节数设置为to中的剩余空间大小
-                ByteBuffer slice = from.slice(); // 从from中创建一个视图缓冲区，限制为put
+                // 将要移动的字节数设置为to中的剩余空间大小
+                put = to.remaining();
+                // 从from中创建一个视图缓冲区，限制为put
+                ByteBuffer slice = from.slice();
                 slice.limit(put);
-                to.put(slice); // 将视图缓冲区的数据复制到to中
-                from.position(from.position() + put); // 更新from的位置
+                // 将视图缓冲区的数据复制到to中
+                to.put(slice);
+                // 更新from的位置
+                from.position(from.position() + put);
             }
         } else {
             // 如果from中没有剩余数据，则不进行任何操作
-            put = 0; // 移动的字节数为0
+            // 移动的字节数为0
+            put = 0;
         }
-
-        return put; // 返回移动的字节数
+        // 返回移动的字节数
+        return put;
     }
 
 
@@ -591,12 +620,15 @@ public class BufferUtil {
     public static void readFrom(File file, ByteBuffer buffer) throws IOException {
         // 使用RandomAccessFile以只读模式打开文件
         try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-            FileChannel channel = raf.getChannel(); // 获取文件通道
-            long needed = raf.length(); // 计算需要读取的字节数，即文件长度
+            // 获取文件通道
+            FileChannel channel = raf.getChannel();
+            // 计算需要读取的字节数，即文件长度
+            long needed = raf.length();
 
             // 循环读取数据，直到读完所有数据或ByteBuffer没有剩余空间
             while (needed > 0 && buffer.hasRemaining()) {
-                needed = needed - channel.read(buffer); // 读取数据到buffer，并更新剩余需读取字节数
+                // 读取数据到buffer，并更新剩余需读取字节数
+                needed = needed - channel.read(buffer);
             }
         }
     }
@@ -812,8 +844,10 @@ public class BufferUtil {
     public static int toInt(ByteBuffer buffer, int position, int length) {
         // 初始化值、标志位
         int val = 0;
-        boolean started = false; // 标记是否已经开始解析数字
-        boolean minus = false; // 标记是否为负数
+        // 标记是否已经开始解析数字
+        boolean started = false;
+        // 标记是否为负数
+        boolean minus = false;
 
         // 计算解析的上限位置
         int limit = position + length;
@@ -841,7 +875,8 @@ public class BufferUtil {
             else if (b == MINUS && !started) {
                 minus = true;
             } else {
-                break; // 遇到非数字字符，终止解析
+                // 遇到非数字字符，终止解析
+                break;
             }
         }
 
@@ -868,7 +903,8 @@ public class BufferUtil {
         int i;
         // 遍历缓冲区，从当前位置开始到缓冲区的限制
         for (i = buffer.position(); i < buffer.limit(); i++) {
-            byte b = buffer.get(i); // 获取当前字节
+            // 获取当前字节
+            byte b = buffer.get(i);
             if (b <= SPACE) {
                 // 如果是空格或更小的字符，但已经开始解析数字了，则退出循环
                 if (started) {
@@ -905,13 +941,17 @@ public class BufferUtil {
      * @throws IllegalArgumentException 如果没有找到数字，则抛出此异常。
      */
     public static long toLong(ByteBuffer buffer) {
-        long val = 0; // 初始化值为0
-        boolean started = false; // 标记是否已经开始解析数字
-        boolean minus = false; // 标记是否遇到负号
+        // 初始化值为0
+        long val = 0;
+        // 标记是否已经开始解析数字
+        boolean started = false;
+        // 标记是否遇到负号
+        boolean minus = false;
 
         // 遍历buffer中的内容
         for (int i = buffer.position(); i < buffer.limit(); i++) {
-            byte b = buffer.get(i); // 获取当前字节
+            // 获取当前字节
+            byte b = buffer.get(i);
             if (b <= SPACE) {
                 // 如果是空格或更小的字符，但已经开始解析数字时，则跳出循环
                 if (started) {
@@ -920,7 +960,8 @@ public class BufferUtil {
             } else if (b >= '0' && b <= '9') {
                 // 如果是数字，将其解析并累加到val中
                 val = val * 10L + (b - '0');
-                started = true; // 标记已经开始解析数字
+                // 标记已经开始解析数字
+                started = true;
             } else if (b == MINUS && !started) {
                 // 如果是负号且还未开始解析数字，则标记为负数
                 minus = true;
@@ -947,7 +988,8 @@ public class BufferUtil {
      */
     public static void putHexInt(ByteBuffer buffer, int n) {
         if (n < 0) {
-            buffer.put((byte) '-'); // 标记负数
+            // 标记负数
+            buffer.put((byte) '-');
 
             if (n == Integer.MIN_VALUE) {
                 // 处理整数最小值特殊情况
@@ -962,7 +1004,8 @@ public class BufferUtil {
 
                 return;
             }
-            n = -n; // 转换为正数处理
+            // 转换为正数处理
+            n = -n;
         }
 
         if (n < 0x10) {
@@ -979,11 +1022,14 @@ public class BufferUtil {
                     }
                     continue;
                 }
-
-                started = true; // 标记已经开始写入
-                int d = n / hexDivisor; // 计算商
-                buffer.put(DIGIT[d]); // 放入对应的字符
-                n = n - d * hexDivisor; // 更新剩余值
+                // 标记已经开始写入
+                started = true;
+                // 计算商
+                int d = n / hexDivisor;
+                // 放入对应的字符
+                buffer.put(DIGIT[d]);
+                // 更新剩余值
+                n = n - d * hexDivisor;
             }
         }
     }
@@ -1002,14 +1048,17 @@ public class BufferUtil {
             // 特殊处理整数最小值
             if (n == Integer.MIN_VALUE) {
                 buffer.put((byte) '2');
-                n = 147483648; // 将Integer.MIN_VALUE转换为对应的正数
+                // 将Integer.MIN_VALUE转换为对应的正数
+                n = 147483648;
             } else
-                n = -n; // 转换为对应的正数
+                // 转换为对应的正数
+                n = -n;
         }
 
         // 处理0到9之间的数字
         if (n < 10) {
-            buffer.put(DIGIT[n]); // 直接存入对应的字符
+            // 直接存入对应的字符
+            buffer.put(DIGIT[n]);
         } else {
             boolean started = false;
             // 通过除法和取余逐步构建数字的字符串表示
@@ -1023,9 +1072,12 @@ public class BufferUtil {
                 }
 
                 started = true;
-                int d = n / decDivisor; // 计算商
-                buffer.put(DIGIT[d]); // 存入商对应的字符
-                n = n - d * decDivisor; // 更新n为余数
+                // 计算商
+                int d = n / decDivisor;
+                // 存入商对应的字符
+                buffer.put(DIGIT[d]);
+                // 更新n为余数
+                n = n - d * decDivisor;
             }
         }
     }
@@ -1044,9 +1096,11 @@ public class BufferUtil {
             // 特殊处理Long.MIN_VALUE，因为直接取反会导致溢出
             if (n == Long.MIN_VALUE) {
                 buffer.put((byte) '9');
-                n = 223372036854775808L; // 将Long.MIN_VALUE转换为对应的正数
+                // 将Long.MIN_VALUE转换为对应的正数
+                n = 223372036854775808L;
             } else
-                n = -n; // 取反转换为正数
+                // 取反转换为正数
+                n = -n;
         }
 
         // 处理0到9之间的数字，直接添加到buffer中
@@ -1065,9 +1119,12 @@ public class BufferUtil {
                 }
 
                 started = true;
-                long d = n / aDecDivisorsL; // 计算商
-                buffer.put(DIGIT[(int) d]); // 将商存入buffer
-                n = n - d * aDecDivisorsL; // 更新n为余数
+                // 计算商
+                long d = n / aDecDivisorsL;
+                // 将商存入buffer
+                buffer.put(DIGIT[(int) d]);
+                // 更新n为余数
+                n = n - d * aDecDivisorsL;
             }
         }
     }
@@ -1115,7 +1172,8 @@ public class BufferUtil {
      */
     public static ByteBuffer toBuffer(String s, Charset charset) {
         if (s == null) {
-            return EMPTY_BUFFER; // 返回空的ByteBuffer，应对输入为null的情况
+            // 返回空的ByteBuffer，应对输入为null的情况
+            return EMPTY_BUFFER;
         }
         // 将字符串按照指定字符集转换为字节数组，然后放入ByteBuffer中
         return toBuffer(s.getBytes(charset));
@@ -1176,8 +1234,10 @@ public class BufferUtil {
         byte[] bytes = s.getBytes(charset);
         // 分配一个直接的ByteBuffer，与字节数组长度相同
         ByteBuffer buf = ByteBuffer.allocateDirect(bytes.length);
-        buf.put(bytes); // 将字节数组放入ByteBuffer
-        buf.flip(); // 重置ByteBuffer的limit和position，以准备读取
+        // 将字节数组放入ByteBuffer
+        buf.put(bytes);
+        // 重置ByteBuffer的limit和position，以准备读取
+        buf.flip();
         return buf;
     }
 
@@ -1258,7 +1318,8 @@ public class BufferUtil {
      * @return 表示ByteBuffer指针和内容的字符串
      */
     public static String toDetailString(ByteBuffer buffer) {
-        if (buffer == null) { // 检查buffer是否为null
+        // 检查buffer是否为null
+        if (buffer == null) {
             return "null";
         }
 
@@ -1277,10 +1338,9 @@ public class BufferUtil {
         buf.append("]={");
 
         // 这里本应添加内容的转换，但代码中没有实现具体逻辑
-
         buf.append("}");
-
-        return buf.toString(); // 返回构建完成的字符串
+        // 返回构建完成的字符串
+        return buf.toString();
     }
 
 
@@ -1424,8 +1484,10 @@ public class BufferUtil {
      * @param buffer 目标ByteBuffer，将在此buffer中添加CRLF。
      */
     public static void putCRLF(ByteBuffer buffer) {
-        buffer.put((byte) 13); // 添加回车符
-        buffer.put((byte) 10); // 添加换行符
+        // 添加回车符
+        buffer.put((byte) 13);
+        // 添加换行符
+        buffer.put((byte) 10);
     }
 
     /**
@@ -1440,14 +1502,17 @@ public class BufferUtil {
         if (prefix.remaining() > buffer.remaining()) {
             return false;
         }
-        int bi = buffer.position(); // buffer的当前位置
+        // buffer的当前位置
+        int bi = buffer.position();
         // 遍历prefix中的每个字节，与buffer中的对应字节进行比较
         for (int i = prefix.position(); i < prefix.limit(); i++) {
-            if (prefix.get(i) != buffer.get(bi++)) { // 如果有任一字节不匹配，则返回false
+            // 如果有任一字节不匹配，则返回false
+            if (prefix.get(i) != buffer.get(bi++)) {
                 return false;
             }
         }
-        return true; // 所有字节匹配，返回true
+        // 所有字节匹配，返回true
+        return true;
     }
 
     /**
@@ -1459,18 +1524,22 @@ public class BufferUtil {
      * @throws UnsupportedOperationException 如果原始buffer不支持array操作，抛出此异常。
      */
     public static ByteBuffer ensureCapacity(ByteBuffer buffer, int capacity) {
-        if (buffer == null) { // 如果buffer为null，直接分配新buffer
+        // 如果buffer为null，直接分配新buffer
+        if (buffer == null) {
             return allocate(capacity);
         }
 
-        if (buffer.capacity() >= capacity) { // 如果当前容量足够，直接返回原buffer
+        // 如果当前容量足够，直接返回原buffer
+        if (buffer.capacity() >= capacity) {
             return buffer;
         }
 
-        if (buffer.hasArray()) { // 如果buffer支持array操作，创建一个新的buffer，复制原始数据
+        // 如果buffer支持array操作，创建一个新的buffer，复制原始数据
+        if (buffer.hasArray()) {
             return ByteBuffer.wrap(Arrays.copyOfRange(buffer.array(), buffer.arrayOffset(), buffer.arrayOffset() + capacity), buffer.position(), buffer.remaining());
         }
 
-        throw new UnsupportedOperationException(); // 对于不支持array操作的buffer，抛出异常
+        // 对于不支持array操作的buffer，抛出异常
+        throw new UnsupportedOperationException();
     }
 }

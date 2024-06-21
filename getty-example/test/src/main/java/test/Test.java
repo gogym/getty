@@ -15,6 +15,8 @@ import com.gettyio.core.util.timer.TimerTask;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -114,37 +116,40 @@ public class Test {
 
     public static void testPool() throws Exception {
 
-        final byte[] s=new byte[64];
+        final ArrayRetainableByteBufferPool byteBufferPool=new ArrayRetainableByteBufferPool(0,-1,-1,10000000,
+                10000000,0);
 
-        final ByteBufferPool byteBufferPool = new ArrayRetainableByteBufferPool();
-        int num = 1;
+
+        int num=1;
         long ct = System.currentTimeMillis();
 
-        final CountDownLatch countDownLatch = new CountDownLatch(num);
-        for (int i = 0; i < num; i++) {
+        final CountDownLatch countDownLatch=new CountDownLatch(num);
+        for (int i=0;i<num;i++){
+
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < 1000000; i++) {
-                        RetainableByteBuffer buf = byteBufferPool.acquire(64);
-                       // buf.put("123".getBytes());
-//                        try {
-//                          //  buf.flipToFlush();
-//                          //  buf.get(s);
-//                        } catch (IOException e) {
-//                            e.printStackTrace();
-//                        }
-                       // buf.release();
+                    for (int i=0;i<1000000;i++){
+                        if(i==1){
+                            //System.out.println("--");
+                        }
+                        RetainableByteBuffer buf=byteBufferPool.acquire(4,false);
+
+                        //buf.release();
+                        //list.add("s");
+                        //entries.put(i,"s");
                     }
                     countDownLatch.countDown();
                 }
             }).start();
         }
 
+
         countDownLatch.await();
 
         long lt = System.currentTimeMillis();
         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
+
 
 
     }

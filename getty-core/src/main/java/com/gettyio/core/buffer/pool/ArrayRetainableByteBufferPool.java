@@ -1,18 +1,4 @@
-/*
- * Copyright 2019 The Getty Project
- *
- * The Getty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
+
 package com.gettyio.core.buffer.pool;
 
 
@@ -26,24 +12,36 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 
+/**
+ * ArrayRetainableByteBufferPool 类实现了 ByteBuffer 的池化，通过重用 ByteBuffer 对象来减少内存分配和释放的开销。
+ * 该类继承自 AbstractByteBufferPool，并且使用数组来管理 ByteBuffer 对象，以提高对象重用的效率。
+ */
 @SuppressWarnings("resource")
 public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
-
     private static final InternalLogger Logger = InternalLoggerFactory.getInstance(ArrayRetainableByteBufferPool.class);
 
 
-    // 定义了两个数组，分别用于存储直接和间接保留的Bucket。
+    /**
+     * 定义了两个数组，分别用于存储直接和间接保留的Bucket
+     */
     private final RetainedBucket[] _direct;
     private final RetainedBucket[] _indirect;
 
-    // 用于跟踪当前使用的堆内内存大小的原子长整型变量。
+    /**
+     * 用于跟踪当前使用的堆内内存大小的原子长整型变量
+     */
     private final AtomicLong _currentHeapMemory = new AtomicLong();
-    // 用于跟踪当前使用的直接内存大小的原子长整型变量。
+    /**
+     * 用于跟踪当前使用的直接内存大小的原子长整型变量。
+     */
     private final AtomicLong _currentDirectMemory = new AtomicLong();
 
-    // 定义了一个函数，用于根据给定的整数计算Bucket的索引。
-    // 这个函数的具体实现可能会根据具体业务逻辑来确定。
+    /**
+     * 定义了一个函数，用于根据给定的整数计算Bucket的索引。
+     * 这个函数的具体实现可能会根据具体业务逻辑来确定。
+     */
     private final Function<Integer, Integer> _bucketIndexFor;
+
 
     /**
      * 构造一个具有默认配置的 ArrayRetainableByteBufferPool。
@@ -143,9 +141,8 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
 
     @Override
     public RetainableByteBuffer acquire(int size) {
-        return acquire(size, false);
+        return acquire(size,false);
     }
-
 
     /**
      * 获取一个可保留的ByteBuffer对象。
@@ -154,6 +151,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * @param direct 指示是否需要一个直接的ByteBuffer。
      * @return 返回一个符合要求的RetainableByteBuffer对象。
      */
+    @Override
     public RetainableByteBuffer acquire(int size, boolean direct) {
         // 根据大小和直接内存标志查找对应的存储桶
         RetainedBucket bucket = bucketFor(size, direct);
@@ -172,7 +170,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
             // 如果成功预留了条目
             if (reservedEntry != null) {
                 // 创建新的ByteBuffer，并在释放时对ByteBuffer进行重置，并释放预留的条目
-                buffer = newRetainableByteBuffer(bucket._capacity, direct, retainedBuffer ->
+                buffer = newRetainableByteBuffer(size, direct, retainedBuffer ->
                 {
                     BufferUtil.reset(retainedBuffer.getBuffer());
                     reservedEntry.release();
@@ -196,7 +194,6 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         }
         return buffer;
     }
-
 
     /**
      * 分配一个ByteBuffer对象，容量为指定大小。
@@ -235,10 +232,14 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * @return 创建的RetainableByteBuffer对象。
      */
     private RetainableByteBuffer newRetainableByteBuffer(int capacity, boolean direct, Consumer<RetainableByteBuffer> releaser) {
-        ByteBuffer buffer = direct ? allocateDirect(capacity) : allocate(capacity); // 根据direct标志分配直接或堆内存
-        BufferUtil.clear(buffer); // 清空缓冲区
-        RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(buffer, releaser); // 创建可保留的ByteBuffer
-        retainableByteBuffer.acquire(); // 增加保留计数
+        // 根据direct标志分配直接或堆内存
+        ByteBuffer buffer = direct ? allocateDirect(capacity) : allocate(capacity);
+        // 清空缓冲区
+        BufferUtil.clear(buffer);
+        // 创建可保留的ByteBuffer
+        RetainableByteBuffer retainableByteBuffer = new RetainableByteBuffer(buffer, releaser);
+        // 增加保留计数
+        retainableByteBuffer.acquire();
         return retainableByteBuffer;
     }
 
@@ -250,15 +251,20 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * @return 对应的存储桶，如果没有找到则返回null。
      */
     private RetainedBucket bucketFor(int capacity, boolean direct) {
-        if (capacity < _minCapacity) { // 容量小于最小容量时，直接返回null
+        // 容量小于最小容量时，直接返回null
+        if (capacity < _minCapacity) {
             return null;
         }
-        int idx = _bucketIndexFor.apply(capacity); // 计算存储桶索引
-        RetainedBucket[] buckets = direct ? _direct : _indirect; // 根据是否直接内存选择存储桶数组
-        if (idx >= buckets.length) { // 索引超出范围，返回null
+        // 计算存储桶索引
+        int idx = _bucketIndexFor.apply(capacity);
+        // 根据是否直接内存选择存储桶数组
+        RetainedBucket[] buckets = direct ? _direct : _indirect;
+        // 索引超出范围，返回null
+        if (idx >= buckets.length) {
             return null;
         }
-        return buckets[idx]; // 返回对应的存储桶
+        // 返回对应的存储桶
+        return buckets[idx];
     }
 
     /**
@@ -316,11 +322,8 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
     private long getAvailableByteBufferCount(boolean direct) {
         // 根据参数选择对应的桶数组
         RetainedBucket[] buckets = direct ? _direct : _indirect;
-
         // 计算所有桶中可用（闲置）ByteBuffers的数量总和
-        return Arrays.stream(buckets).mapToLong(bucket ->
-                bucket.values().stream().filter(Pool.Entry::isIdle).count()
-        ).sum();
+        return Arrays.stream(buckets).mapToLong(Pool::getIdleCount).sum();
     }
 
 
@@ -351,9 +354,11 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
     private long getMemory(boolean direct) {
         // 根据参数决定返回直接内存还是堆内存
         if (direct) {
-            return _currentDirectMemory.get(); // 获取直接内存
+            // 获取直接内存
+            return _currentDirectMemory.get();
         } else {
-            return _currentHeapMemory.get(); // 获取堆内存
+            // 获取堆内存
+            return _currentHeapMemory.get();
         }
     }
 
@@ -385,9 +390,10 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
 
         // 遍历存储桶，累加每个存储桶中空闲状态的Entry所占据的内存容量
         for (RetainedBucket bucket : buckets) {
-            int capacity = bucket._capacity; // 每个Entry的容量
+            // 每个Entry的容量
+            int capacity = bucket._capacity;
             // 统计空闲（isIdle返回true）的Entry数量，并乘以容量，累加到总可用内存中
-            total += bucket.values().stream().filter(Pool.Entry::isIdle).count() * capacity;
+            total += (long) bucket.getIdleCount() * capacity;
         }
         return total;
     }
@@ -413,16 +419,24 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         // 遍历内存池数组中的每个保留桶
         for (RetainedBucket pool : poolArray) {
             // 遍历保留桶中的每个条目
-            for (RetainedBucket.Entry entry : pool.values()) {
+            for (RetainedBucket.Entry entry : pool.idleValues()) {
                 // 尝试移除条目，成功则更新内存计数器
                 if (entry.remove()) {
                     memoryCounter.addAndGet(-entry.getPooled().capacity()); // 减去移除条目所占的内存容量
                     removed(entry.getPooled()); // 处理条目移除的逻辑
                 }
             }
+
+            for (RetainedBucket.Entry entry : pool.inUseValues()) {
+                // 尝试移除条目，成功则更新内存计数器
+                if (entry.remove()) {
+                    memoryCounter.addAndGet(-entry.getPooled().capacity()); // 减去移除条目所占的内存容量
+                    removed(entry.getPooled()); // 处理条目移除的逻辑
+                }
+            }
+
         }
     }
-
 
     /**
      * 释放超出最大内存限制的内存。
@@ -445,7 +459,6 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         }
     }
 
-
     /**
      * 使用淘汰机制寻找最早释放的RetainableByteBuffers。
      *
@@ -462,26 +475,39 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
 
         RetainedBucket[] buckets = direct ? _direct : _indirect; // 根据direct选择对应的缓冲区桶数组
 
+        //尝试释放缓冲区数量
+        int count = 0;
+
         // 循环，直到清除的容量大于等于excess
         while (totalClearedCapacity < excess) {
+            //防止无限循环，检查已尝试释放的缓冲区数量是否超过最大容量
+            if (count >= getMaxCapacity()) {
+                throw new IllegalStateException("The maximum memory limit is exceeded");
+            }
             // 遍历桶中的条目，寻找最旧的条目进行淘汰
             for (RetainedBucket bucket : buckets) {
-                RetainedBucket.Entry oldestEntry = findOldestEntry(now, bucket); // 寻找最旧的条目
+                count++;
+                // 寻找空闲最旧的条目
+                RetainedBucket.Entry oldestEntry = findOldestIdleEntry(now, bucket);
                 if (oldestEntry == null) {
-                    continue; // 如果没有找到条目，则继续下一个桶
+                    // 如果没有找到条目，则继续下一个桶
+                    continue;
                 }
 
                 // 尝试移除最旧的条目
                 if (oldestEntry.remove()) {
-                    int clearedCapacity = oldestEntry.getPooled().capacity(); // 获取清除的容量
+                    // 获取清除的容量
+                    int clearedCapacity = oldestEntry.getPooled().capacity();
                     // 根据缓冲区类型，更新当前内存使用量
                     if (direct) {
                         _currentDirectMemory.addAndGet(-clearedCapacity);
                     } else {
                         _currentHeapMemory.addAndGet(-clearedCapacity);
                     }
-                    totalClearedCapacity += clearedCapacity; // 更新已清除的总容量
-                    removed(oldestEntry.getPooled()); // 执行移除操作的后续处理
+                    // 更新已清除的总容量
+                    totalClearedCapacity += clearedCapacity;
+                    // 执行移除操作的后续处理
+                    removed(oldestEntry.getPooled());
                 }
                 // 如果同时有其他线程尝试移除相同的条目，则不计算其容量
             }
@@ -493,6 +519,34 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         }
     }
 
+    /**
+     * 在指定的缓冲区桶中寻找最旧的空闲条目。
+     *
+     * @param now    当前时间，用于计算条目的年龄。
+     * @param bucket 缓冲区桶，存储着待搜索的缓冲区条目。
+     * @return Pool<RetainableByteBuffer>.Entry 最旧的条目，如果没有条目则返回null。
+     */
+    private Pool<RetainableByteBuffer>.Entry findOldestIdleEntry(long now, Pool<RetainableByteBuffer> bucket) {
+        // 初始化最旧条目为null
+        RetainedBucket.Entry oldestEntry = null;
+        // 遍历桶中的所有条目
+        for (RetainedBucket.Entry entry : bucket.idleValues()) {
+            // 如果已经找到过条目
+            if (oldestEntry != null) {
+                // 计算当前条目的年龄
+                long entryAge = now - entry.getPooled().getLastUpdate();
+                // 如果当前条目比之前找到的最旧条目更旧，则更新最旧条目
+                if (entryAge > now - oldestEntry.getPooled().getLastUpdate()) {
+                    oldestEntry = entry;
+                }
+            } else {
+                // 如果还没有找到条目，直接将当前条目设置为最旧条目
+                oldestEntry = entry;
+            }
+        }
+        // 返回最旧的条目
+        return oldestEntry;
+    }
 
     @Override
     public String toString() {
@@ -506,35 +560,15 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
 
 
     /**
-     * 在指定的缓冲区桶中寻找最旧的条目。
-     *
-     * @param now    当前时间，用于计算条目的年龄。
-     * @param bucket 缓冲区桶，存储着待搜索的缓冲区条目。
-     * @return Pool<RetainableByteBuffer>.Entry 最旧的条目，如果没有条目则返回null。
-     */
-    private Pool<RetainableByteBuffer>.Entry findOldestEntry(long now, Pool<RetainableByteBuffer> bucket) {
-        RetainedBucket.Entry oldestEntry = null; // 初始化最旧条目为null
-        for (RetainedBucket.Entry entry : bucket.values()) { // 遍历桶中的所有条目
-            if (oldestEntry != null) { // 如果已经找到过条目
-                long entryAge = now - entry.getPooled().getLastUpdate(); // 计算当前条目的年龄
-                // 如果当前条目比之前找到的最旧条目更旧，则更新最旧条目
-                if (entryAge > now - oldestEntry.getPooled().getLastUpdate()) {
-                    oldestEntry = entry;
-                }
-            } else { // 如果还没有找到条目，直接将当前条目设置为最旧条目
-                oldestEntry = entry;
-            }
-        }
-        return oldestEntry; // 返回最旧的条目
-    }
-
-
-    /**
      * 一个特定于保留ByteBuffer对象的池类，继承自Pool类。
      * 该池限制了它可以保留的ByteBuffer对象的数量，并且可以跟踪哪些对象当前正在被使用。
      */
     private static class RetainedBucket extends Pool<RetainableByteBuffer> {
-        private final int _capacity; // 池容量，即最多能保留的ByteBuffer对象数量。
+
+        /**
+         * 池容量，即最多能保留的ByteBuffer对象数量
+         */
+        private final int _capacity;
 
         /**
          * RetainedBucket构造函数。
@@ -543,8 +577,10 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
          * @param size     池中对象的最大数量。
          */
         RetainedBucket(int capacity, int size) {
-            super(Pool.StrategyType.THREAD_ID, size, true); // 使用线程ID作为键策略，允许对象被多个线程共享。
-            _capacity = capacity; // 初始化容量。
+            // 使用线程ID作为键策略，允许对象被多个线程共享。
+            super(size, true);
+            // 初始化容量。
+            _capacity = capacity;
         }
 
         /**
@@ -554,14 +590,10 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
          */
         @Override
         public String toString() {
-            int entries = 0; // 记录池中对象的数量。
-            int inUse = 0; // 记录当前正在使用中的对象数量。
-            for (Entry entry : values()) { // 遍历池中的所有条目。
-                entries++; // 每找到一个条目，计数器增加。
-                if (entry.isInUse()) { // 如果条目当前被使用，正在使用中的计数器增加。
-                    inUse++;
-                }
-            }
+            // 记录池中对象的数量。
+            int entries = size();
+            // 记录当前正在使用中的对象数量。
+            int inUse = getInUseCount();
 
             // 格式化并返回池状态的字符串表示。
             return String.format("%s{capacity=%d,inuse=%d(%d%%)}",

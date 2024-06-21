@@ -1,18 +1,4 @@
-/*
- * Copyright 2019 The Getty Project
- *
- * The Getty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
+
 package com.gettyio.core.buffer.pool;
 
 import java.io.IOException;
@@ -21,19 +7,40 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+
 /**
- * RetainableByteBuffer类实现了Retainable接口，提供了一种可以保留和管理ByteBuffer对象的机制。
- * 这个类对于需要多次使用或者在多个地方共享ByteBuffer对象的场景非常有用。
+ * 实现Retainable接口的ByteBuffer类，用于管理可以保留的字节缓冲区。
+ * 该类的实例可以在需要时保留字节缓冲区的内容，以确保数据不会被过早地释放或覆盖。
  */
 public class RetainableByteBuffer implements Retainable {
-    // 用于存储数据的ByteBuffer
+
+    /**
+     * 用于存储数据的ByteBuffer
+     * 使用ByteBuffer作为缓冲区，以提高数据处理的效率。
+     * 由于ByteBuffer是final类型的，因此确保了线程安全性和数据一致性。
+     */
     private final ByteBuffer buffer;
-    // 管理当前对象引用次数的计数器
+
+    /**
+     * 使用AtomicInteger来管理当前实例的引用计数。
+     * 这个计数器用于实现软引用的垃圾收集机制，当引用计数为0时，表示当前实例不再被需要，
+     * 可以被垃圾收集器回收，从而释放内存资源。
+     * 使用AtomicInteger保证了引用计数的线程安全，可以在多线程环境下正确地增加或减少计数。
+     */
     private final AtomicInteger references = new AtomicInteger();
-    // 当引用计数归零时，用于执行释放逻辑的Consumer接口实例
+
+    /**
+     * 当引用计数归零时，用于执行释放逻辑的Consumer接口实例
+     */
     private final Consumer<RetainableByteBuffer> releaser;
-    // 记录ByteBuffer最后一次被更新的时间戳
+
+    /**
+     * 用于记录上一次更新操作的时间戳。
+     * 使用AtomicLong确保在并发环境下的安全性，允许高效的原子操作更新。
+     * 这个字段被声明为final，意味着它的引用不会改变，确保了线程安全。
+     */
     private final AtomicLong lastUpdate = new AtomicLong(System.nanoTime());
+
 
     /**
      * 构造函数，初始化RetainableByteBuffer实例。
@@ -48,12 +55,16 @@ public class RetainableByteBuffer implements Retainable {
 
     /**
      * 获取缓冲区的容量。
+     * <p>
+     * 容量是缓冲区可以存储的最大元素数量。这个值是固定的，
+     * 一旦缓冲区被创建，就不能更改其容量。
      *
      * @return 缓冲区的容量。
      */
     public int capacity() {
-        return 0;
+        return buffer.capacity();
     }
+
 
     /**
      * 获取底层的ByteBuffer对象。
@@ -70,7 +81,6 @@ public class RetainableByteBuffer implements Retainable {
      * @return 最后一次更新的时间戳。
      */
     public long getLastUpdate() {
-        //return lastUpdate.getOpaque();
         return lastUpdate.get();
     }
 
@@ -137,9 +147,10 @@ public class RetainableByteBuffer implements Retainable {
         });
         // 如果引用计数递减至0，则进行后续的释放操作，并返回true。
         if (ref == 0) {
-            //lastUpdate.setOpaque(System.nanoTime()); // 更新最后修改时间
+            // 更新最后修改时间
             lastUpdate.set(System.nanoTime());
-            releaser.accept(this); // 执行释放操作
+            // 执行释放操作
+            releaser.accept(this);
             return true;
         }
         return false;

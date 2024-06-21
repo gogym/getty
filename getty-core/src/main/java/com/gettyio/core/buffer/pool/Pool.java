@@ -1,18 +1,3 @@
-/*
- * Copyright 2019 The Getty Project
- *
- * The Getty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
 package com.gettyio.core.buffer.pool;
 
 
@@ -23,114 +8,69 @@ import com.gettyio.core.util.thread.AutoLock;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 /**
- * `Pool`类提供了一个通用的资源池化机制，用于高效管理共享资源。这个类是泛型的，允许池化任何类型的对象T。
- * 它实现了AutoCloseable接口，以便于在使用完毕后能够自动释放资源。
+ * 对象池
  *
- * @param <T> 池化对象的类型。
+ * @param <T>
  */
 public class Pool<T> implements AutoCloseable {
-
     private static final InternalLogger Logger = InternalLoggerFactory.getInstance(Pool.class);
 
+    /**
+     * 空闲的对象,确保线程安全的读写访问
+     */
+    private final Map<String, Entry> entries = new ConcurrentHashMap<>();
+    /**
+     * 正在使用的对象,确保线程安全的读写访问
+     */
+    private final Map<String, Entry> inUseEntries = new ConcurrentHashMap<>();
 
-    // 使用CopyOnWriteArrayList作为entries的存储方式，确保线程安全的读写访问
-    private final List<Entry> entries = new CopyOnWriteArrayList<>();
-    // 存储的最大条目数量
+    /**
+     * 存储的最大条目数量
+     */
     private final int maxEntries;
-    // 使用的策略类型，定义了处理条目的特定逻辑
-    private final StrategyType strategyType;
 
-
-    // AutoLock的实例，用于实现线程安全
+    /**
+     * AutoLock的实例，用于实现线程安全
+     */
     private final AutoLock lock = new AutoLock();
-    // ThreadLocal实例，用于缓存Entry对象，确保每个线程都有自己的缓存副本，避免线程间干扰
+    /**
+     * ThreadLocal实例，用于缓存Entry对象，确保每个线程都有自己的缓存副本，避免线程间干扰
+     */
     private final ThreadLocal<Entry> cache;
-    // AtomicInteger用于安全地更新下一个索引值，保证多线程环境下的线程安全
-    private final AtomicInteger nextIndex;
-    // volatile标记的布尔变量，用于标记当前实例是否已被关闭，确保在多线程环境下的可见性
+
+    /**
+     * volatile标记的布尔变量，用于标记当前实例是否已被关闭，确保在多线程环境下的可见性
+     */
     private volatile boolean closed;
 
-    /**
-     * 池使用的策略类型
-     */
-    public enum StrategyType {
-        /**
-         * 从第一个条目开始寻找
-         */
-        FIRST,
-
-        /**
-         * 随机策略，返回一个范围在[0, size)内的随机数
-         */
-        RANDOM,
-
-        /**
-         * 线程ID策略，根据当前线程的ID取模以得到索引
-         */
-        THREAD_ID,
-
-        /**
-         * 轮询策略，维护一个全局索引并循环递增
-         */
-        ROUND_ROBIN
-    }
-
-    /**
-     * 使用指定的查找策略构造一个Pool
-     *
-     * @param strategyType 用于查找条目的策略.
-     * @param maxEntries   池接受的最大条目数量.
-     */
-    public Pool(StrategyType strategyType, int maxEntries) {
-        this(strategyType, maxEntries, false);
-    }
 
     /**
      * 用指定的线程本地缓存大小和一个可选的{@link ThreadLocal}缓存构造一个池。
      *
-     * @param strategyType 用于查找条目的策略.
      * @param maxEntries   池接受的最大条目数量.
      * @param cache        使用{@link ThreadLocal}缓存来尝试最近释放的条目，则为True
      */
-    public Pool(StrategyType strategyType, int maxEntries, boolean cache) {
+    public Pool(int maxEntries, boolean cache) {
         this.maxEntries = maxEntries;
-        this.strategyType = strategyType;
         this.cache = cache ? new ThreadLocal<>() : null;
-        this.nextIndex = strategyType == StrategyType.ROUND_ROBIN ? new AtomicInteger() : null;
-    }
-
-    /**
-     * @return 返回池中保留的数量
-     */
-    public int getReservedCount() {
-        return (int) entries.stream().filter(Entry::isReserved).count();
     }
 
     /**
      * @return 空闲的数目
      */
     public int getIdleCount() {
-        return (int) entries.stream().filter(Entry::isIdle).count();
+        return entries.size();
     }
 
     /**
      * @return 正在使用的数量
      */
     public int getInUseCount() {
-        return (int) entries.stream().filter(Entry::isInUse).count();
-    }
-
-    /**
-     * @return 关闭的数量
-     */
-    public int getClosedCount() {
-        return (int) entries.stream().filter(Entry::isClosed).count();
+        return inUseEntries.size();
     }
 
     /**
@@ -147,8 +87,9 @@ public class Pool<T> implements AutoCloseable {
      */
     public static void close(Closeable closeable) {
         try {
-            if (closeable != null)
+            if (closeable != null) {
                 closeable.close();
+            }
         } catch (IOException ignore) {
             Logger.trace("IGNORED", ignore);
         }
@@ -164,12 +105,13 @@ public class Pool<T> implements AutoCloseable {
             }
 
             // 如果没有空间返回null
-            if (maxEntries > 0 && entries.size() >= maxEntries) {
+            if (maxEntries >= 0 && size() >= maxEntries) {
                 return null;
             }
 
-            Entry entry = newEntry();
-            entries.add(entry);
+            Entry entry = newEntry(System.currentTimeMillis() + "_" + size());
+            inUseEntries.put(entry.getIndex(), entry);
+
             return entry;
         }
     }
@@ -180,8 +122,8 @@ public class Pool<T> implements AutoCloseable {
      *
      * @return 返回一个新的、未启用的Entry实例。
      */
-    private Entry newEntry() {
-        return new MonoEntry();
+    private Entry newEntry(String index) {
+        return new MonoEntry(index);
     }
 
     /**
@@ -207,100 +149,23 @@ public class Pool<T> implements AutoCloseable {
         if (cache != null) {
             Entry entry = cache.get();
             if (entry != null && entry.tryAcquire()) {
+                inUseEntries.put(entry.getIndex(), entry);
+                entries.remove(entry.getIndex(), entry);
                 return entry;
             }
         }
 
-        // 计算从池中获取条目的起始索引
-        int index = startIndex(size);
-
         // 尝试遍历池中的条目，寻找一个可以被获取的条目
-        for (int tries = size; tries-- > 0; ) {
-            try {
-                // 尝试获取索引位置的条目，并检查是否可以被获取
-                Entry entry = entries.get(index);
-                if (entry != null && entry.tryAcquire()) {
-                    return entry;
-                }
-            } catch (IndexOutOfBoundsException e) {
-                // 忽略索引越界的异常，可能是由于在获取条目的同时有其他线程移除了池中的最后一条条目
-                Logger.trace("IGNORED", e);
-                size = entries.size();
-                // 如果在异常发生后，池中的条目数量为0，则结束循环
-                if (size == 0) {
-                    break;
-                }
+        for (Entry entry : entries.values()) {
+            if (entry != null && entry.tryAcquire()) {
+                inUseEntries.put(entry.getIndex(), entry);
+                entries.remove(entry.getIndex(), entry);
+                return entry;
             }
-            // 更新索引，以便遍历下一个条目
-            index = (index + 1) % size;
         }
+
         // 如果遍历完所有条目后仍未找到可获取的条目，则返回null
         return null;
-    }
-
-    /**
-     * 根据指定的策略类型计算起始索引。
-     *
-     * @param size 目标集合的大小，用于计算起始索引。
-     * @return 返回根据策略类型计算得到的起始索引值。
-     * @throws IllegalArgumentException 当传入的策略类型未知时抛出。
-     */
-    private int startIndex(int size) {
-        switch (strategyType) {
-            case FIRST:
-                return 0;
-            case RANDOM:
-                // 随机策略，返回一个范围在[0, size)内的随机数
-                return ThreadLocalRandom.current().nextInt(size);
-            case ROUND_ROBIN:
-                // 轮询策略，维护一个全局索引并循环递增，然后取模以保证在范围[0, size)内
-                return nextIndex.getAndUpdate(c -> Math.max(0, c + 1)) % size;
-            case THREAD_ID:
-                // 线程ID策略，根据当前线程的ID取模以得到索引
-                return (int) (Thread.currentThread().getId() % size);
-            default:
-                // 未知策略类型，抛出异常
-                throw new IllegalArgumentException("Unknown strategy type: " + strategyType);
-        }
-    }
-
-    /**
-     * 从池中获取一个条目，如果必要，会创建一个新的条目并加以保留。
-     *
-     * @param creator 一个函数，用于为保留的条目创建池化的值。
-     * @return 池中的一个条目，如果没有可用的条目则返回null。
-     */
-    public Entry acquire(Function<Entry, T> creator) {
-        // 尝试直接从池中获取一个可用的条目
-        Entry entry = acquire();
-        if (entry != null) {
-            return entry;
-        }
-
-        // 尝试保留一个条目
-        entry = reserve();
-        if (entry == null) {
-            return null;
-        }
-
-        T value;
-        try {
-            // 使用提供的函数创建条目的值
-            value = creator.apply(entry);
-        } catch (Throwable th) {
-            // 如果创建过程中发生异常，则移除该条目并抛出异常
-            remove(entry);
-            throw th;
-        }
-
-        // 如果创建的值为null，则移除条目并返回null
-        if (value == null) {
-            remove(entry);
-            return null;
-        }
-
-        // 启用条目并返回，如果启用失败则返回null
-        return entry.enable(value, true) ? entry : null;
     }
 
 
@@ -320,6 +185,12 @@ public class Pool<T> implements AutoCloseable {
 
         // 尝试释放条目
         boolean released = entry.tryRelease();
+
+        if (released) {
+            entries.put(entry.getIndex(), entry);
+            inUseEntries.remove(entry.getIndex(), entry);
+        }
+
         // 如果释放成功且存在缓存机制，则将条目放入缓存中
         if (released && cache != null) {
             cache.set(entry);
@@ -349,8 +220,12 @@ public class Pool<T> implements AutoCloseable {
             return false;
         }
 
-        // 从条目集合中尝试移除条目，如果移除失败且日志级别为DEBUG，记录相关信息
-        boolean removed = entries.remove(entry);
+        // 从空闲条目集合中尝试移除条目，如果移除失败且日志级别为DEBUG，记录相关信息
+        boolean removed = entries.remove(entry.getIndex(), entry);
+        if (!removed) {
+            removed = inUseEntries.remove(entry.getIndex(), entry);
+        }
+
         if (!removed && Logger.isDebugEnabled()) {
             Logger.debug("Attempt to remove an object from the pool that does not exist: {}", entry);
         }
@@ -375,16 +250,20 @@ public class Pool<T> implements AutoCloseable {
      */
     @Override
     public void close() {
-        List<Entry> copy;
+        Map<String, Entry> copy;
+        Map<String, Entry> inUseCopy;
         // 尝试获取锁并安全地关闭资源
         try (AutoLock l = lock.lock()) {
             closed = true; // 标记为已关闭
-            copy = new ArrayList<>(entries); // 复制当前条目列表到安全的副本
+            // 复制当前条目列表到安全的副本
+            copy = new HashMap<>(entries);
+            inUseCopy = new HashMap<>(inUseEntries);
             entries.clear(); // 清空内部条目列表，以避免进一步的操作
+            inUseEntries.clear();
         }
 
         // 遍历副本列表，尝试关闭每个条目
-        for (Entry entry : copy) {
+        for (Entry entry : copy.values()) {
             boolean removed = entry.tryRemove(); // 尝试移除条目
             if (removed) {
                 // 如果移除成功，检查 pooled 对象是否可关闭
@@ -398,6 +277,23 @@ public class Pool<T> implements AutoCloseable {
                 }
             }
         }
+
+        // 遍历副本列表，尝试关闭每个条目
+        for (Entry entry : inUseCopy.values()) {
+            boolean removed = entry.tryRemove(); // 尝试移除条目
+            if (removed) {
+                // 如果移除成功，检查 pooled 对象是否可关闭
+                if (entry.pooled instanceof Closeable) {
+                    close((Closeable) entry.pooled); // 安全关闭 pooled 对象
+                }
+            } else {
+                // 如果无法移除，可能因为对象仍在使用中
+                if (Logger.isDebugEnabled()) {
+                    Logger.debug("Pooled object still in use: {}", entry); // 记录调试信息
+                }
+            }
+        }
+
     }
 
 
@@ -408,9 +304,8 @@ public class Pool<T> implements AutoCloseable {
      * @return 返回集合中条目的数量。
      */
     public int size() {
-        return entries.size();
+        return (entries.size() + inUseEntries.size());
     }
-
 
     /**
      * 获取所有条目的不可修改集合。
@@ -418,8 +313,12 @@ public class Pool<T> implements AutoCloseable {
      *
      * @return 一个不可修改的条目集合视图。
      */
-    public Collection<Entry> values() {
-        return Collections.unmodifiableCollection(entries);
+    public Collection<Entry> idleValues() {
+        return Collections.unmodifiableCollection(entries.values());
+    }
+
+    public Collection<Entry> inUseValues() {
+        return Collections.unmodifiableCollection(inUseEntries.values());
     }
 
 
@@ -438,6 +337,12 @@ public class Pool<T> implements AutoCloseable {
      * 保存元数据的池对象
      */
     public abstract class Entry {
+
+        /**
+         * 下标
+         */
+        private String index;
+
 
         private T pooled;
 
@@ -474,6 +379,10 @@ public class Pool<T> implements AutoCloseable {
             throw new IllegalStateException("Entry already enabled: " + this);
         }
 
+
+        public String getIndex() {
+            return index;
+        }
 
         /**
          * 获取池化对象。
@@ -609,6 +518,11 @@ public class Pool<T> implements AutoCloseable {
         // MIN_VALUE => pending; -1 => closed; 0 => idle; 1 => active;
         private final AtomicInteger state = new AtomicInteger(Integer.MIN_VALUE);
 
+
+        public MonoEntry(String index) {
+            super.index = index;
+        }
+
         @Override
         protected boolean tryEnable(boolean acquire) {
             return state.compareAndSet(Integer.MIN_VALUE, acquire ? 1 : 0);
@@ -618,10 +532,12 @@ public class Pool<T> implements AutoCloseable {
         boolean tryAcquire() {
             while (true) {
                 int s = state.get();
-                if (s != 0)
+                if (s != 0) {
                     return false;
-                if (state.compareAndSet(s, 1))
+                }
+                if (state.compareAndSet(s, 1)) {
                     return true;
+                }
             }
         }
 
@@ -629,17 +545,24 @@ public class Pool<T> implements AutoCloseable {
         boolean tryRelease() {
             while (true) {
                 int s = state.get();
-                if (s < 0)
+                if (s < 0) {
                     return false;
-                if (s == 0)
+                }
+                if (s == 0) {
                     throw new IllegalStateException("Cannot release an already released entry");
-                if (state.compareAndSet(s, 0))
+                }
+                if (state.compareAndSet(s, 0)) {
                     return true;
+                }
             }
         }
 
         @Override
         boolean tryRemove() {
+            int s = state.get();
+            if (s == 1) {
+                return false;
+            }
             state.set(-1);
             return true;
         }
