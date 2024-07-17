@@ -139,7 +139,7 @@ public class AioServerStarter extends AioStarter {
         startCheck(config, true);
 
         //实例化内存池
-        this.byteBufferPool = new ArrayRetainableByteBufferPool();
+        this.byteBufferPool = new ArrayRetainableByteBufferPool(10000);
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);

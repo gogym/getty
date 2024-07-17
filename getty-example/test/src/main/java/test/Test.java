@@ -116,7 +116,7 @@ public class Test {
 
     public static void testPool() throws Exception {
 
-        final ArrayRetainableByteBufferPool byteBufferPool=new ArrayRetainableByteBufferPool(0,-1,-1,10000000,
+        final ArrayRetainableByteBufferPool byteBufferPool=new ArrayRetainableByteBufferPool(0,-1,-1,10000,
                 10000000,0);
 
 
@@ -135,7 +135,7 @@ public class Test {
                         }
                         RetainableByteBuffer buf=byteBufferPool.acquire(4,false);
 
-                        //buf.release();
+                       // buf.release();
                         //list.add("s");
                         //entries.put(i,"s");
                     }

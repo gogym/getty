@@ -50,6 +50,10 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         this(0, -1, -1, Integer.MAX_VALUE);
     }
 
+    public ArrayRetainableByteBufferPool(int maxBucketSize) {
+        this(0, -1, -1, maxBucketSize);
+    }
+
     /**
      * 构造一个具有给定配置的 ArrayRetainableByteBufferPool。
      * {@code maxHeapMemory} 和 {@code maxDirectMemory} 默认为 0，以使用默认的启发式策略。

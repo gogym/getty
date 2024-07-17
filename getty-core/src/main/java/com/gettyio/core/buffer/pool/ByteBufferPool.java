@@ -10,7 +10,7 @@ public interface ByteBufferPool {
     /**
      * 从池中获取一个ByteBuffer实例。
      *
-     * @param size   需要获取的ByteBuffer的大小。这个大小是指ByteBuffer能够存储的数据的字节长度。
+     * @param size 需要获取的ByteBuffer的大小。这个大小是指ByteBuffer能够存储的数据的字节长度。
      * @param direct 指定是否需要一个直接的ByteBuffer。直接的ByteBuffer会在Java堆外分配内存，可能会提高某些情况下的性能。
      * @return 返回一个RetainableByteBuffer实例，这个实例可以从池中获取并使用，用完后需要释放以返回池中。
      */
@@ -26,5 +26,4 @@ public interface ByteBufferPool {
 
 
 }
-
 

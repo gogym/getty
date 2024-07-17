@@ -127,7 +127,7 @@ public class AioClientStarter extends AioStarter {
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(clientConfig);
         //初始化内存池
-        byteBufferPool = new ArrayRetainableByteBufferPool();
+        byteBufferPool = new ArrayRetainableByteBufferPool(10000);
 
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override

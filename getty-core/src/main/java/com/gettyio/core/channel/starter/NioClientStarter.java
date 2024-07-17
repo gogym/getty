@@ -152,7 +152,7 @@ public class NioClientStarter extends NioStarter {
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(clientConfig);
         //初始化内存池
-        byteBufferPool = new ArrayRetainableByteBufferPool();
+        byteBufferPool = new ArrayRetainableByteBufferPool(10000);
         //调用内部启动
         nioEventLoop = new NioEventLoop(clientConfig, byteBufferPool);
         nioEventLoop.run();

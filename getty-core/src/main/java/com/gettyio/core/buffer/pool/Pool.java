@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Pool<T> implements AutoCloseable {
     private static final InternalLogger Logger = InternalLoggerFactory.getInstance(Pool.class);
 
+
     /**
      * 空闲的对象,确保线程安全的读写访问
      */
@@ -51,8 +52,8 @@ public class Pool<T> implements AutoCloseable {
     /**
      * 用指定的线程本地缓存大小和一个可选的{@link ThreadLocal}缓存构造一个池。
      *
-     * @param maxEntries   池接受的最大条目数量.
-     * @param cache        使用{@link ThreadLocal}缓存来尝试最近释放的条目，则为True
+     * @param maxEntries 池接受的最大条目数量.
+     * @param cache      使用{@link ThreadLocal}缓存来尝试最近释放的条目，则为True
      */
     public Pool(int maxEntries, boolean cache) {
         this.maxEntries = maxEntries;

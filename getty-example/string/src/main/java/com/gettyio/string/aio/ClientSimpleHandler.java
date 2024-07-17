@@ -19,7 +19,7 @@ public class ClientSimpleHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void channelRead0(SocketChannel aioChannel, String str) {
-        //System.out.println("收到服务器端消息:" + str);
+        System.out.println("收到服务器端消息:" + str);
     }
 
     @Override

@@ -96,11 +96,11 @@ public class AioClient {
                             long ct = System.currentTimeMillis();
 
                             int i = 0;
-                            while (i < 2) {
+                            while (i < 100) {
                                 boolean flag = socketChannel.writeAndFlush(msgBody);
-                                if (flag) {
+                                //if (flag) {
                                     i++;
-                                }
+                                //}
                             }
 
                             long lt = System.currentTimeMillis();
