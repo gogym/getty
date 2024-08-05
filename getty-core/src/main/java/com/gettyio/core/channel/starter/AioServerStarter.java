@@ -16,8 +16,8 @@
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
-import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.AbstractSocketChannel;
+import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -139,7 +139,7 @@ public class AioServerStarter extends AioStarter {
         startCheck(config, true);
 
         //实例化内存池
-        this.byteBufferPool = new ArrayRetainableByteBufferPool(10000);
+        this.byteBufferPool = new ArrayRetainableByteBufferPool(bufferPoolMaxBucketSize, config.isDirect());
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);

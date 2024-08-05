@@ -37,7 +37,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
     /**
      * 定义了两个数组，分别用于存储直接和间接保留的Bucket
      */
-    private final RetainedBucket[] _direct;
+    private final RetainedBucket[] _directBucket;
     private final RetainedBucket[] _indirect;
 
     /**
@@ -61,11 +61,11 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * {@code maxHeapMemory} 和 {@code maxDirectMemory} 默认为 0，以使用默认的启发式策略。
      */
     public ArrayRetainableByteBufferPool() {
-        this(0, -1, -1, Integer.MAX_VALUE);
+        this(0, -1, -1, Integer.MAX_VALUE, false);
     }
 
-    public ArrayRetainableByteBufferPool(int maxBucketSize) {
-        this(0, -1, -1, maxBucketSize);
+    public ArrayRetainableByteBufferPool(int maxBucketSize, boolean direct) {
+        this(0, -1, -1, maxBucketSize, direct);
     }
 
     /**
@@ -76,9 +76,10 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * @param factor        容量因子
      * @param maxCapacity   ByteBuffer 的最大容量
      * @param maxBucketSize 每个桶中 ByteBuffer 的最大数量
+     * @param direct        是否使用直接内存
      */
-    public ArrayRetainableByteBufferPool(int minCapacity, int factor, int maxCapacity, int maxBucketSize) {
-        this(minCapacity, factor, maxCapacity, maxBucketSize, 0L, 0L);
+    public ArrayRetainableByteBufferPool(int minCapacity, int factor, int maxCapacity, int maxBucketSize, boolean direct) {
+        this(minCapacity, factor, maxCapacity, maxBucketSize, 0L, 0L, direct);
     }
 
     /**
@@ -90,9 +91,10 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * @param maxBucketSize   每个桶中 ByteBuffer 的最大数量
      * @param maxHeapMemory   堆内最大内存大小（字节），-1 表示不限制内存，0 表示使用默认启发式策略
      * @param maxDirectMemory 直接内存的最大大小（字节），-1 表示不限制内存，0 表示使用默认启发式策略
+     * @param direct          是否使用直接内存
      */
-    public ArrayRetainableByteBufferPool(int minCapacity, int factor, int maxCapacity, int maxBucketSize, long maxHeapMemory, long maxDirectMemory) {
-        this(minCapacity, factor, maxCapacity, maxBucketSize, maxHeapMemory, maxDirectMemory, null, null);
+    public ArrayRetainableByteBufferPool(int minCapacity, int factor, int maxCapacity, int maxBucketSize, long maxHeapMemory, long maxDirectMemory, boolean direct) {
+        this(minCapacity, factor, maxCapacity, maxBucketSize, maxHeapMemory, maxDirectMemory, direct, null, null);
     }
 
 
@@ -105,11 +107,12 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      * @param maxBucketSize   每个存储桶中 ByteBuffer 的最大数量。
      * @param maxHeapMemory   堆内存的最大大小（以字节为单位），-1 表示不限制，0 表示使用默认启发式。
      * @param maxDirectMemory 直接内存的最大大小（以字节为单位），-1 表示不限制，0 表示使用默认启发式。
+     * @param direct          是否使用直接内存
      * @param bucketIndexFor  一个函数，接受容量并返回存储桶索引。
      * @param bucketCapacity  一个函数，接受存储桶索引并返回容量。
      */
     protected ArrayRetainableByteBufferPool(int minCapacity, int factor, int maxCapacity, int maxBucketSize, long maxHeapMemory, long maxDirectMemory,
-                                            Function<Integer, Integer> bucketIndexFor, Function<Integer, Integer> bucketCapacity) {
+                                            boolean direct, Function<Integer, Integer> bucketIndexFor, Function<Integer, Integer> bucketCapacity) {
         // 校验并设置最小容量、容量因子和最大容量。
         if (minCapacity <= 0) {
             minCapacity = 0;
@@ -146,19 +149,20 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         // 设置最小容量、最大容量及存储桶相关字段。
         _minCapacity = minCapacity;
         _maxCapacity = maxCapacity;
-        _direct = directArray;
+        _directBucket = directArray;
         _indirect = indirectArray;
 
         // 设置堆和直接内存的最大大小，根据输入的字节大小计算保留大小。
         _maxHeapMemory = retainedSize(maxHeapMemory);
         _maxDirectMemory = retainedSize(maxDirectMemory);
         _bucketIndexFor = bucketIndexFor;
+        _direct = direct;
     }
 
 
     @Override
     public RetainableByteBuffer acquire(int size) {
-        return acquire(size, false);
+        return acquire(size, _direct);
     }
 
     /**
@@ -275,7 +279,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         // 计算存储桶索引
         int idx = _bucketIndexFor.apply(capacity);
         // 根据是否直接内存选择存储桶数组
-        RetainedBucket[] buckets = direct ? _direct : _indirect;
+        RetainedBucket[] buckets = direct ? _directBucket : _indirect;
         // 索引超出范围，返回null
         if (idx >= buckets.length) {
             return null;
@@ -307,7 +311,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
      */
     public void clear() {
         // 分别清空直接内存池和堆内存池
-        clearArray(_direct, _currentDirectMemory);
+        clearArray(_directBucket, _currentDirectMemory);
         clearArray(_indirect, _currentHeapMemory);
     }
 
@@ -375,7 +379,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         long now = System.nanoTime();
         long totalClearedCapacity = 0L; // 记录已清除的总容量
 
-        RetainedBucket[] buckets = direct ? _direct : _indirect; // 根据direct选择对应的缓冲区桶数组
+        RetainedBucket[] buckets = direct ? _directBucket : _indirect; // 根据direct选择对应的缓冲区桶数组
 
         //尝试释放缓冲区数量
         int count = 0;
@@ -455,7 +459,7 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         return String.format("%s{min=%d,max=%d,buckets=%d,heap=%d/%d,direct=%d/%d}",
                 super.toString(),
                 _minCapacity, _maxCapacity,
-                _direct.length,
+                _directBucket.length,
                 _currentHeapMemory.get(), _maxHeapMemory,
                 _currentDirectMemory.get(), _maxDirectMemory);
     }

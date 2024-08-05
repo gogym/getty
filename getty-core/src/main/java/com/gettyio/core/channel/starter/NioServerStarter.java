@@ -57,7 +57,7 @@ public class NioServerStarter extends NioStarter {
     /**
      * 服务端配置
      */
-    protected ServerConfig serverConfig = new ServerConfig();
+    protected ServerConfig config = new ServerConfig();
 
     /**
      * 服务线程运行标志
@@ -90,7 +90,7 @@ public class NioServerStarter extends NioStarter {
      * @param port 服务端口
      */
     public NioServerStarter(int port) {
-        serverConfig.setPort(port);
+        config.setPort(port);
     }
 
     /**
@@ -100,8 +100,8 @@ public class NioServerStarter extends NioStarter {
      * @param port 服务端口
      */
     public NioServerStarter(String host, int port) {
-        serverConfig.setHost(host);
-        serverConfig.setPort(port);
+        config.setHost(host);
+        config.setPort(port);
     }
 
     /**
@@ -110,7 +110,7 @@ public class NioServerStarter extends NioStarter {
      * @param config 配置
      */
     public NioServerStarter(ServerConfig config) {
-        this.serverConfig = config;
+        this.config = config;
     }
 
     /**
@@ -158,16 +158,16 @@ public class NioServerStarter extends NioStarter {
     public void start() throws Exception {
         //打印框架信息
         Banner.printBanner();
-        startCheck(serverConfig, true);
+        startCheck(config, true);
         //实例化内存池
-        this.byteBufferPool = new ArrayRetainableByteBufferPool(10000);
+        this.byteBufferPool = new ArrayRetainableByteBufferPool(bufferPoolMaxBucketSize,config.isDirect());
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
 
         //创建loop集合
         for (int i = 0; i < workerThreadNum; i++) {
-            NioEventLoop nioEventLoop = new NioEventLoop(serverConfig, byteBufferPool);
+            NioEventLoop nioEventLoop = new NioEventLoop(config, byteBufferPool);
             nioEventLoop.run();
             nioEventLoopFastArrayList.add(nioEventLoop);
         }
@@ -191,13 +191,13 @@ public class NioServerStarter extends NioStarter {
         serverSocketChannel.configureBlocking(false);
 
         //绑定端口
-        if (serverConfig.getHost() != null) {
+        if (config.getHost() != null) {
             //服务端socket处理客户端socket连接是需要一定时间的。ServerSocket有一个队列，存放还没有来得及处理的客户端Socket，这个队列的容量就是backlog的含义。
             // 如果队列已经被客户端socket占满了，如果还有新的连接过来，那么ServerSocket会拒绝新的连接。
             // 也就是说backlog提供了容量限制功能，避免太多的客户端socket占用太多服务器资源
-            serverSocketChannel.bind(new InetSocketAddress(serverConfig.getHost(), serverConfig.getPort()), 1000);
+            serverSocketChannel.bind(new InetSocketAddress(config.getHost(), config.getPort()), 1000);
         } else {
-            serverSocketChannel.bind(new InetSocketAddress(serverConfig.getPort()), 1000);
+            serverSocketChannel.bind(new InetSocketAddress(config.getPort()), 1000);
         }
         //创建一个selector
         selector = new SelectedSelector(Selector.open());
@@ -248,10 +248,10 @@ public class NioServerStarter extends NioStarter {
 
         datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
-        datagramChannel.bind(new InetSocketAddress(serverConfig.getPort()));
+        datagramChannel.bind(new InetSocketAddress(config.getPort()));
         //设置socket参数
-        if (serverConfig.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : serverConfig.getSocketOptions().entrySet()) {
+        if (config.getSocketOptions() != null) {
+            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
                 datagramChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
@@ -260,8 +260,8 @@ public class NioServerStarter extends NioStarter {
         //创建udp通道
         createUdpChannel(datagramChannel, selector);
 
-        LOGGER.info("getty server started UDP on port {},bossThreadNum:{} ,workerThreadNum:{}", serverConfig.getPort(), bossThreadNum, workerThreadNum);
-        LOGGER.info("getty server config is {}", serverConfig.toString());
+        LOGGER.info("getty server started UDP on port {},bossThreadNum:{} ,workerThreadNum:{}", config.getPort(), bossThreadNum, workerThreadNum);
+        LOGGER.info("getty server config is {}", config.toString());
     }
 
     /**
@@ -274,7 +274,7 @@ public class NioServerStarter extends NioStarter {
         try {
             //获取loop
             NioEventLoop nioEventLoop = nioEventLoopFastArrayList.round();
-            abstractSocketChannel = new NioChannel(serverConfig, channel, nioEventLoop, byteBufferPool, channelInitializer);
+            abstractSocketChannel = new NioChannel(config, channel, nioEventLoop, byteBufferPool, channelInitializer);
             //注册事件
             ((NioChannel) abstractSocketChannel).register();
         } catch (Exception e) {
@@ -292,7 +292,7 @@ public class NioServerStarter extends NioStarter {
      * @params [datagramChannel, selector]
      */
     private void createUdpChannel(DatagramChannel datagramChannel, SelectedSelector selector) {
-        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, serverConfig, byteBufferPool, channelInitializer, workerThreadNum);
+        UdpChannel udpChannel = new UdpChannel(datagramChannel, selector, config, byteBufferPool, channelInitializer, workerThreadNum);
         udpChannel.starRead();
     }
 

@@ -61,6 +61,13 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
 
 
     /**
+     * 是否使用直接内存
+     * 默认 false
+     */
+    public boolean _direct = false;
+
+
+    /**
      * 获取最小池化缓冲区容量。
      *
      * @return 返回设置的最小缓冲区容量。
@@ -111,5 +118,22 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
     }
 
 
+    /**
+     * 获取是否为直接模式
+     *
+     * @return true表示是直接模式，false表示不是直接模式
+     */
+    public boolean isDirect() {
+        return _direct;
+    }
+
+    /**
+     * 设置是否为直接模式
+     *
+     * @param direct true设置为直接模式，false设置为非直接模式
+     */
+    public void setDirect(boolean direct) {
+        this._direct = direct;
+    }
 }
 

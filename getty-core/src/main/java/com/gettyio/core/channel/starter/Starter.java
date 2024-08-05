@@ -46,6 +46,7 @@ public abstract class Starter {
      */
     protected int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
 
+
     /**
      * boss线程池
      */
@@ -55,6 +56,14 @@ public abstract class Starter {
      * 内存池构造器
      */
     protected ByteBufferPool byteBufferPool;
+
+
+    /**
+     * 内存池最大容量
+     */
+    protected int bufferPoolMaxBucketSize = 10000;
+
+
     /**
      * 责任链对象
      */

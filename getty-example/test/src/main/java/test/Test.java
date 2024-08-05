@@ -107,7 +107,7 @@ public class Test {
     public static void testPool() throws Exception {
 
         final ArrayRetainableByteBufferPool byteBufferPool = new ArrayRetainableByteBufferPool(0, -1, -1, 10000,
-                10000000, 0);
+                10000000, 0,false);
         int num = 1;
         long ct = System.currentTimeMillis();
 
@@ -118,7 +118,7 @@ public class Test {
                 @Override
                 public void run() {
                     for (int i = 0; i < 1000000; i++) {
-                        RetainableByteBuffer buf = byteBufferPool.acquire(4, false);
+                        RetainableByteBuffer buf = byteBufferPool.acquire(4);
                         buf.release();
                     }
                     countDownLatch.countDown();
