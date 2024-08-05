@@ -1,3 +1,18 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.buffer.pool;
 
 import java.io.*;
@@ -18,7 +33,6 @@ import java.util.Arrays;
  * 该类的设计目的是提高缓冲区的使用效率和安全性。
  */
 public class BufferUtil {
-    private static final String TAG = BufferUtil.class.getSimpleName();
 
     /**
      * 定义临时缓冲区的大小，用于各种操作中的临时数据存储

@@ -20,7 +20,7 @@ import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 /**
  * ChannelInboundHandlerAdapter.java
  *
- * @description:入栈器父类
+ * @description:入栈处理器父类，需要读取处理继承这个类
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com

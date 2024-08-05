@@ -41,7 +41,7 @@ public abstract class BaseConfig {
      */
     private int readBufferSize = 64;
     /**
-     * 输出类队列大小,再大其实意义不大，因为实际写出速度还会受到机器配置以及带宽等的限制，设置这个数，已经能满足绝大部分场景需要
+     * 输出类队列大小,再大意义不大，因为实际写出速度还会受到机器配置以及带宽等的限制，设置这个数，已经能满足绝大部分场景需要
      */
     private int bufferWriterQueueSize = 1024 * 1024 * 8;
     /**

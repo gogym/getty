@@ -1,23 +1,13 @@
 package test;
 
 import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
-import com.gettyio.core.buffer.pool.BufferUtil;
-import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.util.FastArrayList;
 import com.gettyio.core.util.FastCopyOnWriteArrayList;
-import com.gettyio.core.util.list.TLinkable;
-import com.gettyio.core.util.list.linked.TLinkedList;
 import com.gettyio.core.util.timer.HashedWheelTimer;
 import com.gettyio.core.util.timer.Timeout;
 import com.gettyio.core.util.timer.TimerTask;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -116,28 +106,20 @@ public class Test {
 
     public static void testPool() throws Exception {
 
-        final ArrayRetainableByteBufferPool byteBufferPool=new ArrayRetainableByteBufferPool(0,-1,-1,10000,
-                10000000,0);
-
-
-        int num=1;
+        final ArrayRetainableByteBufferPool byteBufferPool = new ArrayRetainableByteBufferPool(0, -1, -1, 10000,
+                10000000, 0);
+        int num = 1;
         long ct = System.currentTimeMillis();
 
-        final CountDownLatch countDownLatch=new CountDownLatch(num);
-        for (int i=0;i<num;i++){
+        final CountDownLatch countDownLatch = new CountDownLatch(num);
+        for (int i = 0; i < num; i++) {
 
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i=0;i<1000000;i++){
-                        if(i==1){
-                            //System.out.println("--");
-                        }
-                        RetainableByteBuffer buf=byteBufferPool.acquire(4,false);
-
-                       // buf.release();
-                        //list.add("s");
-                        //entries.put(i,"s");
+                    for (int i = 0; i < 1000000; i++) {
+                        RetainableByteBuffer buf = byteBufferPool.acquire(4, false);
+                        buf.release();
                     }
                     countDownLatch.countDown();
                 }
@@ -149,7 +131,6 @@ public class Test {
 
         long lt = System.currentTimeMillis();
         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-
 
 
     }
@@ -172,103 +153,6 @@ public class Test {
             }
         }, 3, TimeUnit.SECONDS);
         timer.start();
-    }
-
-
-    public static void testTLinkList() throws Exception{
-
-        final FastCopyOnWriteArrayList<Data> list=new FastCopyOnWriteArrayList<>();
-
-
-        int num = 1;
-        long ct = System.currentTimeMillis();
-
-        final CountDownLatch countDownLatch = new CountDownLatch(num);
-        for (int i = 0; i < num; i++) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    for (int i = 0; i < 1000000; i++) {
-                        Data d=new Data(i);
-                        list.add(d);
-                    }
-                    countDownLatch.countDown();
-                }
-            }).start();
-        }
-
-        countDownLatch.await();
-        long lt = System.currentTimeMillis();
-        System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-
-        ct = System.currentTimeMillis();
-        for (int i = 0; i < list.size(); i++) {
-            list.get(i);
-        }
-        lt = System.currentTimeMillis();
-        System.out.printf("读总耗时(ms)：" + (lt - ct) + "\r\n");
-    }
-
-
-
-    static class Data implements TLinkable<Data> {
-
-        protected int _val;
-
-
-        public Data( int val ) {
-            _val = val;
-        }
-
-
-        protected TLinkable<Data> _next;
-
-
-        // NOTE: use covariant overriding
-        /**
-         * Get the value of next.
-         *
-         * @return value of next.
-         */
-        public Data getNext() {
-            return (Data) _next;
-        }
-
-
-        /**
-         * Set the value of next.
-         *
-         * @param next value to assign to next.
-         */
-        public void setNext( Data next ) {
-            this._next = next;
-        }
-
-
-        protected Data _previous;
-
-        // NOTE: use covariant overriding
-        /**
-         * Get the value of previous.
-         *
-         * @return value of previous.
-         */
-        public Data getPrevious() {
-            return _previous;
-        }
-
-
-        /**
-         * Set the value of previous.
-         *
-         * @param previous value to assign to previous.
-         */
-        public void setPrevious( Data previous ) {
-            this._previous = previous;
-        }
-
-
-
     }
 
 

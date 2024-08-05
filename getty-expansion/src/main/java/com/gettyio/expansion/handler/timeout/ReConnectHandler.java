@@ -17,7 +17,7 @@ package com.gettyio.expansion.handler.timeout;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.channel.starter.ConnectHandler;
@@ -68,7 +68,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     /**
      * channel
      */
-    private SocketChannel channel;
+    private AbstractSocketChannel channel;
     /**
      * 连接回调
      */
@@ -246,11 +246,11 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     /**
      * 重连
      *
-     * @param socketChannel
+     * @param abstractSocketChannel
      */
-    private void reConnect(SocketChannel socketChannel) {
+    private void reConnect(AbstractSocketChannel abstractSocketChannel) {
         //判断是否已经连接
-        if (socketChannel.isInvalid()) {
+        if (abstractSocketChannel.isInvalid()) {
             logger.debug("reconnect...");
             // 重连的间隔时间会越来越长
             long delay = attempts * threshold;

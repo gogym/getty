@@ -26,7 +26,6 @@ import com.gettyio.core.util.thread.ThreadPool;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.util.Iterator;
@@ -39,7 +38,7 @@ import java.util.Iterator;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class UdpChannel extends SocketChannel {
+public class UdpChannel extends AbstractSocketChannel {
 
 
     /**

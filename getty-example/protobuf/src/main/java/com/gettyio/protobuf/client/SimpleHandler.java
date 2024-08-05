@@ -1,7 +1,7 @@
 package com.gettyio.protobuf.client;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import com.gettyio.protobuf.packet.MessageClass;
@@ -21,7 +21,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, MessageClass.Message str) {
+    public void channelRead0(AbstractSocketChannel aioChannel, MessageClass.Message str) {
         System.out.println("服务返回消息了:" + str.getBody());
     }
 

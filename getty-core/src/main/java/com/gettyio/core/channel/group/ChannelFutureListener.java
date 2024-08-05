@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.group;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
  * ChannelFutureListener.java
@@ -29,8 +29,8 @@ public interface ChannelFutureListener {
     /**
      * 操作完成监听
      *
-     * @param socketChannel
+     * @param abstractSocketChannel
      */
-    void operationComplete(SocketChannel socketChannel);
+    void operationComplete(AbstractSocketChannel abstractSocketChannel);
 
 }

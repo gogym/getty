@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.group;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.util.ConcurrentSafeMap;
 
 import java.util.AbstractSet;
@@ -32,7 +32,7 @@ import java.util.Iterator;
  * @author:gogym
  * @date:2020/4/8
  */
-public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements ChannelGroup {
+public class DefaultChannelGroup extends AbstractSet<AbstractSocketChannel> implements ChannelGroup {
 
     /**
      * 组名称
@@ -42,7 +42,7 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
     /**
      * 用于保存连接的map
      */
-    private final ConcurrentSafeMap<String, SocketChannel> serverChannels = new ConcurrentSafeMap<>();
+    private final ConcurrentSafeMap<String, AbstractSocketChannel> serverChannels = new ConcurrentSafeMap<>();
 
     /**
      * 构造函数
@@ -70,10 +70,10 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
     }
 
     @Override
-    public SocketChannel find(String id) {
-        SocketChannel socketChannel = serverChannels.get(id);
-        if (socketChannel != null) {
-            return socketChannel;
+    public AbstractSocketChannel find(String id) {
+        AbstractSocketChannel abstractSocketChannel = serverChannels.get(id);
+        if (abstractSocketChannel != null) {
+            return abstractSocketChannel;
         }
         return null;
     }
@@ -85,29 +85,29 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
 
     @Override
     public boolean contains(Object o) {
-        if (o instanceof SocketChannel) {
+        if (o instanceof AbstractSocketChannel) {
             return serverChannels.containsValue(o);
         }
         return false;
     }
 
     @Override
-    public boolean add(SocketChannel socketChannel) {
-        boolean added = serverChannels.putIfAbsent(socketChannel.getChannelId(), socketChannel) == null;
+    public boolean add(AbstractSocketChannel abstractSocketChannel) {
+        boolean added = serverChannels.putIfAbsent(abstractSocketChannel.getChannelId(), abstractSocketChannel) == null;
         if (added) {
             //这里要添加个关闭监听，当连接关闭时，自动清理
-            socketChannel.setChannelFutureListener(remover);
+            abstractSocketChannel.setChannelFutureListener(remover);
         }
         return added;
     }
 
     @Override
     public boolean remove(Object o) {
-        SocketChannel c = null;
+        AbstractSocketChannel c = null;
         if (o instanceof String) {
             c = serverChannels.remove(o);
-        } else if (o instanceof SocketChannel) {
-            c = (SocketChannel) o;
+        } else if (o instanceof AbstractSocketChannel) {
+            c = (AbstractSocketChannel) o;
             c = serverChannels.remove(c.getChannelId());
 
         }
@@ -126,7 +126,7 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
 
     @Override
     public <T> T[] toArray(T[] a) {
-        Collection<SocketChannel> channels = new ArrayList<SocketChannel>(size());
+        Collection<AbstractSocketChannel> channels = new ArrayList<AbstractSocketChannel>(size());
         channels.addAll(serverChannels.values());
         return channels.toArray(a);
     }
@@ -146,7 +146,7 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
     }
 
     @Override
-    public Iterator<SocketChannel> iterator() {
+    public Iterator<AbstractSocketChannel> iterator() {
         return serverChannels.values().iterator();
     }
 
@@ -165,8 +165,8 @@ public class DefaultChannelGroup extends AbstractSet<SocketChannel> implements C
      */
     private final ChannelFutureListener remover = new ChannelFutureListener() {
         @Override
-        public void operationComplete(SocketChannel socketChannel) {
-            DefaultChannelGroup.this.remove(socketChannel);
+        public void operationComplete(AbstractSocketChannel abstractSocketChannel) {
+            DefaultChannelGroup.this.remove(abstractSocketChannel);
         }
     };
 

@@ -1,14 +1,13 @@
 package com.gettyio.string.aio;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.core.handler.codec.string.StringDecoder;
-import com.gettyio.core.handler.codec.string.StringEncoder;
+import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
+import com.gettyio.expansion.handler.codec.string.StringDecoder;
+import com.gettyio.expansion.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.SSLConfig;
-import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.timeout.ReConnectHandler;
@@ -43,9 +42,9 @@ public class AioClient {
         final AioClientStarter client = new AioClientStarter(aioConfig);
         client.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(SocketChannel channel) throws Exception {
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
                 //责任链
-                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
 
                 //获取证书
                 String pkPath = getClass().getClassLoader().getResource("clientStore.jks").getPath();
@@ -63,7 +62,7 @@ public class AioClient {
 
                 defaultChannelPipeline.addLast(new ReConnectHandler(new ConnectHandler() {
                     @Override
-                    public void onCompleted(SocketChannel channel) {
+                    public void onCompleted(AbstractSocketChannel channel) {
                         System.out.println("重连成功");
                     }
 
@@ -85,7 +84,7 @@ public class AioClient {
 
         client.start(new ConnectHandler() {
             @Override
-            public void onCompleted(final SocketChannel socketChannel) {
+            public void onCompleted(final AbstractSocketChannel abstractSocketChannel) {
 
                 new Thread(new Runnable() {
                     @Override
@@ -97,7 +96,7 @@ public class AioClient {
 
                             int i = 0;
                             while (i < 100) {
-                                boolean flag = socketChannel.writeAndFlush(msgBody);
+                                boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
                                 //if (flag) {
                                     i++;
                                 //}

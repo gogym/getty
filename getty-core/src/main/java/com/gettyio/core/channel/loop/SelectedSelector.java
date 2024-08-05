@@ -100,11 +100,30 @@ public class SelectedSelector extends Selector {
         return register;
     }
 
+    /**
+     * 同步方法：在选择器中注册一个可选择的通道
+     * 此方法确保在多线程环境下安全地对选择器进行访问和修改
+     *
+     * @param channel 要注册的可选择通道
+     * @param op 注册通道的操作利息集合，比如读、写等
+     * @param att 注册时关联到选择键的附件
+     * @return 注册后的选择键，可用于后续操作
+     * @throws ClosedChannelException 如果通道已经关闭，则抛出此异常
+     */
     public synchronized SelectionKey register(SelectableChannel channel, int op, Object att) throws ClosedChannelException {
+        // 标记当前是否有线程在执行注册操作
         mark = true;
+
+        // 唤醒选择器，以确保当前的注册操作能被及时处理
         selector.wakeup();
+
+        // 通过选择器注册通道，返回注册后生成的选择键
         SelectionKey register = channel.register(selector, op, att);
+
+        // 注册操作完成后，重置标记，表示不再有注册操作正在进行
         mark = false;
+
+        // 返回注册后生成的选择键
         return register;
     }
 

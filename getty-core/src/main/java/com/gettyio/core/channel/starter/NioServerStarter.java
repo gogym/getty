@@ -17,7 +17,7 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
 import com.gettyio.core.channel.NioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.ServerConfig;
@@ -270,16 +270,16 @@ public class NioServerStarter extends NioStarter {
      * @param channel 通道
      */
     private void createTcpChannel(java.nio.channels.SocketChannel channel) {
-        SocketChannel socketChannel = null;
+        AbstractSocketChannel abstractSocketChannel = null;
         try {
             //获取loop
             NioEventLoop nioEventLoop = nioEventLoopFastArrayList.round();
-            socketChannel = new NioChannel(serverConfig, channel, nioEventLoop, byteBufferPool, channelInitializer);
+            abstractSocketChannel = new NioChannel(serverConfig, channel, nioEventLoop, byteBufferPool, channelInitializer);
             //注册事件
-            ((NioChannel) socketChannel).register();
+            ((NioChannel) abstractSocketChannel).register();
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            if (socketChannel != null) {
+            if (abstractSocketChannel != null) {
                 closeChannel(channel);
             }
         }

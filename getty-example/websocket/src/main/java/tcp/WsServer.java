@@ -1,7 +1,7 @@
 package tcp;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.ssl.ClientAuth;
@@ -27,9 +27,9 @@ public class WsServer {
             AioServerStarter server = new AioServerStarter(aioServerConfig);
             server.channelInitializer(new ChannelInitializer() {
                 @Override
-                public void initChannel(SocketChannel channel) throws Exception {
+                public void initChannel(AbstractSocketChannel channel) throws Exception {
                     //获取责任链对象
-                    ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                    ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
 
                     //获取证书
                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();

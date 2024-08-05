@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * @date:2020/4/8
  * @copyright: Copyright by gettyio.com
  */
-public class AioChannel extends SocketChannel implements Function<BufferWriter, Void> {
+public class AioChannel extends AbstractSocketChannel implements Function<BufferWriter, Void> {
 
     /**
      * 通信channel对象
@@ -85,7 +85,8 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
      * @param byteBufferPool         内存池
      * @param channelInitializer     责任链
      */
-    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler, WriteCompletionHandler writeCompletionHandler, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
+    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler,
+                      WriteCompletionHandler writeCompletionHandler, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
@@ -385,8 +386,7 @@ public class AioChannel extends SocketChannel implements Function<BufferWriter, 
 
 //--------------------------------------------------------------------------------------
 
-    @Override
-    public AsynchronousSocketChannel getAsynchronousSocketChannel() {
+    public AsynchronousSocketChannel getSocketChannel() {
         return channel;
     }
 

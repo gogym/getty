@@ -30,6 +30,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -40,12 +41,12 @@ import java.util.concurrent.Semaphore;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class NioChannel extends SocketChannel implements Function<BufferWriter, Void> {
+public class NioChannel extends AbstractSocketChannel implements Function<BufferWriter, Void> {
 
     /**
      * 通信channel对象
      */
-    private final java.nio.channels.SocketChannel channel;
+    private final SocketChannel channel;
 
     /**
      * SSL服务
@@ -210,8 +211,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         }
     }
 
-    @Override
-    public java.nio.channels.SocketChannel getSocketChannel() {
+    public SocketChannel getSocketChannel() {
         return this.channel;
     }
 
@@ -243,11 +243,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             throw new IOException("channel is closed");
         }
     }
-
-//    @Override
-//    public ThreadPool getWorkerThreadPool() {
-//        return workerThreadPool;
-//    }
 
     /**
      * 设置SSLHandler
@@ -296,7 +291,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                     }
                     while (byteBuf.hasRemaining()) {
                         ByteBuffer buffer = byteBuf.getBuffer();
-                        NioChannel.this.getSocketChannel().write(buffer);
+                        getSocketChannel().write(buffer);
                     }
                 } catch (IOException e) {
                     NioChannel.this.close();

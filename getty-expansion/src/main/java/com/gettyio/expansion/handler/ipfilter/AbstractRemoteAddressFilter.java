@@ -15,7 +15,7 @@
  */
 package com.gettyio.expansion.handler.ipfilter;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
@@ -49,15 +49,15 @@ abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends Chan
      * @return void
      * @params [aioChannel]
      */
-    private void handleNewChannel(SocketChannel socketChannel) {
+    private void handleNewChannel(AbstractSocketChannel abstractSocketChannel) {
         try {
-            T remoteAddress = (T) socketChannel.getRemoteAddress();
+            T remoteAddress = (T) abstractSocketChannel.getRemoteAddress();
             if (remoteAddress == null) {
-                socketChannel.close();
+                abstractSocketChannel.close();
             }
-            boolean flag = accept(socketChannel, remoteAddress);
+            boolean flag = accept(abstractSocketChannel, remoteAddress);
             if (!flag) {
-                socketChannel.close();
+                abstractSocketChannel.close();
             }
         } catch (IOException e) {
             logger.error(e);
@@ -69,7 +69,7 @@ abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends Chan
      * @param remoteAddress 远程地址
      * @return Return true if connections from this IP address and port should be accepted. False otherwise.
      */
-    protected abstract boolean accept(SocketChannel aioChannel, T remoteAddress);
+    protected abstract boolean accept(AbstractSocketChannel aioChannel, T remoteAddress);
 
 
 }

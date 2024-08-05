@@ -13,26 +13,25 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.gettyio.core.handler.codec.string;
+package com.gettyio.expansion.handler.codec.string;
 
-import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
-import com.gettyio.core.util.CharsetUtil;
+import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 
 /**
- * StringDecoder.java
+ * DefaultFrameDecoder.java
  *
- * @description:string解码器
+ * @description:字符串默认解码器，收到多少传回多少，中间不做任何处理
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class StringDecoder extends ByteToMessageDecoder {
+public class DefaultFrameDecoder extends ChannelInboundHandlerAdapter {
+
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        String str = new String((byte[]) in, CharsetUtil.UTF_8);
-        super.channelRead(ctx, str);
+        super.channelRead(ctx, in);
     }
 }

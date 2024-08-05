@@ -17,7 +17,7 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
 import com.gettyio.core.channel.NioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.ClientConfig;
@@ -57,7 +57,7 @@ public class NioClientStarter extends NioStarter {
     /**
      * channel通道
      */
-    private SocketChannel nioChannel;
+    private AbstractSocketChannel nioChannel;
 
     /**
      * loop

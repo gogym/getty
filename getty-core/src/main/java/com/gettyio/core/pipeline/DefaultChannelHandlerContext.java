@@ -16,7 +16,7 @@
 package com.gettyio.core.pipeline;
 
 import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
  * DefaultChannelHandlerContext默认实现
@@ -25,17 +25,17 @@ class DefaultChannelHandlerContext extends AbstractChannelHandlerContext impleme
 
     private final ChannelHandler handler;
 
-    private final SocketChannel socketChannel;
+    private final AbstractSocketChannel abstractSocketChannel;
 
-    DefaultChannelHandlerContext(SocketChannel socketChannel, ChannelHandler handler) {
+    DefaultChannelHandlerContext(AbstractSocketChannel abstractSocketChannel, ChannelHandler handler) {
         this.handler = handler;
-        this.socketChannel = socketChannel;
+        this.abstractSocketChannel = abstractSocketChannel;
         setChannelHandlerContext(this);
     }
 
     @Override
-    public SocketChannel channel() {
-        return socketChannel;
+    public AbstractSocketChannel channel() {
+        return abstractSocketChannel;
     }
 
     @Override

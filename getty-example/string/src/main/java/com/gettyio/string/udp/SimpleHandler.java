@@ -1,7 +1,7 @@
 package com.gettyio.string.udp;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
@@ -24,7 +24,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
 
     @Override
-    public void channelRead0(SocketChannel socketChannel, DatagramPacket datagramPacket) throws Exception{
+    public void channelRead0(AbstractSocketChannel abstractSocketChannel, DatagramPacket datagramPacket) throws Exception{
 
         String address = datagramPacket.getAddress().getHostName() + ":" + datagramPacket.getPort();
         System.out.println("读取客户端" + address + "消息:" + new String(datagramPacket.getData()));
@@ -33,7 +33,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         byte[] msgBody = msg.getBytes(StandardCharsets.UTF_8);
         final DatagramPacket dd = new DatagramPacket(msgBody, msgBody.length, new InetSocketAddress(datagramPacket.getAddress().getHostAddress(), datagramPacket.getPort()));
         final long ct = System.currentTimeMillis();
-        socketChannel.writeAndFlush(dd);
+        abstractSocketChannel.writeAndFlush(dd);
     }
 
     @Override

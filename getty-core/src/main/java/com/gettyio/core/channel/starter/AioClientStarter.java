@@ -17,7 +17,7 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -56,7 +56,7 @@ public class AioClientStarter extends AioStarter {
     /**
      * aio通道
      */
-    private SocketChannel aioChannel;
+    private AbstractSocketChannel aioChannel;
 
     /**
      * 简单启动
@@ -233,7 +233,7 @@ public class AioClientStarter extends AioStarter {
      *
      * @return
      */
-    public SocketChannel getChannel() {
+    public AbstractSocketChannel getChannel() {
         if (aioChannel != null) {
             if (aioChannel.getSslHandler() != null) {
                 //如果开启了ssl,要先判断是否已经完成握手

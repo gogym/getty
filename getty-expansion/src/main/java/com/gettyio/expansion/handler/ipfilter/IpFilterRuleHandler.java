@@ -15,7 +15,7 @@
  */
 package com.gettyio.expansion.handler.ipfilter;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -41,7 +41,7 @@ public class IpFilterRuleHandler extends AbstractRemoteAddressFilter<InetSocketA
 
 
     @Override
-    protected boolean accept(SocketChannel socketChannel, InetSocketAddress remoteAddress) {
+    protected boolean accept(AbstractSocketChannel abstractSocketChannel, InetSocketAddress remoteAddress) {
 
         if (rules.matches(remoteAddress)) {
             return rules.ruleType() == IpFilterRuleType.ACCEPT;

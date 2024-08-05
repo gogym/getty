@@ -1,6 +1,6 @@
 package com.gettyio.string.udp;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.ConnectHandler;
@@ -44,9 +44,9 @@ public class UdpClient {
         NioClientStarter client = new NioClientStarter(aioConfig);
         client.socketMode(SocketMode.UDP).channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(SocketChannel channel) throws Exception {
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
                 //责任链
-                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
 
                 defaultChannelPipeline.addLast(new DatagramPacketEncoder());
                 defaultChannelPipeline.addLast(new DatagramPacketDecoder());
@@ -58,7 +58,7 @@ public class UdpClient {
 
         client.start(new ConnectHandler() {
             @Override
-            public void onCompleted(final SocketChannel channel) {
+            public void onCompleted(final AbstractSocketChannel channel) {
                 try {
                     String s = "12";
                     byte[] msgBody = s.getBytes(StandardCharsets.UTF_8);

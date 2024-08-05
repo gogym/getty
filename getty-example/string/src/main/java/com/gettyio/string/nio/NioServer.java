@@ -1,13 +1,13 @@
 package com.gettyio.string.nio;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.NioServerStarter;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.core.handler.codec.string.StringDecoder;
-import com.gettyio.core.handler.codec.string.StringEncoder;
+import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
+import com.gettyio.expansion.handler.codec.string.StringDecoder;
+import com.gettyio.expansion.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.handler.ssl.SSLHandler;
@@ -40,9 +40,9 @@ public class NioServer {
             NioServerStarter server = new NioServerStarter(port);
             server.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
-                public void initChannel(SocketChannel channel) throws Exception {
+                public void initChannel(AbstractSocketChannel channel) throws Exception {
                     //获取责任链对象
-                    ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                    ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
 
                     //获取证书
                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();

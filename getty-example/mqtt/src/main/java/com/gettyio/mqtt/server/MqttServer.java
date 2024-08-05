@@ -1,6 +1,6 @@
 package com.gettyio.mqtt.server;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -18,9 +18,9 @@ public class MqttServer {
         AioServerStarter server = new AioServerStarter(9999);
         server.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(SocketChannel channel) throws Exception {
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
 
-                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
                 //添加mqtt编解码器
                 defaultChannelPipeline.addLast(MqttEncoder.INSTANCE);
                 defaultChannelPipeline.addLast(new MqttDecoder());

@@ -17,7 +17,7 @@ package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -262,7 +262,7 @@ public class AioServerStarter extends AioStarter {
      * @param channel 通道
      */
     private void createTcpChannel(AsynchronousSocketChannel channel) {
-        SocketChannel aioChannel = null;
+        AbstractSocketChannel aioChannel = null;
         try {
             aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufferPool, channelInitializer);
             //创建成功立即开始读
