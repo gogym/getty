@@ -52,7 +52,8 @@ public class UdpChannel extends AbstractSocketChannel {
     private LinkedBlockQueue<DatagramPacket> queue;
     private ThreadPool workerThreadPool;
 
-    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector, BaseConfig config, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer, int workerThreadNum) {
+    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector, BaseConfig config, ByteBufferPool byteBufferPool,
+                      ChannelInitializer channelInitializer, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
         this.config = config;

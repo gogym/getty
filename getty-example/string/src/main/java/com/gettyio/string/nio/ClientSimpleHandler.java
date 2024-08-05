@@ -21,7 +21,7 @@ public class ClientSimpleHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void channelRead0(AbstractSocketChannel aioChannel, String str) {
-        System.out.println("读取服务器端的消息:" + str);
+        //System.out.println("读取服务器端的消息:" + str);
     }
 
     @Override

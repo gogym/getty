@@ -33,10 +33,7 @@ import com.gettyio.core.util.thread.ThreadPool;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
-import java.nio.channels.DatagramChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.*;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
@@ -223,7 +220,7 @@ public class NioServerStarter extends NioStarter {
                             SelectionKey key = iterator.next();
                             if (key.isAcceptable()) {
                                 //处理OP_ACCEPT事件
-                                final java.nio.channels.SocketChannel socketChannel = ((ServerSocketChannel) key.channel()).accept();
+                                final SocketChannel socketChannel = ((ServerSocketChannel) key.channel()).accept();
                                 socketChannel.configureBlocking(false);
                                 //通过线程池创建客户端连接通道
                                 createTcpChannel(socketChannel);

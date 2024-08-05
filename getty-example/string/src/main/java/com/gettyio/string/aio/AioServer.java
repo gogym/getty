@@ -28,8 +28,8 @@ public class AioServer {
             // 尽量可以设置大一点，因为这不会真正的占用系统内存，只有真正使用时才会分配
             //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
             //aioServerConfig.setBufferWriterQueueSize(1024 * 1024);
-            //设置读取缓存块大小，一般不用设置这个参数，默认128字节
-            //aioServerConfig.setReadBufferSize(128);
+            //设置读取缓存块大小，一般不用设置这个参数，默认64字节
+            //aioServerConfig.setReadBufferSize(64);
             //设置SocketOptions
             //aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 

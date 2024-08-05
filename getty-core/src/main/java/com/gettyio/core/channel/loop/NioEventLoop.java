@@ -70,7 +70,7 @@ public class NioEventLoop implements EventLoop {
      * @param config
      * @param byteBufferPool
      */
-    public NioEventLoop(BaseConfig config, ByteBufferPool byteBufferPool) {
+    public NioEventLoop(BaseConfig config, ByteBufferPool byteBufferPool) throws IOException {
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
@@ -79,6 +79,7 @@ public class NioEventLoop implements EventLoop {
             selector = new SelectedSelector(Selector.open());
         } catch (IOException e) {
             LOGGER.error("selector init exception", e);
+            throw e;
         }
     }
 

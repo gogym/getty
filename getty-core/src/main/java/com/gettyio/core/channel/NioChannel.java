@@ -19,6 +19,7 @@ import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -70,7 +71,7 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
      */
     private final Semaphore semaphore = new Semaphore(1);
 
-    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
+    public NioChannel(BaseConfig config, SocketChannel channel, NioEventLoop nioEventLoop, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.config = config;
         this.channel = channel;
         this.nioEventLoop = nioEventLoop;
@@ -103,6 +104,7 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
             //若开启了SSL，则需要握手
             NioChannel.this.sslHandler.beginHandshake();
         }
+
         //注册事件
         nioEventLoop.getSelector().register(channel, SelectionKey.OP_READ, this);
     }
@@ -134,7 +136,8 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
             channelFutureListener.operationComplete(this);
         }
 
-        if (nioEventLoop != null) {
+        //注意，这里只有客户端链接，才需要关闭nioEventLoop
+        if (nioEventLoop != null && this.config instanceof ClientConfig) {
             try {
                 nioEventLoop.shutdown();
             } catch (Exception e) {

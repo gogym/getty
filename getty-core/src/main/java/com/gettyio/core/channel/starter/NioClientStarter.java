@@ -170,7 +170,7 @@ public class NioClientStarter extends NioStarter {
      */
     private void startTcp(final ConnectHandler connectHandler) throws Exception {
 
-        final SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
+        final SocketChannel socketChannel = SocketChannel.open();
         if (config.getSocketOptions() != null) {
             for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
