@@ -26,7 +26,7 @@ Getty aims to reduce the cost of using Java Socket NiO and help improve producti
 
 取名getty主要是作者过去使用netty比较多，对netty表示尊敬，以及getty本身借鉴了netty的设计思想。
 
-其次作者本人姓氏的拼音首字符是“G”，因而取名getty。
+作者本人姓氏的拼音首字符是“G”，因而取名getty。
 
 The name Getty is mainly due to the author's use of Netty in the past, which shows respect for Netty, and the fact that Getty itself borrows from Netty's design ideas.
 
@@ -104,7 +104,7 @@ Dependencies are included in the Projects Pom.XML dependencies
         <dependency>
             <groupId>com.gettyio</groupId>
             <artifactId>getty-core</artifactId>
-            <version>2.1.0-rc</version>
+            <version>2.2.0</version>
         </dependency>
 ```
 
@@ -112,27 +112,22 @@ Dependencies are included in the Projects Pom.XML dependencies
 
 
 ```
-compile group: 'com.gettyio', name: 'getty-core', version: '2.1.0-rc'
+compile group: 'com.gettyio', name: 'getty-core', version: '2.2.0'
 ```
 
 
 **本次更新**
 
 
-优化
+优化:
 
-1、内存池的优化，去除堆外内存的使用，
-原因：1、绝大部分场景无需使用堆外内存。2、堆外内存的使用比较复杂，掌控不好容易出现内存溢出。3、降低代码复杂性
+1、重构了内存池，实现更加简洁
 
-3、责任链重新实现，提高了性能和健壮性
+2、调整了部分代码结构
 
-3、优化了若干代码，提高易用性
+fix:
 
-修复
-
-1、修复其他若干bug
-
-
+1、修复nio模式下，多次关闭出现连接不上的问题
 
 
  **非Maven项目 (No Maven)** 
