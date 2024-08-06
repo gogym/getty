@@ -26,5 +26,5 @@ public class Version {
     /**
      * 版本
      */
-    public static final String VERSION = "2.1.0-rc";
+    public static final String VERSION = "2.2.0";
 }
