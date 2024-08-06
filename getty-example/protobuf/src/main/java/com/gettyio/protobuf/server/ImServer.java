@@ -3,6 +3,7 @@ package com.gettyio.protobuf.server;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioServerStarter;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
@@ -39,8 +40,7 @@ public class ImServer {
                 //设置单向验证或双向验证
                 sSLConfig.setClientAuth(ClientAuth.REQUIRE);
                 //初始化ssl服务
-                //SslService sSLService = new SslService(sSLConfig);
-                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                 //ChannelTrafficShapingHandler channelTrafficShapingHandler = new ChannelTrafficShapingHandler(5000);
                 //defaultChannelPipeline.addLast(channelTrafficShapingHandler);

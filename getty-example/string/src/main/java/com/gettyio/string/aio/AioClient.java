@@ -4,12 +4,12 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
-import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.expansion.handler.codec.string.StringDecoder;
-import com.gettyio.expansion.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
+import com.gettyio.expansion.handler.codec.string.StringDecoder;
+import com.gettyio.expansion.handler.codec.string.StringEncoder;
 import com.gettyio.expansion.handler.timeout.ReConnectHandler;
 
 import java.io.IOException;
@@ -98,7 +98,7 @@ public class AioClient {
                             while (i < 100) {
                                 boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
                                 //if (flag) {
-                                    i++;
+                                i++;
                                 //}
                             }
 

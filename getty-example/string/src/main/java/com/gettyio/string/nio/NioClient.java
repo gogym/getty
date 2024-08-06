@@ -99,7 +99,7 @@ public class NioClient {
 
 
                         int i = 0;
-                        for (; i < 100; i++) {
+                        for (; i < 1000000; i++) {
                             if (!channel.isInvalid()) {
                                 channel.writeAndFlush(msgBody);
                             }
@@ -108,7 +108,6 @@ public class NioClient {
                         long lt = System.currentTimeMillis();
                         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
                         System.out.printf("发送消息数量：" + i + "条\r\n");
-                        channel.close();
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

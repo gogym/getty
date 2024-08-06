@@ -37,13 +37,13 @@ public abstract class BaseConfig {
      */
     private int port;
     /**
-     * 消息读取缓存大小，默认64
+     * 消息读取缓存大小，默认32
      */
-    private int readBufferSize = 64;
+    private int readBufferSize = 32;
     /**
      * 输出类队列大小,再大意义不大，因为实际写出速度还会受到机器配置以及带宽等的限制，设置这个数，已经能满足绝大部分场景需要
      */
-    private int bufferWriterQueueSize = 1024 * 1024 * 8;
+    private int bufferWriterQueueSize = 1024 * 1024;
 
     /**
      * 是否使用直接内存

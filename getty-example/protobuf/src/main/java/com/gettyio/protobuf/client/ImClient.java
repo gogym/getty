@@ -3,6 +3,7 @@ package com.gettyio.protobuf.client;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
@@ -59,8 +60,7 @@ public class ImClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                //SslService sSLService = new SslService(sSLConfig);
-                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                 defaultChannelPipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
                 defaultChannelPipeline.addLast(new ProtobufEncoder());
