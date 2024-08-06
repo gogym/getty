@@ -24,16 +24,35 @@ abstract class AbstractByteBufferPool implements ByteBufferPool {
 
     /**
      * 默认的因子值，用于计算最大容量。
-     * 默认因子值为4096，表示最大容量可以通过这个因子乘以当前容量来估算。
+     * 默认因子值为768，表示最大容量可以通过这个因子乘以当前容量来估算。
      */
-    public final int DEFAULT_FACTOR = 4096;
+    public final int DEFAULT_FACTOR = 768;
 
     /**
      * 默认按因子计算的最大容量值。
      * 当缓冲区的容量超过这个值时，将会触发特定的容量控制逻辑。
-     * 默认最大容量为16，通过DEFAULT_FACTOR乘以当前容量来估算。
+     * 默认最大容量为12，通过DEFAULT_FACTOR乘以当前容量来估算。
      */
-    public final int DEFAULT_MAX_CAPACITY_BY_FACTOR = 16;
+    public final int DEFAULT_MAX_CAPACITY_BY_FACTOR = 12;
+
+
+    /**
+     * 默认桶的数量
+     */
+    public final int DEFAULT_BUCKET_SIZE = 12;
+
+
+    /**
+     * 默认缓冲区最小容量
+     */
+    public final int DEFAULT_MIN_CAPACITY = 4;
+
+
+    /**
+     * 默认缓冲区最大容量
+     */
+    public final int DEFAULT_MAX_CAPACITY = 8192;
+
 
     /**
      * 最小池化缓冲区容量。

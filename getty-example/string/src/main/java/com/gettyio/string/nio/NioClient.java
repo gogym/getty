@@ -24,7 +24,7 @@ public class NioClient {
 
 
         int i = 0;
-        while (i < 1) {
+        while (i < 10) {
 
             //if(i%2==0){
             NioClient ac = new NioClient();
@@ -108,7 +108,7 @@ public class NioClient {
                         long lt = System.currentTimeMillis();
                         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
                         System.out.printf("发送消息数量：" + i + "条\r\n");
-
+                        channel.close();
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
