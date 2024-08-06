@@ -1,11 +1,11 @@
 package com.gettyio.mqtt.client;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 import com.gettyio.expansion.handler.codec.mqtt.*;
 
 import java.io.IOException;
@@ -39,9 +39,9 @@ public class MqttClient {
         AioClientStarter client = new AioClientStarter("127.0.0.1", port);
         client.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(SocketChannel channel) throws Exception {
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
                 //责任链
-                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
                 //添加mqtt编解码器
                 defaultChannelPipeline.addLast(MqttEncoder.INSTANCE);
                 defaultChannelPipeline.addLast(new MqttDecoder());
@@ -53,7 +53,7 @@ public class MqttClient {
 
         client.start(new ConnectHandler() {
             @Override
-            public void onCompleted(final SocketChannel channel) {
+            public void onCompleted(final AbstractSocketChannel channel) {
                 try {
 
                     //mqtt连接消息

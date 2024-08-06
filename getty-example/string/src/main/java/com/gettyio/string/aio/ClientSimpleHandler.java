@@ -1,7 +1,7 @@
 package com.gettyio.string.aio;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
@@ -18,8 +18,8 @@ public class ClientSimpleHandler extends SimpleChannelInboundHandler<String> {
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, String str) {
-       // System.out.println("收到服务器端消息:" + str);
+    public void channelRead0(AbstractSocketChannel aioChannel, String str) {
+        System.out.println("收到服务器端消息:" + str);
     }
 
     @Override

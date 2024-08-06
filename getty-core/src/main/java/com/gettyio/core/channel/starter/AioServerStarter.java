@@ -15,9 +15,9 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -26,7 +26,7 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.util.DateTimeUtil;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -139,7 +139,7 @@ public class AioServerStarter extends AioStarter {
         startCheck(config, true);
 
         //实例化内存池
-        this.byteBufAllocator = new PooledByteBufAllocator();
+        this.byteBufferPool = new ArrayRetainableByteBufferPool(bufferPoolMaxBucketSize, config.isDirect());
 
         //初始化boss线程池
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
@@ -262,9 +262,9 @@ public class AioServerStarter extends AioStarter {
      * @param channel 通道
      */
     private void createTcpChannel(AsynchronousSocketChannel channel) {
-        SocketChannel aioChannel = null;
+        AbstractSocketChannel aioChannel = null;
         try {
-            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufAllocator, channelInitializer);
+            aioChannel = new AioChannel(channel, config, readCompletionHandler, writeCompletionHandler, byteBufferPool, channelInitializer);
             //创建成功立即开始读
             aioChannel.starRead();
         } catch (Exception e) {

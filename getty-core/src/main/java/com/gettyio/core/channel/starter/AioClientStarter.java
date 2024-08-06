@@ -15,9 +15,9 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
@@ -52,11 +52,11 @@ public class AioClientStarter extends AioStarter {
     /**
      * 客户端服务配置
      */
-    private ClientConfig clientConfig = new ClientConfig();
+    private ClientConfig config = new ClientConfig();
     /**
      * aio通道
      */
-    private SocketChannel aioChannel;
+    private AbstractSocketChannel aioChannel;
 
     /**
      * 简单启动
@@ -65,17 +65,17 @@ public class AioClientStarter extends AioStarter {
      * @param port 服务器端口号
      */
     public AioClientStarter(String host, int port) {
-        clientConfig.setHost(host);
-        clientConfig.setPort(port);
+        config.setHost(host);
+        config.setPort(port);
     }
 
     /**
      * 配置文件启动
      *
-     * @param clientConfig 配置
+     * @param config 配置
      */
-    public AioClientStarter(ClientConfig clientConfig) {
-        this.clientConfig = clientConfig;
+    public AioClientStarter(ClientConfig config) {
+        this.config = config;
     }
 
     /**
@@ -125,9 +125,9 @@ public class AioClientStarter extends AioStarter {
      * @param connectHandler
      */
     private void start0(ConnectHandler connectHandler) throws Exception {
-        startCheck(clientConfig);
+        startCheck(config);
         //初始化内存池
-        byteBufAllocator = new PooledByteBufAllocator();
+        byteBufferPool = new ArrayRetainableByteBufferPool(bufferPoolMaxBucketSize, config.isDirect());
 
         this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
@@ -149,20 +149,20 @@ public class AioClientStarter extends AioStarter {
     private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup, final ConnectHandler connectHandler) throws Exception {
 
         final AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
-        if (clientConfig.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : clientConfig.getSocketOptions().entrySet()) {
+        if (config.getSocketOptions() != null) {
+            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
         /**
          * 非阻塞连接
          */
-        socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
+        socketChannel.connect(new InetSocketAddress(config.getHost(), config.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
             @Override
             public void completed(Void result, AsynchronousSocketChannel attachment) {
                 LOGGER.info("connect aio server success");
                 //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, clientConfig, new ReadCompletionHandler(), new WriteCompletionHandler(), byteBufAllocator, channelInitializer);
+                aioChannel = new AioChannel(socketChannel, config, new ReadCompletionHandler(), new WriteCompletionHandler(), byteBufferPool, channelInitializer);
                 //开始读
                 aioChannel.starRead();
 
@@ -233,7 +233,7 @@ public class AioClientStarter extends AioStarter {
      *
      * @return
      */
-    public SocketChannel getChannel() {
+    public AbstractSocketChannel getChannel() {
         if (aioChannel != null) {
             if (aioChannel.getSslHandler() != null) {
                 //如果开启了ssl,要先判断是否已经完成握手

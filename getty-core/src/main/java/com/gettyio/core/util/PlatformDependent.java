@@ -31,11 +31,6 @@ import java.util.Locale;
 public final class PlatformDependent {
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformDependent.class);
-    /**
-     * 是否是安卓
-     */
-    private static final boolean IS_ANDROID = isAndroid0();
-
 
     /**
      * 只支持静态方法调用
@@ -59,7 +54,19 @@ public final class PlatformDependent {
      * 当且仅当当前平台是Android时返回{@code true}
      */
     public static boolean isAndroid() {
-        return IS_ANDROID;
+        boolean android;
+        try {
+            Class.forName("android.app.Application", false, getSystemClassLoader());
+            android = true;
+        } catch (Exception e) {
+            // 无法加载Android中唯一可用的类。
+            android = false;
+        }
+
+        if (android) {
+            logger.debug("Platform: Android");
+        }
+        return android;
     }
 
 
@@ -77,29 +84,6 @@ public final class PlatformDependent {
                 }
             });
         }
-    }
-
-    //----------------------------------
-
-    /**
-     * 是否是安卓
-     *
-     * @return
-     */
-    private static boolean isAndroid0() {
-        boolean android;
-        try {
-            Class.forName("android.app.Application", false, getSystemClassLoader());
-            android = true;
-        } catch (Exception e) {
-            // 无法加载Android中唯一可用的类。
-            android = false;
-        }
-
-        if (android) {
-            logger.debug("Platform: Android");
-        }
-        return android;
     }
 
 

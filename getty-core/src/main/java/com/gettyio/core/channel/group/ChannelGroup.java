@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.group;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 import java.util.Set;
 
@@ -27,7 +27,7 @@ import java.util.Set;
  * @date:2020/4/8
  * @copyright: Copyright by gettyio.com
  */
-public interface ChannelGroup extends Set<SocketChannel>, Comparable<ChannelGroup> {
+public interface ChannelGroup extends Set<AbstractSocketChannel>, Comparable<ChannelGroup> {
 
     /**
      * 名称
@@ -42,5 +42,5 @@ public interface ChannelGroup extends Set<SocketChannel>, Comparable<ChannelGrou
      * @param id
      * @return
      */
-    SocketChannel find(String id);
+    AbstractSocketChannel find(String id);
 }

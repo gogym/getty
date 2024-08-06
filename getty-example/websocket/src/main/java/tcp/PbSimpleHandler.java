@@ -1,10 +1,9 @@
 package tcp;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 
 public class PbSimpleHandler extends SimpleChannelInboundHandler<MessageClass.Message> {
@@ -22,7 +21,7 @@ public class PbSimpleHandler extends SimpleChannelInboundHandler<MessageClass.Me
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel,MessageClass.Message message) {
+    public void channelRead0(AbstractSocketChannel aioChannel, MessageClass.Message message) {
 
         try {
 

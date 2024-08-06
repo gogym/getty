@@ -16,7 +16,7 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.Base64;
@@ -39,7 +39,7 @@ import java.security.NoSuchAlgorithmException;
  */
 public class WebSocketHandShake {
 
-    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(SocketChannel.class);
+    protected static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AbstractSocketChannel.class);
 
     private static final int READ_LINE = 1;
     private static final int READ_HEADERS = 2;
@@ -140,7 +140,7 @@ public class WebSocketHandShake {
      * @param aioChannel  通道
      * @return String
      */
-    public static String generateHandshake(WebSocketRequest requestInfo, SocketChannel aioChannel) {
+    public static String generateHandshake(WebSocketRequest requestInfo, AbstractSocketChannel aioChannel) {
         StringBuilder sb = new StringBuilder();
         if (requestInfo.getSecVersion() < 4) {
             // 版本0--3

@@ -13,26 +13,17 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.gettyio.core.handler.codec.string;
-
-import com.gettyio.core.handler.codec.ByteToMessageDecoder;
-import com.gettyio.core.pipeline.ChannelHandlerContext;
-import com.gettyio.core.util.CharsetUtil;
-
+package com.gettyio.core.buffer.pool;
 
 /**
- * StringDecoder.java
- *
- * @description:string解码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * Retainable 接口定义了一个对象被保留（或增加引用计数）的行为。
+ * 该接口仅包含一个方法 retain()，用于增加对象的引用计数。
  */
-public class StringDecoder extends ByteToMessageDecoder {
-
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        String str = new String((byte[]) in, CharsetUtil.UTF_8);
-        super.channelRead(ctx, str);
-    }
+public interface Retainable {
+    /**
+     * retain 方法用于保留当前对象，即增加对象的引用计数。
+     * 该方法没有参数和返回值，其主要作用是影响对象的生命周期，
+     * 通常用于对象池或引用计数管理的场景中。
+     */
+    void retain();
 }

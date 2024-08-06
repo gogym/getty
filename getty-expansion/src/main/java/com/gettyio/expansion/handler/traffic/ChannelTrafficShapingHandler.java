@@ -19,7 +19,7 @@ import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 import com.gettyio.core.util.ObjectUtil;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 
 import java.util.concurrent.TimeUnit;
 

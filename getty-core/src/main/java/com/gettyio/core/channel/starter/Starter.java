@@ -15,13 +15,12 @@
  */
 package com.gettyio.core.channel.starter;
 
-
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 
 /**
  * 类名：Starter
@@ -47,6 +46,7 @@ public abstract class Starter {
      */
     protected int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
 
+
     /**
      * boss线程池
      */
@@ -55,7 +55,15 @@ public abstract class Starter {
     /**
      * 内存池构造器
      */
-    protected ByteBufAllocator byteBufAllocator;
+    protected ByteBufferPool byteBufferPool;
+
+
+    /**
+     * 内存池最大容量
+     */
+    protected int bufferPoolMaxBucketSize = 10000;
+
+
     /**
      * 责任链对象
      */

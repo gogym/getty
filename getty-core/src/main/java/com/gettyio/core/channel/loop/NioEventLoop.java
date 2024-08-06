@@ -15,16 +15,16 @@
  */
 package com.gettyio.core.channel.loop;
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
+
+import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
@@ -62,96 +62,118 @@ public class NioEventLoop implements EventLoop {
     /**
      * 内存池
      */
-    protected ByteBufAllocator byteBufAllocator;
+    protected ByteBufferPool byteBufferPool;
 
     /**
      * 构造方法
      *
      * @param config
-     * @param byteBufAllocator
+     * @param byteBufferPool
      */
-    public NioEventLoop(BaseConfig config, ByteBufAllocator byteBufAllocator) {
+    public NioEventLoop(BaseConfig config, ByteBufferPool byteBufferPool) throws IOException {
         this.config = config;
-        this.byteBufAllocator = byteBufAllocator;
+        this.byteBufferPool = byteBufferPool;
         this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
 
         try {
             selector = new SelectedSelector(Selector.open());
         } catch (IOException e) {
             LOGGER.error("selector init exception", e);
+            throw e;
         }
     }
 
     @Override
     public void run() {
-        //循环读
+        // 使用工作线程池执行读取操作
         workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
+                // 在未关闭前持续进行选择和处理操作
                 while (!shutdown) {
                     try {
+                        // 执行选择操作，0表示不阻塞
                         selector.select(0);
                     } catch (IOException e) {
+                        // 记录选择操作中的异常
                         LOGGER.error(e);
                     }
+                    // 遍历已选择的键集合
                     Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                     while (it.hasNext()) {
+                        // 获取单个选择键
                         SelectionKey sk = it.next();
+                        // 获取选择键的附件对象
                         Object obj = sk.attachment();
-
+                        // 从选择键集合中移除当前选择键
+                        it.remove();
+                        // 检查附件对象是否为NioChannel类型
                         if (obj instanceof NioChannel) {
+                            // 将附件对象转换为NioChannel
                             NioChannel nioChannel = (NioChannel) obj;
+                            // 获取选择键关联的Socket通道
                             java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
+                            // 检查选择键是否处于连接状态
                             if (sk.isConnectable()) {
-                                //连接过程中，完成连接
+                                // 如果连接正在建立中，则尝试完成连接
                                 if (channel.isConnectionPending()) {
                                     try {
                                         channel.finishConnect();
                                     } catch (IOException e) {
+                                        // 记录连接完成操作中的异常，并关闭通道
                                         LOGGER.error(e);
                                         nioChannel.close();
                                         break;
                                     }
                                 }
                             } else if (sk.isReadable()) {
-                                ByteBuf readBuffer = null;
-                                //接收数据
+                                // 从缓冲区池中获取一个读缓冲区
+                                RetainableByteBuffer readBuffer = null;
+                                // 尝试读取数据
                                 try {
-                                    readBuffer = byteBufAllocator.buffer(config.getReadBufferSize());
-                                    ByteBuffer readByteBuf = readBuffer.nioBuffer(readBuffer.writerIndex(), readBuffer.writableBytes());
-                                    int recCount = channel.read(readByteBuf);
-                                    readBuffer.writerIndex(readBuffer.getNioBuffer().flip().remaining());
-
+                                    // 根据配置获取适当大小的缓冲区
+                                    readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+                                    // 从通道读取数据到缓冲区
+                                    int recCount = channel.read(readBuffer.flipToFill());
+                                    // 如果读取到的数据量为-1，表示通道已关闭
                                     if (recCount == -1) {
+                                        // 释放缓冲区并关闭通道
                                         readBuffer.release();
                                         nioChannel.close();
                                         break;
                                     }
                                 } catch (Exception e) {
+                                    // 记录读取操作中的异常
                                     LOGGER.error(e);
+                                    // 如果缓冲区已分配，则释放缓冲区
                                     if (null != readBuffer) {
                                         readBuffer.release();
                                     }
+                                    // 关闭通道
                                     nioChannel.close();
                                     break;
                                 }
-
-                                //读取缓冲区数据，输送到责任链
-                                while (readBuffer.isReadable()) {
-                                    byte[] bytes = new byte[readBuffer.readableBytes()];
-                                    readBuffer.readBytes(bytes);
+                                // 准备将数据从缓冲区传输出去
+                                readBuffer.flipToFlush();
+                                // 从缓冲区读取数据，并通过责任链进行处理
+                                while (readBuffer.hasRemaining()) {
+                                    // 创建一个与剩余数据长度相同的字节数组
+                                    byte[] bytes = new byte[readBuffer.remaining()];
+                                    // 从缓冲区中获取数据
+                                    readBuffer.getBuffer().get(bytes);
+                                    // 处理读取到的数据
                                     nioChannel.doRead(bytes);
                                 }
-                                //触发读取完成，清理缓冲区
+                                // 读取操作完成，释放缓冲区
                                 readBuffer.release();
                             }
                         }
                     }
-                    it.remove();
                 }
             }
         });
     }
+
 
     @Override
     public void shutdown() {

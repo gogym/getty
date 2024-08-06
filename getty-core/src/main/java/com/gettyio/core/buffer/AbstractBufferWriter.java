@@ -16,7 +16,6 @@
 package com.gettyio.core.buffer;
 
 import java.io.IOException;
-import java.io.OutputStream;
 
 
 /**
@@ -27,26 +26,25 @@ import java.io.OutputStream;
  * @className AbstractBufferWriter.java
  * @date 2020/6/17
  */
-public abstract class AbstractBufferWriter<T> extends OutputStream {
+public abstract class AbstractBufferWriter<T> {
 
     /**
      * 当前是否已关闭
      */
     boolean closed = false;
 
-    @Override
     public void write(int b) throws IOException {
     }
 
-    @Override
+
     public void write(byte[] b, int off, int len) throws IOException {
     }
 
-    @Override
+
     public void flush() throws IOException {
     }
 
-    @Override
+
     public void close() throws IOException {
     }
 

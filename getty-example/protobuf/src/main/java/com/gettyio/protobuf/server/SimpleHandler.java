@@ -1,7 +1,7 @@
 package com.gettyio.protobuf.server;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.group.DefaultChannelGroup;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
@@ -33,7 +33,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MessageClass.Mess
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, MessageClass.Message str) {
+    public void channelRead0(AbstractSocketChannel aioChannel, MessageClass.Message str) {
         count++;
         System.out.println("消息:"+str.getBody()+"-----数量：" + count);
         final MessageClass.Message.Builder builder = MessageClass.Message.newBuilder();

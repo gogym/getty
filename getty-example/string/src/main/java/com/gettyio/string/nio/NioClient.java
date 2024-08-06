@@ -1,13 +1,13 @@
 package com.gettyio.string.nio;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.core.handler.codec.string.StringDecoder;
-import com.gettyio.core.handler.codec.string.StringEncoder;
+import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
+import com.gettyio.expansion.handler.codec.string.StringDecoder;
+import com.gettyio.expansion.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -52,9 +52,9 @@ public class NioClient {
         NioClientStarter client = new NioClientStarter(aioConfig);
         client.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(SocketChannel channel) throws Exception {
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
                 //责任链
-                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
 
 
                 //获取证书
@@ -87,7 +87,7 @@ public class NioClient {
 
     class ConnectHandlerImp implements ConnectHandler {
         @Override
-        public void onCompleted(final SocketChannel channel) {
+        public void onCompleted(final AbstractSocketChannel channel) {
 
             new Thread(new Runnable() {
                 @Override
@@ -99,17 +99,15 @@ public class NioClient {
 
 
                         int i = 0;
-                        for (; i < 100; i++) {
+                        for (; i < 1000000; i++) {
                             if (!channel.isInvalid()) {
                                 channel.writeAndFlush(msgBody);
-                                Thread.sleep(500);
                             }
                         }
 
                         long lt = System.currentTimeMillis();
                         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
                         System.out.printf("发送消息数量：" + i + "条\r\n");
-
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

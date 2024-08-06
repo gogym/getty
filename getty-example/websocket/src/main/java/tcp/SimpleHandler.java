@@ -1,7 +1,7 @@
 package tcp;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.websocket.frame.*;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
@@ -21,7 +21,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, WebSocketFrame frame) {
+    public void channelRead0(AbstractSocketChannel aioChannel, WebSocketFrame frame) {
 
         if (frame instanceof TextWebSocketFrame) {
             System.out.println("类型匹配:" + ((TextWebSocketFrame) frame).text());

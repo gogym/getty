@@ -16,9 +16,10 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.BufferWriter;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -30,6 +31,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -40,12 +42,12 @@ import java.util.concurrent.Semaphore;
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class NioChannel extends SocketChannel implements Function<BufferWriter, Void> {
+public class NioChannel extends AbstractSocketChannel implements Function<BufferWriter, Void> {
 
     /**
      * 通信channel对象
      */
-    private final java.nio.channels.SocketChannel channel;
+    private final SocketChannel channel;
 
     /**
      * SSL服务
@@ -69,12 +71,12 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
      */
     private final Semaphore semaphore = new Semaphore(1);
 
-    public NioChannel(BaseConfig config, java.nio.channels.SocketChannel channel, NioEventLoop nioEventLoop, ByteBufAllocator byteBufAllocator, ChannelInitializer channelInitializer) {
+    public NioChannel(BaseConfig config, SocketChannel channel, NioEventLoop nioEventLoop, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.config = config;
         this.channel = channel;
         this.nioEventLoop = nioEventLoop;
-        this.byteBufAllocator = byteBufAllocator;
-        this.nioBufferWriter = new BufferWriter(byteBufAllocator, this, config.getBufferWriterQueueSize());
+        this.byteBufferPool = byteBufferPool;
+        this.nioBufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
         this.channelInitializer = channelInitializer;
         try {
             //注意该方法可能抛异常
@@ -102,6 +104,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             //若开启了SSL，则需要握手
             NioChannel.this.sslHandler.beginHandshake();
         }
+
         //注册事件
         nioEventLoop.getSelector().register(channel, SelectionKey.OP_READ, this);
     }
@@ -133,7 +136,8 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             channelFutureListener.operationComplete(this);
         }
 
-        if (nioEventLoop != null) {
+        //注意，这里只有客户端链接，才需要关闭nioEventLoop
+        if (nioEventLoop != null && this.config instanceof ClientConfig) {
             try {
                 nioEventLoop.shutdown();
             } catch (Exception e) {
@@ -210,8 +214,7 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
         }
     }
 
-    @Override
-    public java.nio.channels.SocketChannel getSocketChannel() {
+    public SocketChannel getSocketChannel() {
         return this.channel;
     }
 
@@ -243,11 +246,6 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
             throw new IOException("channel is closed");
         }
     }
-
-//    @Override
-//    public ThreadPool getWorkerThreadPool() {
-//        return workerThreadPool;
-//    }
 
     /**
      * 设置SSLHandler
@@ -282,10 +280,10 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
     public Void apply(BufferWriter input) {
         //获取信息量
         if (semaphore.tryAcquire()) {
-            ByteBuf byteBuf;
+            RetainableByteBuffer byteBuf;
             while ((byteBuf = input.poll()) != null) {
 
-                if (!byteBuf.isReadable()) {
+                if (!byteBuf.hasRemaining()) {
                     //写完及时释放
                     byteBuf.release();
                 }
@@ -294,10 +292,9 @@ public class NioChannel extends SocketChannel implements Function<BufferWriter, 
                         byteBuf.release();
                         throw new IOException("NioChannel is Invalid");
                     }
-                    while (byteBuf.isReadable()) {
-                        ByteBuffer buffer = byteBuf.getNioBuffer();
-                        NioChannel.this.getSocketChannel().write(buffer);
-                        byteBuf.readerIndex(buffer.position());
+                    while (byteBuf.hasRemaining()) {
+                        ByteBuffer buffer = byteBuf.getBuffer();
+                        getSocketChannel().write(buffer);
                     }
                 } catch (IOException e) {
                     NioChannel.this.close();

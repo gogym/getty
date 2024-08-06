@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
  * ConnectHandler.java
@@ -32,7 +32,7 @@ public interface ConnectHandler {
      *
      * @param channel
      */
-    void onCompleted(SocketChannel channel);
+    void onCompleted(AbstractSocketChannel channel);
 
     /**
      * 连接失败回调

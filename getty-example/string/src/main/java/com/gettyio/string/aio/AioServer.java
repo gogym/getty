@@ -1,21 +1,17 @@
 package com.gettyio.string.aio;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.codec.string.DelimiterFrameDecoder;
-import com.gettyio.core.handler.codec.string.StringDecoder;
-import com.gettyio.core.handler.codec.string.StringEncoder;
+import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
+import com.gettyio.expansion.handler.codec.string.StringDecoder;
+import com.gettyio.expansion.handler.codec.string.StringEncoder;
 import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SSLConfig;
-import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
-import com.gettyio.expansion.handler.timeout.HeartBeatTimeOutHandler;
 import com.gettyio.expansion.handler.timeout.IdleStateHandler;
-import com.gettyio.expansion.handler.traffic.ChannelTrafficShapingHandler;
-import com.gettyio.expansion.handler.traffic.TrafficShapingHandler;
 
 public class AioServer {
 
@@ -32,8 +28,8 @@ public class AioServer {
             // 尽量可以设置大一点，因为这不会真正的占用系统内存，只有真正使用时才会分配
             //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
             //aioServerConfig.setBufferWriterQueueSize(1024 * 1024);
-            //设置读取缓存块大小，一般不用设置这个参数，默认128字节
-            //aioServerConfig.setReadBufferSize(128);
+            //设置读取缓存块大小，一般不用设置这个参数，默认64字节
+            //aioServerConfig.setReadBufferSize(64);
             //设置SocketOptions
             //aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
 
@@ -41,10 +37,10 @@ public class AioServer {
             server.channelInitializer(new ChannelInitializer() {
 
                 @Override
-                public void initChannel(SocketChannel socketChannel) throws Exception {
+                public void initChannel(AbstractSocketChannel abstractSocketChannel) throws Exception {
 
                     //获取责任链对象
-                    ChannelPipeline defaultChannelPipeline = socketChannel.getDefaultChannelPipeline();
+                    ChannelPipeline defaultChannelPipeline = abstractSocketChannel.getChannelPipeline();
                     //获取证书
                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
                     //ssl配置

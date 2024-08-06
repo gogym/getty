@@ -1,12 +1,11 @@
 package com.gettyio.string.udp;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 import java.net.DatagramPacket;
-import java.net.InetSocketAddress;
 
 public class ClientSimpleHandler extends SimpleChannelInboundHandler<DatagramPacket> {
     @Override
@@ -23,7 +22,7 @@ public class ClientSimpleHandler extends SimpleChannelInboundHandler<DatagramPac
 
 
     @Override
-    public void channelRead0(SocketChannel socketChannel, DatagramPacket datagramPacket) {
+    public void channelRead0(AbstractSocketChannel abstractSocketChannel, DatagramPacket datagramPacket) {
 
         String address = datagramPacket.getAddress().getHostName() + ":" + datagramPacket.getPort();
         System.out.println("读取服务器" + address + "消息:" + new String(datagramPacket.getData()));

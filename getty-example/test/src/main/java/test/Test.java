@@ -1,18 +1,17 @@
 package test;
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
-import com.gettyio.core.buffer.pool.PooledByteBufAllocator;
+import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.util.FastArrayList;
 import com.gettyio.core.util.FastCopyOnWriteArrayList;
 import com.gettyio.core.util.timer.HashedWheelTimer;
 import com.gettyio.core.util.timer.Timeout;
 import com.gettyio.core.util.timer.TimerTask;
 
-
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class TestArray {
+public class Test {
 
     public static void main(String[] args) {
 
@@ -25,8 +24,33 @@ public class TestArray {
 //       boolean ss= ((normCapacity & subpageOverflowMask) != 0);
 //        System.out.println((normCapacity & subpageOverflowMask));
 
-        testPool();
+        try {
+            //testTLinkList();
+           testPool();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         //testTimer();
+
+
+//        int[] array = new int[]{4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192};
+//        int j = 256;
+//        int index = -1;
+//        //二分法
+//        int low = 0, high = array.length - 1;
+//        while (low <= high) {
+//            int mid = low + (high - low) / 2;
+//            if (array[mid] >= j) {
+//                index = mid;
+//                high = mid - 1;
+//                break;
+//            } else {
+//                low = mid + 1;
+//            }
+//        }
+//        System.out.println(index);
+
+
     }
 
 
@@ -100,16 +124,31 @@ public class TestArray {
     }
 
 
-    public static void testPool(){
+    public static void testPool() throws Exception {
 
-
-        ByteBufAllocator byteBufAllocator=new PooledByteBufAllocator();
-
+        final ArrayRetainableByteBufferPool byteBufferPool = new ArrayRetainableByteBufferPool(0, -1, 10000,
+                10000000L, 0L, false);
+        int num = 1;
         long ct = System.currentTimeMillis();
-        for (int i=0;i<1000000;i++){
-            ByteBuf buf=byteBufAllocator.buffer(64);
-            //buf.release();
+
+        final CountDownLatch countDownLatch = new CountDownLatch(num);
+        for (int i = 0; i < num; i++) {
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    for (int i = 0; i < 1000000; i++) {
+                        RetainableByteBuffer buf = byteBufferPool.acquire(257);
+                        buf.release();
+                    }
+                    countDownLatch.countDown();
+                }
+            }).start();
         }
+
+
+        countDownLatch.await();
+
         long lt = System.currentTimeMillis();
         System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
 
@@ -117,7 +156,7 @@ public class TestArray {
     }
 
 
-    public static void testTimer(){
+    public static void testTimer() {
 
 //        HashedWheelTimer timer = new HashedWheelTimer(100,TimeUnit.MILLISECONDS,100);
 //        timer.schedule(new Runnable() {
@@ -126,7 +165,7 @@ public class TestArray {
 //                System.out.println("123");
 //            }
 //        },1,TimeUnit.SECONDS);
-        HashedWheelTimer timer = new HashedWheelTimer(100,TimeUnit.MILLISECONDS,100);
+        HashedWheelTimer timer = new HashedWheelTimer(100, TimeUnit.MILLISECONDS, 100);
         timer.newTimeout(new TimerTask() {
             @Override
             public void run(Timeout timeout) throws Exception {

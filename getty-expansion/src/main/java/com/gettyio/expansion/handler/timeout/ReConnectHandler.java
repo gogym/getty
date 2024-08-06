@@ -17,7 +17,7 @@ package com.gettyio.expansion.handler.timeout;
 
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.channel.starter.ConnectHandler;
@@ -68,7 +68,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     /**
      * channel
      */
-    private SocketChannel channel;
+    private AbstractSocketChannel channel;
     /**
      * 连接回调
      */
@@ -142,7 +142,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                 public void completed(Void result, AsynchronousSocketChannel attachment) {
                     logger.info("connect aio server success");
                     //连接成功则构造AIOSession对象
-                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufAllocator(), channel.getChannelInitializer());
+                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufferPool(), channel.getChannelInitializer());
 
                     if (null != connectHandler) {
                         if (null != channel.getSslHandler()) {
@@ -206,7 +206,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                         if (channels.isConnectionPending()) {
                             try {
                                 channels.finishConnect();
-                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getByteBufAllocator(), channel.getChannelInitializer());
+                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getByteBufferPool(), channel.getChannelInitializer());
                                 if (null != connectHandler) {
                                     if (null != channel.getSslHandler()) {
                                         channel.setSslHandshakeListener(new IHandshakeListener() {
@@ -246,11 +246,11 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     /**
      * 重连
      *
-     * @param socketChannel
+     * @param abstractSocketChannel
      */
-    private void reConnect(SocketChannel socketChannel) {
+    private void reConnect(AbstractSocketChannel abstractSocketChannel) {
         //判断是否已经连接
-        if (socketChannel.isInvalid()) {
+        if (abstractSocketChannel.isInvalid()) {
             logger.debug("reconnect...");
             // 重连的间隔时间会越来越长
             long delay = attempts * threshold;

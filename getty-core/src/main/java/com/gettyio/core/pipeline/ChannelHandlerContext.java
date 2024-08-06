@@ -16,7 +16,7 @@
 package com.gettyio.core.pipeline;
 
 import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
  * ChannelHandlerContext
@@ -28,10 +28,10 @@ public interface ChannelHandlerContext {
      * 获取通道
      * @return
      */
-    SocketChannel channel();
+    AbstractSocketChannel channel();
 
     /**
-     * 获取处理者
+     * 获取处理器
      *
      * @return
      */

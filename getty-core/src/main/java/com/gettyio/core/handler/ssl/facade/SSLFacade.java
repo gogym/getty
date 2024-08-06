@@ -1,6 +1,7 @@
 package com.gettyio.core.handler.ssl.facade;
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+
+import com.gettyio.core.buffer.pool.ByteBufferPool;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -14,7 +15,7 @@ public class SSLFacade implements ISSLFacade {
     private IHandshakeCompletedListener _hcl;
     private final Worker _worker;
 
-    public SSLFacade(SSLContext context, boolean client, boolean clientAuthRequired, ITaskHandler taskHandler, ByteBufAllocator byteBufAllocator) {
+    public SSLFacade(SSLContext context, boolean client, boolean clientAuthRequired, ITaskHandler taskHandler, ByteBufferPool byteBufferPool) {
         //Currently there is no support for SSL session reuse,
         // so no need to take a peerHost or port from the host application
         SSLEngine engine = makeSSLEngine(context, client, clientAuthRequired);

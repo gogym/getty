@@ -15,13 +15,13 @@
  */
 package com.gettyio.core.buffer;
 
+import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.function.Function;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
-import com.gettyio.core.buffer.bytebuf.ByteBuf;
-import com.gettyio.core.util.LinkedBlockQueue;
-import com.gettyio.core.util.LinkedQueue;
+import com.gettyio.core.util.queue.LinkedBlockQueue;
+import com.gettyio.core.util.queue.LinkedQueue;
 
 import java.io.IOException;
 
@@ -35,7 +35,7 @@ import java.io.IOException;
  * @description
  * @date 2020/4/8
  */
-public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
+public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffer> {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BufferWriter.class);
 
@@ -47,22 +47,22 @@ public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
     /**
      * 数据缓冲队列
      */
-    private final LinkedQueue<ByteBuf> queue;
+    private final LinkedQueue<RetainableByteBuffer> queue;
 
     /**
      * 缓冲区构造器
      */
-    private final ByteBufAllocator byteBufAllocator;
+    private final ByteBufferPool byteBufferPool;
 
     /**
      * 构造方法
      *
-     * @param byteBufAllocator      内存池
+     * @param byteBufferPool      内存池
      * @param flushFunction         函数
      * @param bufferWriterQueueSize 写队列大小
      */
-    public BufferWriter(ByteBufAllocator byteBufAllocator, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
-        this.byteBufAllocator = byteBufAllocator;
+    public BufferWriter(ByteBufferPool byteBufferPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
+        this.byteBufferPool = byteBufferPool;
         this.function = flushFunction;
         this.queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
     }
@@ -79,9 +79,9 @@ public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
         }
         try {
             //申请写缓冲
-            ByteBuf byteBuf = byteBufAllocator.buffer(len - off);
+            RetainableByteBuffer byteBuf = byteBufferPool.acquire(len - off);
             //写入数据
-            byteBuf.writeBytes(b);
+            byteBuf.put(b);
             //写到缓冲队列
             queue.put(byteBuf);
         } catch (Exception e) {
@@ -122,7 +122,7 @@ public final class BufferWriter extends AbstractBufferWriter<ByteBuf> {
     }
 
     @Override
-    public ByteBuf poll() {
+    public RetainableByteBuffer poll() {
         try {
             return queue.poll();
         } catch (InterruptedException e) {

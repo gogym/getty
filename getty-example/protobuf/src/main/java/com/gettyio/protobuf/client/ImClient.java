@@ -1,8 +1,9 @@
 package com.gettyio.protobuf.client;
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
@@ -11,7 +12,7 @@ import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32LengthFieldP
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
 
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 import com.gettyio.protobuf.packet.MessageClass;
 
 import java.io.IOException;
@@ -43,9 +44,9 @@ public class ImClient {
         AioClientStarter client = new AioClientStarter("127.0.0.1", port);
         client.channelInitializer(new ChannelInitializer() {
             @Override
-            public void initChannel(SocketChannel channel) throws Exception {
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
                 //责任链
-                ChannelPipeline defaultChannelPipeline = channel.getDefaultChannelPipeline();
+                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
                 //获取证书
                 String pkPath = getClass().getClassLoader().getResource("clientStore.jks")
                         .getPath();
@@ -59,8 +60,7 @@ public class ImClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                //SslService sSLService = new SslService(sSLConfig);
-                //defaultChannelPipeline.addFirst(new SslHandler(channel, sSLService));
+                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                 defaultChannelPipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
                 defaultChannelPipeline.addLast(new ProtobufEncoder());
@@ -77,7 +77,7 @@ public class ImClient {
 
         client.start(new ConnectHandler() {
             @Override
-            public void onCompleted(final SocketChannel channel) {
+            public void onCompleted(final AbstractSocketChannel channel) {
                 try {
 
 

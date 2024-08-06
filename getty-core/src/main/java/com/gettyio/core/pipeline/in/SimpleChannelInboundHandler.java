@@ -16,7 +16,7 @@
 package com.gettyio.core.pipeline.in;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.all.DatagramPacketHandler;
 
@@ -39,10 +39,10 @@ public abstract class SimpleChannelInboundHandler<T> extends ChannelInboundHandl
     /**
      * 解码后的消息输出
      *
-     * @param socketChannel 通道
+     * @param abstractSocketChannel 通道
      * @param t             解密后的消息
      * @throws Exception 异常
      */
-    public abstract void channelRead0(SocketChannel socketChannel, T t) throws Exception;
+    public abstract void channelRead0(AbstractSocketChannel abstractSocketChannel, T t) throws Exception;
 
 }

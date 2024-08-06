@@ -2,7 +2,7 @@ package com.gettyio.mqtt.client;
 
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.mqtt.MqttMessage;
 import com.gettyio.expansion.handler.codec.mqtt.MqttPublishMessage;
@@ -23,7 +23,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<MqttMessage> {
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, MqttMessage mqttMessage) {
+    public void channelRead0(AbstractSocketChannel aioChannel, MqttMessage mqttMessage) {
         System.out.println("读取消息了:" + mqttMessage.toString());
 
         switch (mqttMessage.fixedHeader().messageType()) {

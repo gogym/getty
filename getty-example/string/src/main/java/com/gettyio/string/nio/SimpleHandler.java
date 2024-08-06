@@ -1,11 +1,9 @@
 package com.gettyio.string.nio;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
-
-import java.io.IOException;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
@@ -23,9 +21,9 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
 
     @Override
-    public void channelRead0(SocketChannel socketChannel, String str) {
-        System.out.println("读取客户端的消息:" + str);
-        socketChannel.writeAndFlush("你发的消息是：" + str + "\r\n");
+    public void channelRead0(AbstractSocketChannel abstractSocketChannel, String str) {
+        //System.out.println("读取客户端的消息:" + str);
+        //abstractSocketChannel.writeAndFlush("你发的消息是：" + str + "\r\n");
 
     }
 

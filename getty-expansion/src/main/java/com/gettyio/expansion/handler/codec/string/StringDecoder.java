@@ -13,30 +13,26 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.gettyio.core.handler.codec.string;
+package com.gettyio.expansion.handler.codec.string;
 
-import com.gettyio.core.handler.codec.MessageToByteEncoder;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
 
 
 /**
- * StringEncoder.java
+ * StringDecoder.java
  *
- * @description:String编码器
+ * @description:string解码器
  * @author:gogym
  * @date:2020/4/9
  * @copyright: Copyright by gettyio.com
  */
-public class StringEncoder extends MessageToByteEncoder {
+public class StringDecoder extends ByteToMessageDecoder {
 
     @Override
-    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        if (obj instanceof String) {
-            obj = ((String) obj).getBytes(CharsetUtil.UTF_8);
-        }
-        super.channelWrite(ctx, obj);
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
+        String str = new String((byte[]) in, CharsetUtil.UTF_8);
+        super.channelRead(ctx, str);
     }
-
-
 }

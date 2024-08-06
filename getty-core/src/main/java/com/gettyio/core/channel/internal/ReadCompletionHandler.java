@@ -18,7 +18,6 @@ package com.gettyio.core.channel.internal;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.ThreadPool;
 
 import java.nio.channels.CompletionHandler;
 

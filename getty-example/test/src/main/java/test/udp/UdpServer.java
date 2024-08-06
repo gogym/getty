@@ -1,7 +1,7 @@
 package test.udp;
 
 
-import com.gettyio.core.util.ThreadPool;
+import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

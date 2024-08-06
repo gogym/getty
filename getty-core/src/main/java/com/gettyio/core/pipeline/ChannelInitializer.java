@@ -16,7 +16,7 @@
 package com.gettyio.core.pipeline;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 
 
 /**
@@ -33,8 +33,8 @@ public interface ChannelInitializer {
     /**
      * 初始化责任链
      *
-     * @param socketChannel
+     * @param abstractSocketChannel
      * @throws Exception
      */
-    void initChannel(SocketChannel socketChannel) throws Exception;
+    void initChannel(AbstractSocketChannel abstractSocketChannel) throws Exception;
 }

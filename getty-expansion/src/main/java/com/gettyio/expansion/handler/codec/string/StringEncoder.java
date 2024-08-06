@@ -13,24 +13,30 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.gettyio.core.channel.group;
+package com.gettyio.expansion.handler.codec.string;
 
-import com.gettyio.core.channel.AbstractSocketChannel;
+import com.gettyio.core.handler.codec.MessageToByteEncoder;
+import com.gettyio.core.pipeline.ChannelHandlerContext;
+import com.gettyio.core.util.CharsetUtil;
+
 
 /**
- * ChannelFutureListener.java
+ * StringEncoder.java
  *
- * 监听，目前用于监听通道关闭时清理相关资源
+ * @description:String编码器
  * @author:gogym
- * @date:2020/4/8
+ * @date:2020/4/9
+ * @copyright: Copyright by gettyio.com
  */
-public interface ChannelFutureListener {
+public class StringEncoder extends MessageToByteEncoder {
 
-    /**
-     * 操作完成监听
-     *
-     * @param abstractSocketChannel
-     */
-    void operationComplete(AbstractSocketChannel abstractSocketChannel);
+    @Override
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
+        if (obj instanceof String) {
+            obj = ((String) obj).getBytes(CharsetUtil.UTF_8);
+        }
+        super.channelWrite(ctx, obj);
+    }
+
 
 }

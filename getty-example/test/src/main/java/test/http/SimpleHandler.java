@@ -1,7 +1,7 @@
 package test.http;
 
 
-import com.gettyio.core.channel.SocketChannel;
+import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.*;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
@@ -24,7 +24,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
 
     @Override
-    public void channelRead0(SocketChannel aioChannel, HttpRequest request) {
+    public void channelRead0(AbstractSocketChannel aioChannel, HttpRequest request) {
         System.out.println("version:" + request.getHttpVersion()+"---header:"+request.getHeader("Connection")+"---body:"+ request.getParameter("id"));
         //设置keep-alive为false
         //aioChannel.setKeepAlive(false);

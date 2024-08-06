@@ -16,9 +16,7 @@
 package com.gettyio.expansion.handler.codec.protobuf;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
-import com.gettyio.core.util.LinkedBlockQueue;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;

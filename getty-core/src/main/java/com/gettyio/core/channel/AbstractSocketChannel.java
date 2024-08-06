@@ -16,7 +16,7 @@
 package com.gettyio.core.channel;
 
 
-import com.gettyio.core.buffer.allocator.ByteBufAllocator;
+import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -32,7 +32,6 @@ import com.gettyio.core.util.StringUtil;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.AsynchronousSocketChannel;
 
 
 /**
@@ -43,8 +42,8 @@ import java.nio.channels.AsynchronousSocketChannel;
  * @date:2020/4/8
  * @copyright: Copyright by gettyio.com
  */
-public abstract class SocketChannel {
-    protected static final InternalLogger logger = InternalLoggerFactory.getInstance(SocketChannel.class);
+public abstract class AbstractSocketChannel {
+    protected static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractSocketChannel.class);
     /**
      * 已关闭
      */
@@ -74,16 +73,16 @@ public abstract class SocketChannel {
      */
     protected boolean writeable = true;
 
-
-    /**
-     * 内存池
-     */
-    protected ByteBufAllocator byteBufAllocator;
-
     /**
      * 会话当前状态
      */
     protected byte status = CHANNEL_STATUS_ENABLED;
+
+
+    /**
+     * 内存池
+     */
+    protected ByteBufferPool byteBufferPool;
 
     /**
      * 配置
@@ -91,7 +90,7 @@ public abstract class SocketChannel {
     protected BaseConfig config;
 
     /**
-     * 默认责任链对象
+     * 责任链对象
      */
     protected ChannelPipeline channelPipeline;
     /**
@@ -150,7 +149,6 @@ public abstract class SocketChannel {
     public abstract void close(boolean initiateClose);
 
 //-------------------------------------------------------------------------------------------------
-
 
     /**
      * 写出数据，经过责任链
@@ -220,7 +218,7 @@ public abstract class SocketChannel {
      * @throws Exception 异常
      */
     protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
-        ChannelHandlerContext channelHandlerContext = getDefaultChannelPipeline().head();
+        ChannelHandlerContext channelHandlerContext = getChannelPipeline().head();
         channelHandlerContext.fireChannelProcess(channelState, obj);
     }
 
@@ -232,32 +230,25 @@ public abstract class SocketChannel {
      * @throws Exception 异常
      */
     protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
-        ChannelHandlerContext channelHandlerContext = getDefaultChannelPipeline().tail();
+        ChannelHandlerContext channelHandlerContext = getChannelPipeline().tail();
         channelHandlerContext.fireChannelProcess(channelState, obj);
     }
 
 
     /**
-     * 获取默认的责任链
+     * 获取责任链
      *
      * @return com.gettyio.core.pipeline.DefaultChannelPipeline
      */
-    public ChannelPipeline getDefaultChannelPipeline() {
+    public ChannelPipeline getChannelPipeline() {
         return channelPipeline != null ? channelPipeline : (channelPipeline = new DefaultChannelPipeline(this));
     }
 
 //--------------------------------------------------------------------------------------
 
-    public AsynchronousSocketChannel getAsynchronousSocketChannel() {
-        return null;
-    }
 
-    public java.nio.channels.SocketChannel getSocketChannel() {
-        return null;
-    }
-
-    public ByteBufAllocator getByteBufAllocator() {
-        return byteBufAllocator;
+    public ByteBufferPool getByteBufferPool() {
+        return byteBufferPool;
     }
 
     /**

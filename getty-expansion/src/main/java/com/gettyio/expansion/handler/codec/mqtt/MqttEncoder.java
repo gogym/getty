@@ -16,8 +16,6 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.channel.ChannelState;
-import com.gettyio.core.channel.SocketChannel;
 import com.gettyio.core.handler.codec.DecoderException;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
