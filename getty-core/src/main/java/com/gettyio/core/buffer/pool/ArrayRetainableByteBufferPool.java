@@ -243,14 +243,26 @@ public class ArrayRetainableByteBufferPool extends AbstractByteBufferPool {
         if (capacity < _minCapacity) {
             return null;
         }
-        // 计算存储桶索引
-        //int idx = _bucketIndexFor.apply(capacity);
-        int idx =1;
 
         // 根据是否直接内存选择存储桶数组
         RetainedBucket[] buckets = direct ? _directBucket : _indirect;
+        // 计算存储桶索引
+        int idx = -1;
+
+        //二分法查找
+        int low = 0, high = buckets.length - 1;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            if (buckets[mid].getCapacity() >= capacity) {
+                idx = mid;
+                high = mid - 1;
+            } else {
+                low = mid + 1;
+            }
+        }
+
         // 索引超出范围，返回null
-        if (idx >= buckets.length) {
+        if (idx < 0) {
             return null;
         }
         // 返回对应的存储桶

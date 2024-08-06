@@ -26,26 +26,30 @@ public class Test {
 
         try {
             //testTLinkList();
-            //testPool();
+           testPool();
         } catch (Exception e) {
             e.printStackTrace();
         }
         //testTimer();
 
 
-        int[] array=new int[]{4,8,16,32,64,128,256,512,1024,2048,4096,8192};
-        int j=129;
-        int index=0;
-        for (int i=0;i<array.length;i++) {
-            if (j <= array[i]) {
-                index = i;
-                break;
-            }
-        }
-        System.out.println(index);
+//        int[] array = new int[]{4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192};
+//        int j = 256;
+//        int index = -1;
+//        //二分法
+//        int low = 0, high = array.length - 1;
+//        while (low <= high) {
+//            int mid = low + (high - low) / 2;
+//            if (array[mid] >= j) {
+//                index = mid;
+//                high = mid - 1;
+//                break;
+//            } else {
+//                low = mid + 1;
+//            }
+//        }
+//        System.out.println(index);
 
-
-        System.out.println(129/2);
 
     }
 
@@ -123,7 +127,7 @@ public class Test {
     public static void testPool() throws Exception {
 
         final ArrayRetainableByteBufferPool byteBufferPool = new ArrayRetainableByteBufferPool(0, -1, 10000,
-                10000000L, 0L,false);
+                10000000L, 0L, false);
         int num = 1;
         long ct = System.currentTimeMillis();
 
@@ -133,8 +137,8 @@ public class Test {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < 1; i++) {
-                        RetainableByteBuffer buf = byteBufferPool.acquire(4);
+                    for (int i = 0; i < 1000000; i++) {
+                        RetainableByteBuffer buf = byteBufferPool.acquire(257);
                         buf.release();
                     }
                     countDownLatch.countDown();

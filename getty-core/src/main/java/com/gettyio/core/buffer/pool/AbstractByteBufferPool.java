@@ -23,20 +23,6 @@ package com.gettyio.core.buffer.pool;
 abstract class AbstractByteBufferPool implements ByteBufferPool {
 
     /**
-     * 默认的因子值，用于计算最大容量。
-     * 默认因子值为768，表示最大容量可以通过这个因子乘以当前容量来估算。
-     */
-    public final int DEFAULT_FACTOR = 768;
-
-    /**
-     * 默认按因子计算的最大容量值。
-     * 当缓冲区的容量超过这个值时，将会触发特定的容量控制逻辑。
-     * 默认最大容量为12，通过DEFAULT_FACTOR乘以当前容量来估算。
-     */
-    public final int DEFAULT_MAX_CAPACITY_BY_FACTOR = 12;
-
-
-    /**
      * 默认桶的数量
      */
     public final int DEFAULT_BUCKET_SIZE = 12;
