@@ -17,22 +17,23 @@ package com.gettyio.core.util.timer;
 
 import java.util.concurrent.TimeUnit;
 
-
 /**
- * TimerTask.java
+ * 定时任务接口。
+ * <p>
+ * 由 {@link Timer#newTimeout(TimerTask, long, TimeUnit)} 提交，
+ * 到期后由定时器线程调用 {@link #run(Timeout)} 执行。
+ * </p>
  *
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @date 2020/4/9
  */
 public interface TimerTask {
 
-
     /**
-     * 延时执行定时任务 {@link Timer#newTimeout(TimerTask, long, TimeUnit)}.
-     * @param timeout
-     * @throws Exception
+     * 定时任务到期时执行的方法。
+     *
+     * @param timeout 超时句柄，可查询任务状态或关联的定时器
+     * @throws Exception 执行异常
      */
     void run(Timeout timeout) throws Exception;
-
 }

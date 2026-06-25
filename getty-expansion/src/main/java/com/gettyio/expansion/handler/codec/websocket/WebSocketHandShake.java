@@ -21,7 +21,7 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.Base64;
 import com.gettyio.core.util.StringUtil;
-import com.gettyio.core.util.fastmd5.util.MD5;
+import com.gettyio.core.util.MD5;
 import com.gettyio.expansion.handler.codec.http.HttpConstants;
 import com.gettyio.expansion.handler.codec.http.HttpException;
 
@@ -93,9 +93,9 @@ public class WebSocketHandShake {
             asByte[1] = (byte) ((key << 8) >> 24);
             asByte[2] = (byte) ((key << 16) >> 24);
             asByte[3] = (byte) ((key << 24) >> 24);
-            md5.Update(asByte);
+            md5.update(asByte);
         }
-        md5.Update(token);
+        md5.update(token);
         return md5.asHex();
     }
 

@@ -15,22 +15,26 @@
  */
 package com.gettyio.core.util;
 
-
 import java.util.Formatter;
 
 /**
- * 字符串工具类
+ * 字符串工具类。
+ * <p>
+ * 提供平台换行符常量、简单类名获取、空白字符查找、字符串空判断等常用操作。
+ * </p>
  *
  * @author gogym.ggj
  * @date 2023/6/9
  */
 public final class StringUtil {
 
+    /** 当前平台的换行符 */
     public static final String NEWLINE;
+
+    /** 空字符串常量 */
     public static final String EMPTY_STRING = "";
 
     static {
-        //确定当前平台的换行符。
         String newLine;
         try {
             newLine = new Formatter().format("%n").toString();
@@ -40,101 +44,95 @@ public final class StringUtil {
         NEWLINE = newLine;
     }
 
+    private StringUtil() {
+    }
+
     /**
-     * 获取简单类名
+     * 获取对象的简单类名（不含包名）
      *
-     * @param o
-     * @return
+     * @param o 对象实例
+     * @return 简单类名，null 对象返回 "null_object"
      */
     public static String simpleClassName(Object o) {
         if (o == null) {
             return "null_object";
-        } else {
-            return simpleClassName(o.getClass());
         }
+        return simpleClassName(o.getClass());
     }
 
     /**
-     * 获取简单类名
+     * 获取 Class 的简单类名（不含包名）
      *
-     * @param clazz
-     * @return
+     * @param clazz Class 对象
+     * @return 简单类名，null 返回 "null_class"
      */
     public static String simpleClassName(Class<?> clazz) {
         if (clazz == null) {
             return "null_class";
         }
-
         Package pkg = clazz.getPackage();
         if (pkg != null) {
             return clazz.getName().substring(pkg.getName().length() + 1);
-        } else {
-            return clazz.getName();
         }
+        return clazz.getName();
     }
 
     /**
-     * 从指定位置开始，查找非空格下标
+     * 从指定位置开始向后查找第一个非空白字符的索引
      *
-     * @param sb
-     * @param offset
-     * @return
+     * @param sb     待查找的字符串
+     * @param offset 起始偏移量
+     * @return 第一个非空白字符的索引，如全部为空白则返回字符串长度
      */
     public static int findNonWhitespace(String sb, int offset) {
-        int result;
-        for (result = offset; result < sb.length(); result++) {
-            if (!Character.isWhitespace(sb.charAt(result))) {
-                break;
+        int len = sb.length();
+        for (int i = offset; i < len; i++) {
+            if (!Character.isWhitespace(sb.charAt(i))) {
+                return i;
             }
         }
-        return result;
+        return len;
     }
 
     /**
-     * 从指定位置开始，查找空格下标
+     * 从指定位置开始向后查找第一个空白字符的索引
      *
-     * @param sb
-     * @param offset
-     * @return
+     * @param sb     待查找的字符串
+     * @param offset 起始偏移量
+     * @return 第一个空白字符的索引，如无空白则返回字符串长度
      */
     public static int findWhitespace(String sb, int offset) {
-        int result;
-        for (result = offset; result < sb.length(); result++) {
-            if (Character.isWhitespace(sb.charAt(result))) {
-                break;
+        int len = sb.length();
+        for (int i = offset; i < len; i++) {
+            if (Character.isWhitespace(sb.charAt(i))) {
+                return i;
             }
         }
-        return result;
+        return len;
     }
 
     /**
-     * 从末尾往前查找一个非空格字符
+     * 从末尾向前查找最后一个非空白字符的位置
      *
-     * @param sb
-     * @return
+     * @param sb 待查找的字符串
+     * @return 最后一个非空白字符之后的位置（即 trim 后的长度）
      */
     public static int findEndOfString(String sb) {
-        int result;
-        for (result = sb.length(); result > 0; result--) {
-            if (!Character.isWhitespace(sb.charAt(result - 1))) {
-                break;
+        for (int i = sb.length(); i > 0; i--) {
+            if (!Character.isWhitespace(sb.charAt(i - 1))) {
+                return i;
             }
         }
-        return result;
+        return 0;
     }
 
-
     /**
-     * 判断字符串是否为空
+     * 判断字符串是否为 null 或空字符串
      *
-     * @param str
-     * @return
+     * @param str 待判断的字符串
+     * @return {@code true} 如果 str 为 null 或长度为 0
      */
     public static boolean isEmpty(String str) {
-
-        if (null == str || str.length() == 0) {
-            return true;
-        }
-        return false;
+        return str == null || str.isEmpty();
     }
 }

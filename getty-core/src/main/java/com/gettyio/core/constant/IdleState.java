@@ -16,19 +16,23 @@
 package com.gettyio.core.constant;
 
 /**
- * IdleState.java
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * 连接空闲状态枚举。
+ * <p>
+ * 用于 {@code IdleStateHandler} 检测连接的读写空闲状态，
+ * 当连接在指定时间内未进行读或写操作时触发对应的空闲事件。
+ *
+ * @author gogym.ggj
+ * @see com.gettyio.expansion.handler.timeout.IdleStateHandler
  */
 public enum IdleState {
+
     /**
-     * No data was received for a while.
+     * 读空闲：连接在一段时间内未接收到任何数据。
      */
     READER_IDLE,
+
     /**
-     * No data was sent for a while.
+     * 写空闲：连接在一段时间内未发送任何数据。
      */
-    WRITER_IDLE,
+    WRITER_IDLE
 }

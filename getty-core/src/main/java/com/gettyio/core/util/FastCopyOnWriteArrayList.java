@@ -18,75 +18,97 @@ package com.gettyio.core.util;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * FastArrayList.java
+ * 线程安全的高性能数组列表，基于 Copy-on-Write 机制。
+ * <p>
+ * 读操作无锁，写操作通过 {@link ReentrantLock} 保护并创建新数组副本。
+ * 适用于读多写少的并发场景。
+ * </p>
  *
- * @description:自定义高性能的线程安全集合
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @param <T> 元素类型
+ * @author gogym
+ * @date 2020/4/9
  */
 public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
 
+    /** 默认初始容量 */
+    private static final int DEFAULT_CAPACITY = 8;
 
-    final transient ReentrantLock lock = new ReentrantLock();
+    /** 写操作锁 */
+    private final transient ReentrantLock lock = new ReentrantLock();
 
-    /**
-     * 当前下标
-     */
-    private int currentIndex = 0;
-
-    /**
-     * 用于存储数据,关键字transient，序列化对象的时候，这个属性就不会被序列化。
-     */
+    /** 底层数据存储（volatile 保证可见性） */
     private transient volatile T[] data;
 
+    /** 实际元素数量 */
+    private volatile int size;
+
+    /** 轮询索引 */
+    private int roundIndex = 0;
+
+    // ===================== 构造函数 =====================
 
     /**
-     * 定义一个常量为 (后面用于定义默认的集合大小)
-     */
-    private static final int DEFAULT_CAPACITY = 1000000;
-
-
-    public FastCopyOnWriteArrayList(Class<T> type) {
-        //实例化数组
-        this.data = (T[]) Array.newInstance(type, DEFAULT_CAPACITY);
-    }
-
-
-    public FastCopyOnWriteArrayList() {
-        //实例化数组
-        this.data = (T[]) new Object[DEFAULT_CAPACITY];
-    }
-
-
-    /**
-     * 获取数组的大小
+     * 指定元素类型构造
      *
-     * @return int
+     * @param type 元素 Class
+     */
+    public FastCopyOnWriteArrayList(Class<T> type) {
+        this.data = (T[]) Array.newInstance(type, DEFAULT_CAPACITY);
+        this.size = 0;
+    }
+
+    /**
+     * 默认构造（使用 Object[] 底层数组）
+     */
+    public FastCopyOnWriteArrayList() {
+        this.data = (T[]) new Object[DEFAULT_CAPACITY];
+        this.size = 0;
+    }
+
+    // ===================== 基础信息 =====================
+
+    /**
+     * 返回当前元素数量
+     *
+     * @return 元素数量
      */
     public int size() {
-        return this.data.length;
+        return size;
     }
 
     /**
-     * 根据元素获得在集合中的索引
+     * 判断列表是否为空
      *
-     * @param o o
-     * @return int
+     * @return {@code true} 如果列表不含任何元素
+     */
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    // ===================== 查找 =====================
+
+    /**
+     * 查找元素在列表中的索引
+     *
+     * @param o 目标元素
+     * @return 索引，未找到返回 -1
      */
     public int indexOf(T o) {
+        T[] snapshot = data;
+        int len = size;
         if (o == null) {
-            for (int i = 0; i < data.length; i++) {
-                if (data[i] == null) {
+            for (int i = 0; i < len; i++) {
+                if (snapshot[i] == null) {
                     return i;
                 }
             }
         } else {
-            for (int i = 0; i < data.length; i++) {
-                if (o.equals(data[i])) {
+            for (int i = 0; i < len; i++) {
+                if (o.equals(snapshot[i])) {
                     return i;
                 }
             }
@@ -95,155 +117,196 @@ public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
     }
 
     /**
+     * 判断列表是否包含指定元素
+     *
+     * @param obj 目标元素
+     * @return {@code true} 如果包含该元素
+     */
+    public boolean contains(T obj) {
+        return indexOf(obj) >= 0;
+    }
+
+    // ===================== 添加 =====================
+
+    /**
      * 在尾部添加元素
      *
-     * @param obj obj
-     * @return boolean
+     * @param obj 要添加的元素
+     * @return 始终返回 {@code true}
      */
     public boolean add(T obj) {
-        return add(size(), obj);
+        return add(size, obj);
     }
 
     /**
-     * 添加到数组首位
+     * 在首部添加元素
      *
-     * @param obj
-     * @return
+     * @param obj 要添加的元素
+     * @return 始终返回 {@code true}
      */
     public boolean addFirst(T obj) {
         return add(0, obj);
     }
 
     /**
-     * 添加最后
+     * 在尾部添加元素（等价于 {@link #add(Object)}）
      *
-     * @param obj
-     * @return
+     * @param obj 要添加的元素
+     * @return 始终返回 {@code true}
      */
     public boolean addLast(T obj) {
-        return add(size(), obj);
+        return add(size, obj);
     }
 
-
     /**
-     * 指定位置添加一个元素，如果刚好等于集合长度，在最后添加。如果在中间某个位置，则原来的位置后移一位
-     * @param index
-     * @param obj
-     * @return
+     * 在指定位置插入元素。
+     * <p>
+     * 写操作在锁保护下原子执行：创建新数组，拷贝元素，插入新值。
+     * </p>
+     *
+     * @param index 插入位置
+     * @param obj   要插入的元素
+     * @return 始终返回 {@code true}
      */
     public boolean add(int index, T obj) {
-        final ReentrantLock lock = this.lock;
-        //加锁
         lock.lock();
         try {
-
-            int len = arrays().length;
-            T[] newData = Arrays.copyOf(data, len + 1);
-            //如果给定索引长度刚好等于原数组长度，那么直接在尾部添加进去
-            if (index == size()) {
-                newData[len] = obj;
-            } else if (checkIndexOut(index)) {
-                //checkIndexOut()如果不抛异常，默认 index <=size,且 index > 0
-
-                //原数组，原数组起始位置，目标数组，目标数组起始位置，要copy的长度
-                System.arraycopy(data, 0, newData, 0, len);
-                //将要插入索引位置后面的对象 拷贝。空出指定位置
-                System.arraycopy(data, index, newData, index + 1, size() - index);
-                newData[index] = obj;
+            int len = size;
+            if (index < 0 || index > len) {
+                throw new IndexOutOfBoundsException(
+                        "Index: " + index + ", Size: " + len);
             }
-            setArray(newData);
+
+            // 确保容量足够（至少 +1，扩容时翻倍）
+            T[] oldData = data;
+            int oldCapacity = oldData.length;
+            int newLen = len + 1;
+
+            T[] newData;
+            if (newLen > oldCapacity) {
+                // 扩容：取双倍或所需大小中的较大值
+                int newCapacity = Math.max(oldCapacity * 2, newLen);
+                newData = (T[]) new Object[newCapacity];
+            } else {
+                newData = (T[]) new Object[oldCapacity];
+            }
+
+            // 拷贝插入位置之前的元素
+            if (index > 0) {
+                System.arraycopy(oldData, 0, newData, 0, index);
+            }
+            // 插入新元素
+            newData[index] = obj;
+            // 拷贝插入位置之后的元素
+            int tailLen = len - index;
+            if (tailLen > 0) {
+                System.arraycopy(oldData, index, newData, index + 1, tailLen);
+            }
+
+            data = newData;
+            size = newLen;
             return true;
         } finally {
             lock.unlock();
         }
     }
 
+    // ===================== 索引校验 =====================
+
     /**
-     * 判断给定索引是否越界
+     * 校验索引是否越界
      *
-     * @param index index
-     * @return boolean
+     * @param index 待校验的索引
+     * @return 始终返回 {@code true}
+     * @throws IndexOutOfBoundsException 如果索引越界
      */
     public boolean checkIndexOut(int index) {
-        if (index > size() || index < 0) {
-            throw new IndexOutOfBoundsException("指定的索引越界，集合大小为:" + size() + ",您指定的索引大小为:" + index);
+        if (index >= size || index < 0) {
+            throw new IndexOutOfBoundsException(
+                    "Index: " + index + ", Size: " + size);
         }
         return true;
     }
 
+    // ===================== 获取 =====================
+
     /**
-     * 根据索引获得元素
+     * 获取指定位置的元素（无锁读）
      *
-     * @param index index
-     * @return T
+     * @param index 索引
+     * @return 对应元素
      */
     public T get(int index) {
         checkIndexOut(index);
         return data[index];
-
     }
 
     /**
-     * 获取第一个
+     * 获取第一个元素
      *
-     * @return
+     * @return 第一个元素
      */
     public T getFirst() {
         return get(0);
     }
 
     /**
-     * 获取最后一个
+     * 获取最后一个元素
      *
-     * @return
+     * @return 最后一个元素
      */
     public T getLast() {
-        return get(size() - 1);
+        return get(size - 1);
     }
 
+    // ===================== 删除 =====================
+
     /**
-     * 删除所有元素
+     * 清除所有元素
      */
     public void clear() {
-        final ReentrantLock lock = this.lock;
         lock.lock();
         try {
-            T[] newElements = (T[]) new Object[0];
-            setArray(newElements);
+            data = (T[]) new Object[DEFAULT_CAPACITY];
+            size = 0;
+            roundIndex = 0;
         } finally {
             lock.unlock();
         }
     }
 
     /**
-     * 根据索引删除元素
+     * 移除指定位置的元素
      *
-     * @param index index
-     * @return T
+     * @param index 要移除的元素索引
+     * @return 被移除的元素
      */
     public T remove(int index) {
-        final ReentrantLock lock = this.lock;
-        //加锁
         lock.lock();
         try {
-            T[] elements = arrays();
-            int len = elements.length;
-            // 先得到旧值
-            T oldValue = get(index);
-            int numMoved = len - index - 1;
-            // 如果要删除的数据正好是数组的尾部，直接删除
-            if (numMoved == 0) {
-                setArray(Arrays.copyOf(elements, len - 1));
-            } else {
-                // 若删除的数据在数组中间：
-                // 1. 设置新数组的长度减一，因为是减少一个元素
-                // 2. 从 0 拷贝到数组新位置
-                // 3. 从新位置拷贝到数组尾部
-                T[] newElements = (T[]) new Object[len - 1];
-                System.arraycopy(elements, 0, newElements, 0, index);
-                System.arraycopy(elements, index + 1, newElements, index, numMoved);
-                setArray(newElements);
+            int len = size;
+            if (index < 0 || index >= len) {
+                throw new IndexOutOfBoundsException(
+                        "Index: " + index + ", Size: " + len);
             }
+
+            T[] oldData = data;
+            T oldValue = oldData[index];
+            int newLen = len - 1;
+
+            T[] newData = (T[]) new Object[oldData.length];
+            // 拷贝移除位置之前的元素
+            if (index > 0) {
+                System.arraycopy(oldData, 0, newData, 0, index);
+            }
+            // 拷贝移除位置之后的元素
+            int tailLen = newLen - index;
+            if (tailLen > 0) {
+                System.arraycopy(oldData, index + 1, newData, index, tailLen);
+            }
+
+            data = newData;
+            size = newLen;
             return oldValue;
         } finally {
             lock.unlock();
@@ -251,112 +314,139 @@ public class FastCopyOnWriteArrayList<T> implements Iterable<T> {
     }
 
     /**
-     * 删除指定的元素，删除成功返回 true，失败返回 false
+     * 移除第一个匹配的元素
      *
-     * @param obj obj
-     * @return boolean
+     * @param obj 要移除的元素
+     * @return {@code true} 如果成功移除
      */
     public boolean remove(T obj) {
-        for (int i = 0; i < size(); i++) {
-            if (obj.equals(data[i])) {
-                remove(i);
+        lock.lock();
+        try {
+            int idx = indexOf(obj);
+            if (idx >= 0) {
+                // indexOf 已经无锁读，但此处已在锁内，直接操作
+                int len = size;
+                T[] oldData = data;
+                int newLen = len - 1;
+
+                T[] newData = (T[]) new Object[oldData.length];
+                if (idx > 0) {
+                    System.arraycopy(oldData, 0, newData, 0, idx);
+                }
+                int tailLen = newLen - idx;
+                if (tailLen > 0) {
+                    System.arraycopy(oldData, idx + 1, newData, idx, tailLen);
+                }
+
+                data = newData;
+                size = newLen;
                 return true;
             }
+            return false;
+        } finally {
+            lock.unlock();
         }
-        return false;
     }
 
+    // ===================== 修改 =====================
+
     /**
-     * 在指定位置修改元素，通过索引，修改完成后返回原数据
+     * 替换指定位置的元素
      *
-     * @param index index
-     * @param obj   obj
-     * @return T
+     * @param index 索引
+     * @param obj   新元素
+     * @return 旧元素
      */
     public T set(int index, T obj) {
-        final ReentrantLock lock = this.lock;
         lock.lock();
         try {
             checkIndexOut(index);
-            T[] elements = arrays();
-            T oldValue = get(index);
+            T[] oldData = data;
+            T oldValue = oldData[index];
 
-            if (oldValue != obj) {
-                int len = elements.length;
-                T[] newElements = Arrays.copyOf(elements, len);
-                newElements[index] = obj;
-                setArray(newElements);
-            } else {
-                // Not quite a no-op; ensures volatile write semantics
-                setArray(elements);
-            }
+            // COW: 创建新数组副本
+            T[] newData = Arrays.copyOf(oldData, oldData.length);
+            newData[index] = obj;
+            data = newData;
             return oldValue;
         } finally {
             lock.unlock();
         }
     }
 
-    /**
-     * 查看集合中是否包含某个元素，如果有，返回 true，没有返回 false
-     *
-     * @param obj obj
-     * @return boolean
-     */
-    public boolean contain(T obj) {
-        for (int i = 0; i < data.length; i++) {
-            if (obj.equals(data[i])) {
-                return true;
-            }
-        }
-        return false;
-    }
+    // ===================== 数组访问 =====================
 
+    /**
+     * 返回底层数组引用
+     *
+     * @return 底层数组
+     */
     public T[] arrays() {
         return data;
     }
 
+    /**
+     * 设置底层数组（volatile 写，保证可见性）
+     *
+     * @param arr 新数组
+     */
     public void setArray(T[] arr) {
         this.data = arr;
     }
 
-
+    /**
+     * 返回列表元素的数组副本
+     *
+     * @return 元素数组副本
+     */
     public T[] toArray() {
-        T[] elements = arrays();
-        return Arrays.copyOf(elements, elements.length);
+        return Arrays.copyOf(data, size);
     }
 
+    // ===================== 轮询 =====================
 
     /**
-     * 轮训，均衡的随机获取数组里面的元素
+     * 轮询（Round-Robin）获取元素
      *
-     * @return
+     * @return 当前轮询位置的元素
+     * @throws IndexOutOfBoundsException 如果列表为空
      */
     public T round() {
-        currentIndex = (currentIndex + 1) % size();
-        return this.get(currentIndex);
+        int len = size;
+        if (len == 0) {
+            throw new IndexOutOfBoundsException("List is empty");
+        }
+        roundIndex = (roundIndex + 1) % len;
+        return data[roundIndex];
     }
 
+    // ===================== 迭代器 =====================
 
     @Override
     public Iterator<T> iterator() {
-        class iter implements Iterator<T> {
+        // 快照迭代器：捕获当前数组引用，不受后续修改影响
+        final T[] snapshot = data;
+        final int len = size;
+        return new Iterator<T>() {
+            private int cursor = 0;
+
             @Override
             public boolean hasNext() {
-                return (currentIndex < size());
+                return cursor < len;
             }
 
             @Override
             public T next() {
-                return data[currentIndex++];
+                if (cursor >= len) {
+                    throw new NoSuchElementException();
+                }
+                return snapshot[cursor++];
             }
 
             @Override
             public void remove() {
-
+                throw new UnsupportedOperationException();
             }
-        }
-
-        return new iter();
-
+        };
     }
 }

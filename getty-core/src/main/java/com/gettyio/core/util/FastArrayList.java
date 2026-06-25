@@ -18,124 +18,133 @@ package com.gettyio.core.util;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
- * FastArrayList.java
+ * 高性能数组列表（非线程安全）。
+ * <p>
+ * 与 {@link java.util.ArrayList} 相比，提供更直接的数组访问、
+ * 轮询（round-robin）负载均衡等特性。适用于单线程或外部同步场景。
+ * </p>
  *
- * @description:自定义高性能的数组集合,注意，这不是线程安全的
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @param <T> 元素类型
+ * @author gogym
+ * @date 2020/4/9
  */
 public class FastArrayList<T> implements Iterable<T> {
 
-    /**
-     * 当前下标
-     */
-    private int currentIndex = 0;
-
-    /**
-     * 用于存储数据,关键字transient，序列化对象的时候，这个属性就不会被序列化。
-     */
-    private transient T[] data = null;
-    /**
-     * 集合的元素个数
-     */
-    private int size = 0;
-    /**
-     * 定义一个常量为 (后面用于定义默认的集合大小)
-     */
+    /** 默认初始容量 */
     private static final int DEFAULT_CAPACITY = 8;
 
+    /** 轮询索引，用于 {@link #round()} 方法 */
+    private int roundIndex = 0;
+
+    /** 底层数据存储（transient，序列化时不自动序列化） */
+    private transient T[] data;
+
+    /** 实际元素数量 */
+    private int size = 0;
+
+    // ===================== 构造函数 =====================
+
     /**
-     * 有参构造函数
-     * 指定数组的大小
+     * 指定初始容量构造
      *
-     * @param initialCapacity 长度
+     * @param initialCapacity 初始容量
      */
     public FastArrayList(int initialCapacity) {
         if (initialCapacity < 0) {
-            throw new IllegalArgumentException("非法的集合初始容量值 Illegal Capacity: " +
-                    initialCapacity);
-        } else {
-            //实例化数组
-            this.data = (T[]) new Object[initialCapacity];
+            throw new IllegalArgumentException("Illegal capacity: " + initialCapacity);
         }
-    }
-
-    public FastArrayList(Class<T> type, int initialCapacity) {
-        if (initialCapacity < 0) {
-            throw new IllegalArgumentException("非法的集合初始容量值 Illegal Capacity: " +
-                    initialCapacity);
-        } else {
-            //实例化数组
-            this.data = (T[]) Array.newInstance(type, initialCapacity);
-        }
+        this.data = (T[]) new Object[initialCapacity];
     }
 
     /**
-     * 无参构造函数
-     * 指定数组的初始大小
+     * 指定元素类型和初始容量构造
+     *
+     * @param type            元素 Class
+     * @param initialCapacity 初始容量
+     */
+    public FastArrayList(Class<T> type, int initialCapacity) {
+        if (initialCapacity < 0) {
+            throw new IllegalArgumentException("Illegal capacity: " + initialCapacity);
+        }
+        this.data = (T[]) Array.newInstance(type, initialCapacity);
+    }
+
+    /**
+     * 默认容量构造
      */
     public FastArrayList() {
         this(DEFAULT_CAPACITY);
     }
 
+    /**
+     * 指定元素类型，默认容量构造
+     *
+     * @param type 元素 Class
+     */
     public FastArrayList(Class<T> type) {
         this(type, DEFAULT_CAPACITY);
     }
 
+    // ===================== 容量管理 =====================
+
     /**
-     * 1、复制原数组，并扩容一倍
-     * 2、复制原数组，并扩容一倍，并在指定位置插入对象
+     * 检查是否需要扩容。如果当前 size 已达数组上限，则扩容为 2 倍。
      *
-     * @param index 下标
-     * @param obj   obj
+     * @param index 插入位置（-1 表示仅扩容不插入）
+     * @param obj   要插入的元素（扩容不插入时为 null）
      */
     public void checkIncrease(int index, T obj) {
         if (size >= data.length) {
-            //实例化一个新数组
-            T[] newData = (T[]) new Object[size * 2];
-
-            if (index == -1 && obj == null) {
-                System.arraycopy(data, 0, newData, 0, size);
-            } else {
-
-                System.arraycopy(data, 0, newData, 0, size);
-                //将要插入索引位置后面的对象 拷贝。空出指定位置
+            int newCapacity = Math.max(size * 2, DEFAULT_CAPACITY);
+            T[] newData = (T[]) new Object[newCapacity];
+            System.arraycopy(data, 0, newData, 0, size);
+            if (index >= 0 && obj != null) {
+                // 将插入位置之后的元素后移，空出指定位置
                 System.arraycopy(data, index, newData, index + 1, size - index);
                 newData[index] = obj;
             }
-
-            //将 newData 数组赋值给 data数组
             data = newData;
         }
     }
 
     /**
-     * 获取数组的大小
+     * 返回当前元素数量
      *
-     * @return int
+     * @return 元素数量
      */
     public int size() {
-        return this.size;
+        return size;
     }
 
     /**
-     * 根据元素获得在集合中的索引
+     * 判断列表是否为空
      *
-     * @param o o
-     * @return int
+     * @return {@code true} 如果列表不含任何元素
+     */
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    // ===================== 查找 =====================
+
+    /**
+     * 查找元素在列表中的索引（正向遍历）
+     *
+     * @param o 目标元素
+     * @return 索引，未找到返回 -1
      */
     public int indexOf(T o) {
         if (o == null) {
-            for (int i = 0; i < data.length; i++) {
+            for (int i = 0; i < size; i++) {
                 if (data[i] == null) {
                     return i;
                 }
             }
         } else {
-            for (int i = 0; i < data.length; i++) {
+            for (int i = 0; i < size; i++) {
                 if (o.equals(data[i])) {
                     return i;
                 }
@@ -145,161 +154,182 @@ public class FastArrayList<T> implements Iterable<T> {
     }
 
     /**
+     * 判断列表是否包含指定元素
+     *
+     * @param obj 目标元素
+     * @return {@code true} 如果包含该元素
+     */
+    public boolean contains(T obj) {
+        return indexOf(obj) >= 0;
+    }
+
+    // ===================== 添加 =====================
+
+    /**
      * 在尾部添加元素
      *
-     * @param obj obj
-     * @return boolean
+     * @param obj 要添加的元素
+     * @return 始终返回 {@code true}
      */
     public boolean add(T obj) {
-        //检查是否需要扩容
         checkIncrease(-1, null);
         data[size++] = obj;
         return true;
-
     }
 
     /**
-     * 添加到数组首位
+     * 在首部添加元素
      *
-     * @param obj
-     * @return
+     * @param obj 要添加的元素
+     * @return 始终返回 {@code true}
      */
     public boolean addFirst(T obj) {
         return add(0, obj);
     }
 
     /**
-     * 添加最后
+     * 在尾部添加元素（等价于 {@link #add(Object)}）
      *
-     * @param obj
-     * @return
+     * @param obj 要添加的元素
+     * @return 始终返回 {@code true}
      */
     public boolean addLast(T obj) {
         return add(size, obj);
     }
 
-
+    /**
+     * 在指定位置插入元素
+     *
+     * @param index 插入位置
+     * @param obj   要插入的元素
+     * @return 始终返回 {@code true}
+     */
     public boolean add(int index, T obj) {
-        //如果给定索引长度刚好等于原数组长度，那么直接在尾部添加进去
         if (index == size) {
+            // 尾部直接追加
             add(obj);
-        }
-        //checkIndexOut()如果不抛异常，默认 index <=size,且 index > 0
-        else if (checkIndexOut(index)) {
+        } else if (checkIndexOut(index)) {
             if (size < data.length) {
+                // 无需扩容，直接后移
                 System.arraycopy(data, index, data, index + 1, size - index);
                 data[index] = obj;
             } else {
-                //需要扩容
+                // 需要扩容，checkIncrease 会处理后移和插入
                 checkIncrease(index, obj);
             }
             size++;
         }
-
         return true;
     }
 
+    // ===================== 索引校验 =====================
+
     /**
-     * 判断给定索引是否越界
+     * 校验索引是否越界（允许 index == size，用于尾部追加）
      *
-     * @param index index
-     * @return boolean
+     * @param index 待校验的索引
+     * @return 始终返回 {@code true}
+     * @throws IndexOutOfBoundsException 如果索引越界
      */
     public boolean checkIndexOut(int index) {
         if (index > size || index < 0) {
-            throw new IndexOutOfBoundsException("指定的索引越界，集合大小为:" + size + ",您指定的索引大小为:" + index);
+            throw new IndexOutOfBoundsException(
+                    "Index: " + index + ", Size: " + size);
         }
         return true;
     }
 
+    // ===================== 获取 =====================
+
     /**
-     * 根据索引获得元素
+     * 获取指定位置的元素
      *
-     * @param index index
-     * @return T
+     * @param index 索引
+     * @return 对应元素
      */
     public T get(int index) {
         checkIndexOut(index);
         return data[index];
-
     }
 
     /**
-     * 获取第一个
+     * 获取第一个元素
      *
-     * @return
+     * @return 第一个元素
+     * @throws IndexOutOfBoundsException 如果列表为空
      */
     public T getFirst() {
         return get(0);
     }
 
     /**
-     * 获取最后一个
+     * 获取最后一个元素
      *
-     * @return
+     * @return 最后一个元素
+     * @throws IndexOutOfBoundsException 如果列表为空
      */
     public T getLast() {
         return get(size - 1);
     }
 
+    // ===================== 删除 =====================
+
     /**
-     * 删除所有元素
+     * 清除所有元素并重置大小
      */
     public void clear() {
-        for (int i = 0; i < data.length; i++) {
+        for (int i = 0; i < size; i++) {
             data[i] = null;
         }
+        size = 0;
+        roundIndex = 0;
     }
 
     /**
-     * 根据索引删除元素
+     * 移除指定位置的元素
      *
-     * @param index index
-     * @return T
+     * @param index 要移除的元素索引
+     * @return 被移除的元素
      */
     public T remove(int index) {
-        if (index == size + 1) {
-            throw new IndexOutOfBoundsException("指定的索引越界，集合大小为:" + size + ",您指定的索引大小为:" + index);
-        } else if (checkIndexOut(index)) {
-            //保存对象
-            T obj = data[index];
-            if (index == size) {
-                data[index] = null;
-            } else {
-                //将后边的数组向前移动一位
-                System.arraycopy(data, index + 1, data, index, size - index);
-            }
-            size--;
-            return obj;
+        if (index >= size || index < 0) {
+            throw new IndexOutOfBoundsException(
+                    "Index: " + index + ", Size: " + size);
         }
-
-        return null;
+        T obj = data[index];
+        int numMoved = size - index - 1;
+        if (numMoved > 0) {
+            System.arraycopy(data, index + 1, data, index, numMoved);
+        }
+        data[--size] = null; // 帮助 GC
+        return obj;
     }
 
     /**
-     * 删除指定的元素，删除成功返回 true，失败返回 false
+     * 移除第一个匹配的元素
      *
-     * @param obj obj
-     * @return boolean
+     * @param obj 要移除的元素
+     * @return {@code true} 如果成功移除
      */
     public boolean remove(T obj) {
-        for (int i = 0; i < size; i++) {
-            if (obj.equals(data[i])) {
-                remove(i);
-                return true;
-            }
+        int idx = indexOf(obj);
+        if (idx >= 0) {
+            remove(idx);
+            return true;
         }
         return false;
     }
 
+    // ===================== 修改 =====================
+
     /**
-     * 在指定位置修改元素，通过索引，修改完成后返回原数据
+     * 替换指定位置的元素
      *
-     * @param index index
-     * @param obj   obj
-     * @return T
+     * @param index 索引
+     * @param obj   新元素
+     * @return 旧元素
      */
-    public T change(int index, T obj) {
+    public T set(int index, T obj) {
         checkIndexOut(index);
         T oldObj = data[index];
         data[index] = obj;
@@ -307,70 +337,80 @@ public class FastArrayList<T> implements Iterable<T> {
     }
 
     /**
-     * 查看集合中是否包含某个元素，如果有，返回 true，没有返回 false
+     * 替换指定位置的元素（别名方法）
      *
-     * @param obj obj
-     * @return boolean
+     * @param index 索引
+     * @param obj   新元素
+     * @return 旧元素
      */
-    public boolean contain(T obj) {
-        for (int i = 0; i < data.length; i++) {
-            if (obj.equals(data[i])) {
-                return true;
-            }
-        }
-        return false;
+    public T change(int index, T obj) {
+        return set(index, obj);
     }
 
+    // ===================== 数组访问 =====================
 
     /**
-     * 返回集合的对象地址，修改会影响集合本身
+     * 返回底层数组引用（修改会影响列表本身）
      *
-     * @return
+     * @return 底层数组
      */
     public T[] arrays() {
         return data;
     }
 
     /**
-     * 获取集合内数组对象。不会影响集合本身
+     * 返回列表元素的数组副本（修改不影响列表本身）
      *
-     * @return
+     * @return 元素数组副本
      */
     public T[] toArray() {
-        T[] elements = arrays();
-        return Arrays.copyOf(elements, elements.length);
+        return Arrays.copyOf(data, size);
     }
 
+    // ===================== 轮询 =====================
 
     /**
-     * 轮训，均衡的随机获取数组里面的元素
+     * 轮询（Round-Robin）获取元素。
+     * <p>
+     * 每次调用返回下一个元素，到达末尾后从头开始。
+     * 适用于负载均衡场景。
+     * </p>
      *
-     * @return
+     * @return 当前轮询位置的元素
+     * @throws IndexOutOfBoundsException 如果列表为空
      */
     public T round() {
-        currentIndex = (currentIndex + 1) % this.size;
-        return this.get(currentIndex);
+        if (size == 0) {
+            throw new IndexOutOfBoundsException("List is empty");
+        }
+        roundIndex = (roundIndex + 1) % size;
+        return data[roundIndex];
     }
 
+    // ===================== 迭代器 =====================
 
     @Override
     public Iterator<T> iterator() {
-        class iter implements Iterator<T> {
+        return new Iterator<T>() {
+            private int cursor = 0;
+
             @Override
             public boolean hasNext() {
-                return (currentIndex < size);
+                return cursor < size;
             }
 
             @Override
             public T next() {
-                return data[currentIndex++];
+                if (cursor >= size) {
+                    throw new NoSuchElementException();
+                }
+                return data[cursor++];
             }
 
             @Override
             public void remove() {
-
+                throw new UnsupportedOperationException();
             }
-        }
-        return new iter();
+        };
     }
 }

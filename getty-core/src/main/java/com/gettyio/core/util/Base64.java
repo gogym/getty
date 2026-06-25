@@ -1316,8 +1316,7 @@ public class Base64 {
 
                 }   // end try
                 catch (java.io.IOException e) {
-                    e.printStackTrace();
-                    // Just return originally-decoded bytes
+                    // Gzip decompression failed, use originally-decoded bytes
                 }   // end catch
                 finally {
                     try {

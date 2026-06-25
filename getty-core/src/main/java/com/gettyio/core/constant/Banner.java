@@ -19,35 +19,70 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 
 /**
+ * Getty 框架启动横幅（Banner）。
+ * <p>
+ * 服务器启动时打印框架 Logo、版本号以及运行时环境信息，
+ * 方便运维人员快速确认框架版本和 JVM / 操作系统配置。
+ * <p>
+ * 调用入口：{@link #printBanner()}，由 {@code AioServerStarter} / {@code NioServerStarter} 在启动时自动调用。
+ *
  * @author gogym.ggj
- * @version 1.0.0
- * @ClassName Banner.java
- * @Description TODO
- * @createTime 2021/01/28/ 18:44:00
+ * @see Version
  */
-public class Banner {
+public final class Banner {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(Banner.class);
 
+    /**
+     * "getty" ASCII Art Logo（使用 '#' 块字符绘制）。
+     * <p>
+     * 每个字母高 5 行、宽 5~7 列，整体对齐后形成统一的品牌标识。
+     */
     public static final String BANNER =
-            "                       tt     yt             \n" +
-                    "                       tt     ye             \n" +
-                    "  ttttt      tttt     teet   ytety   tt   ty \n" +
-                    " tetytgt    yey tt     et     tey    tey yet \n" +
-                    "ytt  yet    et   ey    tt     ye     yet tey \n" +
-                    "yet  yet    getttty    tt     ye      ttyet  \n" +
-                    "ytt  ygt    et         tt     ye      yetey  \n" +
-                    " tetytgt    yetytt     teyy   yeyy     tgt   \n" +
-                    "     tet     tttty     ytty    tty     tey   \n" +
-                    "ytt  yey                               te    \n" +
-                    " ttttty                              yttt    \n" +
-                    "   yy                                yyy     \n";
+            "                                                          \n" +
+            "   ####   ####  #####  #####   #   #                      \n" +
+            "  #      #        #      #      # #                       \n" +
+            "  # ###  ###      #      #       #                        \n" +
+            "  #   #  #        #      #       #                        \n" +
+            "   ####   ####    #      #       #                        \n" +
+            "                                                          \n";
 
+    /** 分隔线宽度（与 Banner 等宽） */
+    private static final String SEPARATOR =
+            "----------------------------------------------------------";
 
+    /**
+     * 打印启动横幅。
+     * <p>
+     * 输出内容包括：
+     * <ul>
+     *   <li>ASCII Art Logo</li>
+     *   <li>框架版本号</li>
+     *   <li>JDK 版本</li>
+     *   <li>操作系统与 CPU 核心数</li>
+     * </ul>
+     */
     public static void printBanner() {
-        //打印框架信息
-        LOGGER.info("\r\n" + Banner.BANNER + "\r\n  getty version:(" + Version.VERSION + ")");
+        String javaVersion = System.getProperty("java.version", "unknown");
+        String osName = System.getProperty("os.name", "unknown");
+        String osArch = System.getProperty("os.arch", "unknown");
+        int processors = Runtime.getRuntime().availableProcessors();
+
+        String info = "\n"
+                + SEPARATOR + "\n"
+                + "\n"
+                + BANNER
+                + "  :: Getty ::    (v" + Version.VERSION + ")\n"
+                + "\n"
+                + "  JDK         : " + javaVersion + "\n"
+                + "  OS          : " + osName + " (" + osArch + ")\n"
+                + "  Processors  : " + processors + "\n"
+                + "\n"
+                + SEPARATOR;
+
+        LOGGER.info(info);
     }
 
-
+    private Banner() {
+    }
 }

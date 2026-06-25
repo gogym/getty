@@ -1,4 +1,18 @@
-
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.util.thread;
 
 import java.io.Serializable;
@@ -7,163 +21,137 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * AutoLock类实现了AutoCloseable和Serializable接口。
- * 该类主要用于提供一种自动锁机制，确保资源的正确释放，
- * 同时由于实现了Serializable接口，该锁对象可以被序列化。
+ * 自动锁工具类，实现 {@link AutoCloseable} 以支持 try-with-resources 语法。
+ * <p>
+ * 典型用法：
+ * <pre>
+ * AutoLock lock = new AutoLock();
+ * try (AutoLock held = lock.lock()) {
+ *     // 临界区代码
+ * }
+ * // 锁自动释放
+ * </pre>
+ * </p>
+ *
+ * @author gogym
+ * @date 2020/4/9
  */
-public class AutoLock implements AutoCloseable, Serializable
-{
+public class AutoLock implements AutoCloseable, Serializable {
+
     private static final long serialVersionUID = 3300696774541816341L;
 
-    // 创建一个私有的、可重入的锁实例，用于同步控制。
-    private final ReentrantLock _lock = new ReentrantLock();
-
+    /** 底层可重入锁 */
+    private final ReentrantLock lock = new ReentrantLock();
 
     /**
-     * 获取锁。
-     * <p>此方法将尝试获取锁。如果锁已被其他线程持有，当前线程将被阻塞，直到获取到锁为止。</p>
+     * 获取锁。如果锁已被其他线程持有，当前线程将阻塞。
      *
-     * @return 返回当前AutoLock实例，用于后续的解锁操作。
+     * @return 当前 AutoLock 实例（用于 try-with-resources）
      */
-    public AutoLock lock()
-    {
-        _lock.lock(); // 尝试获取锁，如果锁不可用则阻塞线程
-        return this; // 返回当前AutoLock实例，允许链式调用
+    public AutoLock lock() {
+        lock.lock();
+        return this;
     }
 
-
     /**
-     * 判断当前线程是否持有该锁。
-     * 本方法不接受任何参数。
+     * 判断当前线程是否持有该锁
      *
-     * @return 如果当前线程持有该锁，则返回true；否则返回false。
-     * @see ReentrantLock#isHeldByCurrentThread() 对应ReentrantLock类中的isHeldByCurrentThread方法，用于检查当前线程是否持有锁。
+     * @return {@code true} 如果当前线程持有锁
      */
-    public boolean isHeldByCurrentThread()
-    {
-        return _lock.isHeldByCurrentThread(); // 查询当前线程是否持有锁
+    public boolean isHeldByCurrentThread() {
+        return lock.isHeldByCurrentThread();
     }
 
-
     /**
-     * 创建并返回与当前锁相关联的条件变量。
-     * 这个方法允许在锁的上下文中进行复杂的同步操作，比如等待特定条件的满足或通知一组等待线程。
+     * 创建与此锁关联的条件变量
      *
-     * @return 与当前锁相关联的{@link Condition}实例，用于实现高级别的同步控制。
+     * @return 关联的 {@link Condition} 实例
      */
-    public Condition newCondition()
-    {
-        return _lock.newCondition(); // 创建并返回与当前锁相关联的条件变量
+    public Condition newCondition() {
+        return lock.newCondition();
     }
 
-
     /**
-     * 仅用于测试的包私有方法。
-     * 检查当前对象是否被锁定。
+     * 检查锁是否被任意线程持有（包私有，仅供测试使用）
      *
-     * @return 布尔值，如果对象当前被锁定，则返回true；否则返回false。
+     * @return {@code true} 如果锁被持有
      */
-    boolean isLocked()
-    {
-        return _lock.isLocked(); // 检查底层锁是否被锁定
+    boolean isLocked() {
+        return lock.isLocked();
     }
 
-
     /**
-     * 关闭并释放锁。
-     * 此方法是资源清理操作，用于在不再需要锁时释放锁资源。
-     * 没有参数。
-     * 没有返回值。
+     * 释放锁（由 try-with-resources 自动调用）
      */
     @Override
-    public void close()
-    {
-        _lock.unlock(); // 释放锁
+    public void close() {
+        lock.unlock();
     }
 
-
     /**
-     * <p>A reentrant lock with a condition that can be used in a try-with-resources statement.</p>
-     * <p>Typical usage:</p>
+     * 带有条件变量的可重入自动锁。
+     * <p>
+     * 典型用法：
      * <pre>
-     * // Waiting
-     * try (AutoLock lock = _lock.lock())
-     * {
-     *     lock.await();
+     * AutoLock.WithCondition lock = new AutoLock.WithCondition();
+     *
+     * // 等待
+     * try (AutoLock.WithCondition held = lock.lock()) {
+     *     held.await();
      * }
      *
-     * // Signaling
-     * try (AutoLock lock = _lock.lock())
-     * {
-     *     lock.signalAll();
+     * // 通知
+     * try (AutoLock.WithCondition held = lock.lock()) {
+     *     held.signalAll();
      * }
      * </pre>
+     * </p>
      */
-    public static class WithCondition extends AutoLock
-    {
-        // 创建一个私有的_condition实例，它是NewCondition类的一个实例。
-        private final Condition _condition = newCondition();
+    public static class WithCondition extends AutoLock {
 
-        /**
-         * 获取一个带条件的自动锁。
-         * 该方法重写了父类的lock方法，返回一个WithCondition类型的对象，允许用户在锁定状态下基于条件进行等待和通知。
-         *
-         * @return 返回一个AutoLock.WithCondition对象，提供条件等待和通知的功能。
-         */
+        private static final long serialVersionUID = 1L;
+
+        /** 与此锁关联的条件变量 */
+        private final Condition condition = newCondition();
+
         @Override
-        public WithCondition lock()
-        {
-            return (WithCondition)super.lock();
+        public WithCondition lock() {
+            return (WithCondition) super.lock();
         }
 
         /**
-         * 唤醒一个等待在该条件变量上的线程。
-         * 该方法对应于Condition接口的signal方法，当有线程正在该条件变量上等待时，会随机唤醒一个等待线程。
-         * 注意：调用此方法前应确保已获取到锁（通过lock()方法）。
+         * 唤醒一个在此条件变量上等待的线程
          */
-        public void signal()
-        {
-            _condition.signal();
+        public void signal() {
+            condition.signal();
         }
 
         /**
-         * 唤醒所有等待在该条件变量上的线程。
-         * 该方法对应于Condition接口的signalAll方法，会唤醒所有当前等待在该条件变量上的线程。
-         * 注意：调用此方法前应确保已获取到锁（通过lock()方法）。
+         * 唤醒所有在此条件变量上等待的线程
          */
-        public void signalAll()
-        {
-            _condition.signalAll();
+        public void signalAll() {
+            condition.signalAll();
         }
 
-
         /**
-         * 使当前线程在满足特定条件前等待。此方法会释放当前线程持有的锁，并将当前线程放入等待状态，直到其他线程通过signal()或signalAll()方法唤醒它。
+         * 使当前线程在此条件变量上等待，直到被唤醒
          *
-         * @throws InterruptedException 如果当前线程在等待过程中被中断，则抛出InterruptedException。
-         * 注意：调用此方法前应确保已获取到锁（通过lock()方法）。
-         * @see Condition#await()
+         * @throws InterruptedException 等待时被中断
          */
-        public void await() throws InterruptedException
-        {
-            _condition.await();
+        public void await() throws InterruptedException {
+            condition.await();
         }
-
 
         /**
-         * 使当前线程在满足特定条件前等待一段时间。如果在指定的时间内条件未满足，则方法返回。此方法会释放当前线程持有的锁，并将当前线程放入等待状态。
+         * 使当前线程在此条件变量上等待指定时间
          *
-         * @param time 等待的时长
-         * @param unit 等待时间的单位
-         * @return 如果等待时间未到期则返回true，否则返回false。
-         * @throws InterruptedException 如果当前线程在等待过程中被中断，则抛出InterruptedException。
-         * 注意：调用此方法前应确保已获取到锁（通过lock()方法）。
-         * @see Condition#await(long, TimeUnit)
+         * @param time 等待时长
+         * @param unit 时间单位
+         * @return {@code false} 如果等待超时
+         * @throws InterruptedException 等待时被中断
          */
-        public boolean await(long time, TimeUnit unit) throws InterruptedException
-        {
-            return _condition.await(time, unit);
+        public boolean await(long time, TimeUnit unit) throws InterruptedException {
+            return condition.await(time, unit);
         }
-
     }
 }

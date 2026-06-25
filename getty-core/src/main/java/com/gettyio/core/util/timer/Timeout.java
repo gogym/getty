@@ -16,48 +16,52 @@
 package com.gettyio.core.util.timer;
 
 /**
- * Timeout.java
+ * 定时任务超时句柄接口。
+ * <p>
+ * 代表一个已提交到 {@link Timer} 的定时任务的引用，
+ * 提供状态查询和取消操作。
+ * </p>
  *
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @date 2020/4/9
  */
 public interface Timeout {
 
     /**
-     * 获取时间轮引用
+     * 获取关联的定时器实例
      *
-     * @return the timer
+     * @return 定时器引用
      */
     Timer timer();
 
     /**
-     * 获取需要执行的任务
+     * 获取关联的定时任务
      *
-     * @return the timer task
+     * @return 定时任务
      */
     TimerTask task();
 
     /**
-     * 定时任务是否过期
+     * 判断定时任务是否已过期
      *
-     * @return the boolean
+     * @return {@code true} 如果任务已到期执行
      */
     boolean isExpired();
 
     /**
-     * 定时任务是否取消
+     * 判断定时任务是否已取消
      *
-     * @return the boolean
+     * @return {@code true} 如果任务已被取消
      */
     boolean isCancelled();
 
     /**
-     * 试图取消 {@link TimerTask}
-     * 如果任务已经执行或取消，它将直接返回
+     * 尝试取消定时任务。
+     * <p>
+     * 如果任务已执行或已取消，则直接返回 {@code false}。
+     * </p>
      *
-     * @return 如果取消成功，则返回true
+     * @return {@code true} 如果成功取消
      */
     boolean cancel();
-
 }

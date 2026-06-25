@@ -20,56 +20,56 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * LinkedBlockQueue.java
+ * 基于数组环形缓冲区实现的阻塞队列。
+ * <p>
+ * 入队（put）时队列满则阻塞，出队（take）时队列空则阻塞。
+ * 使用非公平锁以获得更高的吞吐量。
+ * </p>
  *
- * 自定义读写mq,元素满时阻塞
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @param <T> 元素类型
+ * @author gogym
+ * @date 2020/4/9
  */
 public class LinkedBlockQueue<T> implements LinkedQueue<T> {
 
-    /**
-     * 队列实现
-     */
-    T[] items;
+    /** 环形缓冲区数组 */
+    private final T[] items;
 
-    /**
-     * 初始大小
-     */
-    int capacity;
+    /** 队列容量 */
+    private final int capacity;
 
-    /**
-     * 元素个数
-     */
+    /** 当前元素数量 */
     private int count;
 
-    /**
-     * 准备插入位置
-     */
-    private int putIndex = 0;
-    /**
-     * 准备移除位置
-     */
-    private int removeIndex = 0;
+    /** 下一个入队位置 */
+    private int putIndex;
 
-    ReentrantLock lock = new ReentrantLock(true);
-    /**
-     * 队列满情况
-     */
-    Condition notFull = lock.newCondition();
-    /**
-     * 队列为空情况
-     */
-    Condition notEmpty = lock.newCondition();
+    /** 下一个出队位置 */
+    private int removeIndex;
 
+    /** 非公平锁（比公平锁性能更好） */
+    private final ReentrantLock lock = new ReentrantLock(false);
 
+    /** 队列满时的等待条件 */
+    private final Condition notFull = lock.newCondition();
+
+    /** 队列空时的等待条件 */
+    private final Condition notEmpty = lock.newCondition();
+
+    /**
+     * 默认容量 1024
+     */
     public LinkedBlockQueue() {
         this(1024);
     }
 
+    /**
+     * 指定容量构造
+     *
+     * @param capacity 队列容量
+     */
     public LinkedBlockQueue(int capacity) {
-        items = (T[]) new Object[capacity];
+        this.items = (T[]) new Object[capacity];
         this.capacity = capacity;
     }
 
@@ -78,22 +78,19 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         return (T[]) Array.newInstance(componentType, length);
     }
 
-
     /**
-     * 进队 插入最后一个元素位置
+     * 入队操作。将元素加入队列尾部，队列满时阻塞。
      *
-     * @param t 泛型
-     * @throws InterruptedException 异常
+     * @param t 要入队的元素（不允许 null）
+     * @return 入队的元素
+     * @throws InterruptedException 等待时被中断
      */
     @Override
     public T put(T t) throws InterruptedException {
-        //检查是否为空
         checkNull(t);
-        //获取锁
         lock.lock();
         try {
-            //已经满了 则发生阻塞 无法继续插入
-            while (items.length == count) {
+            while (count == items.length) {
                 notFull.await();
             }
             items[putIndex] = t;
@@ -109,30 +106,32 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
     }
 
     /**
-     * 出队 最后一个元素
+     * 非阻塞出队操作。队列为空时返回 {@code null}。
      *
-     * @return T
-     * @throws InterruptedException 可能抛出异常
+     * @return 队头元素，队列为空时返回 {@code null}
+     * @throws InterruptedException 操作时被中断
      */
     @Override
     public T poll() throws InterruptedException {
-
         lock.lock();
         try {
-            // 如果队列没有元素则返回null，否则出队
             return (count == 0) ? null : dequeue();
         } finally {
             lock.unlock();
         }
     }
 
+    /**
+     * 阻塞出队操作。队列为空时阻塞等待。
+     *
+     * @return 队头元素
+     * @throws InterruptedException 等待时被中断
+     */
     @Override
     public T take() throws InterruptedException {
-
         lock.lock();
         try {
             while (count == 0) {
-                //出队阻塞
                 notEmpty.await();
             }
             return dequeue();
@@ -141,9 +140,12 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         }
     }
 
+    /**
+     * 内部出队操作（必须在持有锁时调用）
+     */
     private T dequeue() {
-        T t = this.items[removeIndex];
-        this.items[removeIndex] = null;
+        T t = items[removeIndex];
+        items[removeIndex] = null; // 帮助 GC
         if (++removeIndex == items.length) {
             removeIndex = 0;
         }
@@ -152,10 +154,12 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         return t;
     }
 
-
+    /**
+     * 检查元素不为 null
+     */
     private void checkNull(T t) {
         if (t == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("Element must not be null");
         }
     }
 
@@ -164,11 +168,8 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         return capacity;
     }
 
-
     @Override
     public int getCount() {
         return count;
     }
-
-
 }

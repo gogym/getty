@@ -16,61 +16,71 @@
 package com.gettyio.core.util.queue;
 
 /**
- * LinkedQueue.java
+ * 自定义队列接口。
+ * <p>
+ * 基于数组环形缓冲区实现，提供 put/poll/take 三种操作语义：
+ * <ul>
+ *   <li>{@link #put(Object)} — 入队，队列满时阻塞</li>
+ *   <li>{@link #poll()} — 出队，队列空时返回 null（非阻塞）</li>
+ *   <li>{@link #take()} — 出队，队列空时阻塞</li>
+ * </ul>
+ * </p>
  *
- * 自定义mq
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @param <T> 元素类型
+ * @author gogym
+ * @date 2020/4/9
  */
 public interface LinkedQueue<T> {
 
     /**
-     * 获取mq底层数组对象
+     * 获取底层数组对象（用于批量操作场景）
      *
-     * @param componentType
-     * @param length
-     * @param <T>
-     * @return
+     * @param componentType 数组元素的 Class
+     * @param length        数组长度
+     * @param <T>           数组元素类型
+     * @return 新创建的数组
      */
     <T> T[] getArray(Class<T> componentType, int length);
 
     /**
-     * 加入一个元素
+     * 入队操作。将元素加入队列尾部。
+     * 队列满时阻塞等待。
      *
-     * @param t
-     * @return t
-     * @throws InterruptedException
+     * @param t 要入队的元素（不允许 null）
+     * @return 入队的元素
+     * @throws InterruptedException 等待时被中断
      */
     T put(T t) throws InterruptedException;
 
     /**
+     * 非阻塞出队操作。从队列头部取出元素。
+     * 队列为空时返回 {@code null}。
      *
-     *从队列获取一个元素,如果没有返回null
-     * @return
-     * @throws InterruptedException
+     * @return 队头元素，队列为空时返回 {@code null}
+     * @throws InterruptedException 操作时被中断
      */
     T poll() throws InterruptedException;
 
     /**
-     * 从队列获取一个元素,如果没有则阻塞
-     * @return
-     * @throws InterruptedException
+     * 阻塞出队操作。从队列头部取出元素。
+     * 队列为空时阻塞等待。
+     *
+     * @return 队头元素
+     * @throws InterruptedException 等待时被中断
      */
     T take() throws InterruptedException;
 
     /**
-     * 获取当前队列的元素数量
+     * 获取当前队列中的元素数量
      *
-     * @return
+     * @return 元素数量
      */
     int getCount();
 
     /**
-     * 获取队列初始化大小
+     * 获取队列的容量上限
      *
-     * @return
+     * @return 队列容量
      */
     int getCapacity();
-
 }

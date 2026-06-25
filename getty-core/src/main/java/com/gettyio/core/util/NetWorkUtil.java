@@ -15,118 +15,126 @@
  */
 package com.gettyio.core.util;
 
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
+
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 /**
- * 网络工具类
+ * 网络工具类。
+ * <p>
+ * 提供 IP 校验、IP/整数互转、MAC 地址获取、CIDR 网段匹配等功能。
+ * 正则表达式预编译为静态常量以提升性能。
+ * </p>
  *
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @date 2020/4/9
  */
-public class NetWorkUtil {
+public final class NetWorkUtil {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(NetWorkUtil.class);
 
     /**
-     * 检查IP是否合法
-     *
-     * @param ip
-     * @return
+     * 预编译的 IPv4 正则表达式（避免每次调用时重新编译）
      */
-    public static boolean ipValid(String ip) {
-        String regex0 = "(2[0-4]\\d)" + "|(25[0-5])";
-        String regex1 = "1\\d{2}";
-        String regex2 = "[1-9]\\d";
-        String regex3 = "\\d";
-        String regex = "(" + regex0 + ")|(" + regex1 + ")|(" + regex2 + ")|("
-                + regex3 + ")";
-        regex = "(" + regex + ").(" + regex + ").(" + regex + ").(" + regex
-                + ")";
-        Pattern p = Pattern.compile(regex);
-        Matcher m = p.matcher(ip);
-        return m.matches();
+    private static final Pattern IPV4_PATTERN;
+
+    static {
+        String octet = "(2[0-4]\\d)|(25[0-5])|(1\\d{2})|([1-9]\\d)|(\\d)";
+        String ipv4 = octet + "\\." + octet + "\\." + octet + "\\." + octet;
+        IPV4_PATTERN = Pattern.compile(ipv4);
     }
 
+    private NetWorkUtil() {
+    }
 
     /**
-     * 获取本地ip 适合windows与linux
+     * 校验 IPv4 地址格式是否合法
      *
-     * @return
+     * @param ip 待校验的 IP 字符串
+     * @return {@code true} 如果格式合法
+     */
+    public static boolean ipValid(String ip) {
+        if (ip == null || ip.isEmpty()) {
+            return false;
+        }
+        return IPV4_PATTERN.matcher(ip).matches();
+    }
+
+    /**
+     * 获取本机局域网 IP 地址（兼容 Windows 和 Linux）。
+     * <p>
+     * 优先遍历网卡获取非回环 IPv4 地址，失败时回退到 {@link InetAddress#getLocalHost()}。
+     * </p>
+     *
+     * @return 本机 IP 地址，默认返回 "127.0.0.1"
      */
     public static String getLocalIP() {
         String localIP = "127.0.0.1";
         try {
-            Enumeration<NetworkInterface> netInterfaces = NetworkInterface
-                    .getNetworkInterfaces();
+            Enumeration<NetworkInterface> netInterfaces = NetworkInterface.getNetworkInterfaces();
             while (netInterfaces.hasMoreElements()) {
-                NetworkInterface ni = (NetworkInterface) netInterfaces
-                        .nextElement();
-                InetAddress ip = ni.getInetAddresses().nextElement();
-                if (!ip.isLoopbackAddress()
-                        && ip.getHostAddress().indexOf(":") == -1) {
-                    localIP = ip.getHostAddress();
-                    break;
+                NetworkInterface ni = netInterfaces.nextElement();
+                Enumeration<InetAddress> addresses = ni.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress ip = addresses.nextElement();
+                    if (!ip.isLoopbackAddress() && ip.getHostAddress().indexOf(':') == -1) {
+                        localIP = ip.getHostAddress();
+                        break;
+                    }
                 }
             }
         } catch (Exception e) {
             try {
                 localIP = InetAddress.getLocalHost().getHostAddress();
             } catch (UnknownHostException e1) {
-                e1.printStackTrace();
+                logger.warn("Failed to get local IP address", e1);
             }
         }
         return localIP;
     }
 
-
     /**
-     * 把ip转化为整数
+     * 将 IPv4 字符串转换为 long 型整数
      *
-     * @param strIp
-     * @return
+     * @param strIp IPv4 地址字符串，如 "192.168.1.1"
+     * @return 对应的 long 值
      */
     public static long ipToLong(String strIp) {
         String[] ip = strIp.split("\\.");
-        return (Long.parseLong(ip[0]) << 24) + (Long.parseLong(ip[1]) << 16)
-                + (Long.parseLong(ip[2]) << 8) + Long.parseLong(ip[3]);
+        return (Long.parseLong(ip[0]) << 24)
+                + (Long.parseLong(ip[1]) << 16)
+                + (Long.parseLong(ip[2]) << 8)
+                + Long.parseLong(ip[3]);
     }
 
     /**
-     * 将十进制整数形式转换成127.0.0.1形式的ip地址 将整数形式的IP地址转化成字符串的方法如下：
-     * 1、将整数值进行右移位操作，右移24位，右移时高位补0，得到的数字即为第一段IP。
-     * 2、通过与操作符 将整数值的高8位设为0，再右移16位，得到的数字即为第二段IP。
-     * 3、通过与操作符吧整数值的高16位设为0，再右移8位，得到的数字即为第三段IP。
-     * 4、通过与操作符吧整数值的高24位设为0，得到的数字即为第四段IP。
+     * 将 long 型整数转换为 IPv4 字符串
      *
-     * @param longIp ip
-     * @return String
+     * @param longIp IP 的 long 表示
+     * @return IPv4 地址字符串
      */
     public static String longToIP(long longIp) {
-        StringBuffer sb = new StringBuffer("");
-        // 直接右移24位
-        sb.append(String.valueOf((longIp >>> 24)));
-        sb.append(".");
-        // 将高8位置0，然后右移16位
-        sb.append(String.valueOf((longIp & 0x00FFFFFF) >>> 16));
-        sb.append(".");
-        // 将高16位置0，然后右移8位
-        sb.append(String.valueOf((longIp & 0x0000FFFF) >>> 8));
-        sb.append(".");
-        // 将高24位置0
-        sb.append(String.valueOf((longIp & 0x000000FF)));
+        StringBuilder sb = new StringBuilder(15);
+        sb.append(longIp >>> 24);
+        sb.append('.');
+        sb.append((longIp & 0x00FFFFFF) >>> 16);
+        sb.append('.');
+        sb.append((longIp & 0x0000FFFF) >>> 8);
+        sb.append('.');
+        sb.append(longIp & 0x000000FF);
         return sb.toString();
     }
 
     /**
-     * 获取本地mac地址
+     * 获取本机 MAC 地址
      *
-     * @return
-     * @throws Exception
+     * @return MAC 地址字符串（大写，以 "-" 分隔），如 "AA-BB-CC-DD-EE-FF"
+     * @throws Exception 获取失败时抛出
      */
     public static String getLocalMACAddress() throws Exception {
         InetAddress ia = InetAddress.getLocalHost();
@@ -134,47 +142,46 @@ public class NetWorkUtil {
     }
 
     /**
-     * 获取mac地址
+     * 获取指定网络接口的 MAC 地址
      *
-     * @param ia
-     * @return
-     * @throws Exception
+     * @param ia InetAddress 对象
+     * @return MAC 地址字符串
+     * @throws Exception 获取失败时抛出
      */
     public static String getMACAddress(InetAddress ia) throws Exception {
-        // 获得网络接口对象（即网卡），并得到mac地址，mac地址存在于一个byte数组中。
         byte[] mac = NetworkInterface.getByInetAddress(ia).getHardwareAddress();
-
-        // 下面代码是把mac地址拼装成String
-        StringBuffer sb = new StringBuffer();
-
+        StringBuilder sb = new StringBuilder(mac.length * 3);
         for (int i = 0; i < mac.length; i++) {
             if (i != 0) {
-                sb.append("-");
+                sb.append('-');
             }
-            // mac[i] & 0xFF 是为了把byte转化为正整数
             String s = Integer.toHexString(mac[i] & 0xFF);
-            sb.append(s.length() == 1 ? 0 + s : s);
+            sb.append(s.length() == 1 ? '0' + s : s);
         }
-
-        // 把字符串所有小写字母改为大写成为正规的mac地址并返回
         return sb.toString().toUpperCase();
     }
 
     /**
-     * 判断某个ip是否在一个网段内 isInRange("192.168.1.127", "192.168.1.64/26")
+     * 判断 IP 是否在指定 CIDR 网段内
+     * <p>
+     * 示例：{@code isInRange("192.168.1.127", "192.168.1.64/26")}
+     * </p>
      *
-     * @param ip   ip
-     * @param cidr ip网段
-     * @return boolean
+     * @param ip   待判断的 IP 地址
+     * @param cidr CIDR 格式的网段，如 "192.168.1.0/24"
+     * @return {@code true} 如果 IP 在网段内
      */
     public static boolean isInRange(String ip, String cidr) {
         String[] ips = ip.split("\\.");
         int ipAddr = (Integer.parseInt(ips[0]) << 24)
                 | (Integer.parseInt(ips[1]) << 16)
-                | (Integer.parseInt(ips[2]) << 8) | Integer.parseInt(ips[3]);
-        int type = Integer.parseInt(cidr.replaceAll(".*/", ""));
+                | (Integer.parseInt(ips[2]) << 8)
+                | Integer.parseInt(ips[3]);
+
+        int type = Integer.parseInt(cidr.substring(cidr.indexOf('/') + 1));
         int mask = 0xFFFFFFFF << (32 - type);
-        String cidrIp = cidr.replaceAll("/.*", "");
+
+        String cidrIp = cidr.substring(0, cidr.indexOf('/'));
         String[] cidrIps = cidrIp.split("\\.");
         int cidrIpAddr = (Integer.parseInt(cidrIps[0]) << 24)
                 | (Integer.parseInt(cidrIps[1]) << 16)

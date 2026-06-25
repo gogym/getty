@@ -15,12 +15,14 @@
  */
 package com.gettyio.core.util;
 
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Charset工具类
+ * 常用字符集常量工具类。
+ * <p>
+ * 对 {@link StandardCharsets} 的便捷封装，提供统一的字符集引用。
+ * </p>
  *
  * @author gogym.ggj
  * @date 2023/6/9
@@ -30,43 +32,33 @@ public final class CharsetUtil {
     private CharsetUtil() {
     }
 
-    /**
-     * 16-bit UTF (UCS Transformation Format) whose byte order is identified by
-     * an optional byte-order mark
-     */
+    /** 16-bit UTF，字节序由可选 BOM 标识 */
     public static final Charset UTF_16 = StandardCharsets.UTF_16;
 
-    /**
-     * 16-bit UTF (UCS Transformation Format) whose byte order is big-endian
-     */
+    /** 16-bit UTF，大端字节序 */
     public static final Charset UTF_16BE = StandardCharsets.UTF_16BE;
 
-    /**
-     * 16-bit UTF (UCS Transformation Format) whose byte order is little-endian
-     */
+    /** 16-bit UTF，小端字节序 */
     public static final Charset UTF_16LE = StandardCharsets.UTF_16LE;
 
-    /**
-     * 8-bit UTF (UCS Transformation Format)
-     */
+    /** 8-bit UTF（最常用编码） */
     public static final Charset UTF_8 = StandardCharsets.UTF_8;
 
-    /**
-     * ISO Latin Alphabet No. 1, as known as <tt>ISO-LATIN-1</tt>
-     */
+    /** ISO Latin Alphabet No.1（ISO-LATIN-1） */
     public static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
 
-    /**
-     * 7-bit ASCII, as known as ISO646-US or the Basic Latin block of the
-     * Unicode character set
-     */
+    /** 7-bit ASCII（ISO646-US） */
     public static final Charset US_ASCII = StandardCharsets.US_ASCII;
 
-    private static final Charset[] CHARSETS = new Charset[]{UTF_16, UTF_16BE, UTF_16LE, UTF_8, ISO_8859_1, US_ASCII};
+    /** 所有支持的字符集 */
+    private static final Charset[] CHARSETS = {UTF_16, UTF_16BE, UTF_16LE, UTF_8, ISO_8859_1, US_ASCII};
 
+    /**
+     * 返回所有支持的字符集数组（防御性副本）
+     *
+     * @return 字符集数组
+     */
     public static Charset[] values() {
-        return CHARSETS;
+        return CHARSETS.clone();
     }
-
-
 }

@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.util;
 
-
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,194 +23,218 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-
 /**
- * 为了获取更好的性能表现，自定义一个读写安全的map
+ * 基于 {@link ReadWriteLock} 实现的高性能线程安全 Map。
+ * <p>
+ * 读操作之间完全并发，写操作独占锁。在读多写少场景下，
+ * 性能显著优于 {@link java.util.concurrent.ConcurrentHashMap} 的 synchronized 方案。
+ * </p>
  *
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @param <K> key 类型
+ * @param <V> value 类型
+ * @author gogym
+ * @date 2020/4/9
  */
 public class ConcurrentSafeMap<K, V> {
 
+    /** 底层存储 */
     private final Map<K, V> map;
-    /**
-     * 可重入读写锁
-     */
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    /**
-     * 读锁
-     */
-    private final Lock r = lock.readLock();
-    /**
-     * 写锁
-     */
-    private final Lock w = lock.writeLock();
 
+    /** 可重入读写锁 */
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+    /** 读锁 —— 允许多个线程同时读取 */
+    private final Lock readLock = lock.readLock();
+
+    /** 写锁 —— 独占访问 */
+    private final Lock writeLock = lock.writeLock();
+
+    /**
+     * 构造一个空的线程安全 Map
+     */
     public ConcurrentSafeMap() {
         this.map = new HashMap<>();
     }
 
+    /**
+     * 使用已有的 Map 初始化（注意：不会拷贝，直接引用）
+     *
+     * @param map 初始 Map
+     */
     public ConcurrentSafeMap(Map<K, V> map) {
         this.map = map;
     }
 
     /**
-     * 获取一个值
+     * 获取指定 key 对应的 value
      *
-     * @param key
-     * @return
+     * @param key 键
+     * @return 对应的值，不存在则返回 {@code null}
      */
     public V get(Object key) {
-        r.lock();
+        readLock.lock();
         try {
             return map.get(key);
         } finally {
-            r.unlock();
+            readLock.unlock();
         }
     }
 
     /**
-     * 设置一个值
+     * 插入或更新键值对
      *
-     * @param key
-     * @param value
-     * @return
+     * @param key   键
+     * @param value 值
+     * @return 旧值，不存在则返回 {@code null}
      */
     public V put(K key, V value) {
-        w.lock();
+        writeLock.lock();
         try {
             return map.put(key, value);
         } finally {
-            w.unlock();
+            writeLock.unlock();
         }
     }
 
     /**
-     * 移除一个值
+     * 移除指定 key 对应的键值对
      *
-     * @param key
-     * @return
+     * @param key 键
+     * @return 被移除的值，不存在则返回 {@code null}
      */
     public V remove(Object key) {
-        w.lock();
+        writeLock.lock();
         try {
             return map.remove(key);
         } finally {
-            w.unlock();
+            writeLock.unlock();
         }
     }
 
     /**
-     * 添加全部
+     * 批量添加键值对
      *
-     * @param m
+     * @param m 要添加的 Map
      */
     public void putAll(Map<? extends K, ? extends V> m) {
-        w.lock();
+        writeLock.lock();
         try {
             map.putAll(m);
         } finally {
-            w.unlock();
+            writeLock.unlock();
         }
     }
 
     /**
-     * 清除全部
+     * 清除所有键值对
      */
     public void clear() {
-        w.lock();
+        writeLock.lock();
         try {
             map.clear();
         } finally {
-            w.unlock();
+            writeLock.unlock();
         }
     }
 
     /**
-     * 返回map长度大小
+     * 返回当前键值对数量
      *
-     * @return
+     * @return Map 大小
      */
     public int size() {
-        r.lock();
+        readLock.lock();
         try {
             return map.size();
         } finally {
-            r.unlock();
+            readLock.unlock();
         }
     }
 
     /**
-     * 非空判断
+     * 判断 Map 是否为空
      *
-     * @return
+     * @return {@code true} 如果 Map 不含任何键值对
      */
     public boolean isEmpty() {
-        r.lock();
+        readLock.lock();
         try {
             return map.isEmpty();
         } finally {
-            r.unlock();
+            readLock.unlock();
         }
     }
 
     /**
-     * 是否存在某个key
+     * 判断是否包含指定 key
      *
-     * @param key
-     * @return
+     * @param key 键
+     * @return {@code true} 如果包含该 key
      */
     public boolean containsKey(Object key) {
-        r.lock();
+        readLock.lock();
         try {
             return map.containsKey(key);
         } finally {
-            r.unlock();
+            readLock.unlock();
         }
     }
 
     /**
-     * 是否存在某个值
+     * 判断是否包含指定 value
      *
-     * @param value
-     * @return
+     * @param value 值
+     * @return {@code true} 如果包含该 value
      */
     public boolean containsValue(Object value) {
-        r.lock();
+        readLock.lock();
         try {
             return map.containsValue(value);
         } finally {
-            r.unlock();
+            readLock.unlock();
         }
     }
 
-
     /**
-     * 存在则返回，不存在则添加
+     * 原子性的 putIfAbsent 操作。
+     * <p>
+     * 如果 key 不存在，则插入并返回 {@code null}；
+     * 如果 key 已存在，则返回现有值。
+     * 整个操作在写锁保护下原子执行。
+     * </p>
      *
-     * @param key
-     * @param value
-     * @return
+     * @param key   键
+     * @param value 值
+     * @return 已存在的值，或 {@code null}（表示新插入）
      */
     public V putIfAbsent(K key, V value) {
-
-        if (containsKey(key)) {
-            return get(key);
-        } else {
-            put(key, value);
-            return null;
+        writeLock.lock();
+        try {
+            V existing = map.get(key);
+            if (existing == null) {
+                map.put(key, value);
+            }
+            return existing;
+        } finally {
+            writeLock.unlock();
         }
     }
 
     /**
-     * 返回全部value
+     * 返回所有 value 的快照副本。
+     * <p>
+     * 在读锁保护下拷贝 value 集合，返回的 Collection 是独立副本，
+     * 后续对 Map 的修改不会影响返回结果。
+     * </p>
      *
-     * @return
+     * @return value 集合的快照
      */
     public Collection<V> values() {
-        return map.values();
+        readLock.lock();
+        try {
+            return new ArrayList<>(map.values());
+        } finally {
+            readLock.unlock();
+        }
     }
-
-
 }

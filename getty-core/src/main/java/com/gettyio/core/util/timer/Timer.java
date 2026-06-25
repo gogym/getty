@@ -18,48 +18,59 @@ package com.gettyio.core.util.timer;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-
 /**
- * Timer.java
+ * 定时器接口。
+ * <p>
+ * 定义定时任务的提交、停止和动态开关操作。
+ * 典型实现为 {@link HashedWheelTimer}（时间轮算法）。
+ * </p>
  *
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @date 2020/4/9
  */
 public interface Timer {
 
-
     /**
-     * newTimeout()添加定时任务
-     * 如果没有启动时间轮，则启动
+     * 提交一个定时任务。
+     * <p>
+     * 如果定时器未启动，将自动启动。
+     * </p>
      *
      * @param task  定时任务
      * @param delay 延迟时间
-     * @param unit  延迟时间单位
-     * @return the timeout
+     * @param unit  时间单位
+     * @return 超时句柄，可用于取消或查询状态
      */
     Timeout newTimeout(TimerTask task, long delay, TimeUnit unit);
 
-
     /**
-     * 停止时间轮
+     * 停止定时器
      *
-     * @return the set
+     * @return 未处理的超时任务集合
      */
     Set<Timeout> stop();
 
-
     /**
-     * 动态开关开启
-     * 1、轮子每 tick ，将格子内所有定时任务执行
-     * 2、开关开启后的定时任务直接执行，不进入格子。
+     * 开启动态开关。
+     * <p>
+     * 开启后：
+     * <ul>
+     *   <li>每次 tick 时执行格子内所有定时任务（不论是否到期）</li>
+     *   <li>新提交的任务直接执行，不进入格子</li>
+     * </ul>
+     * </p>
      */
     void openSwitch();
 
     /**
-     * 动态开关关闭
-     * 1、轮子每 tick ，只执行过期的定时任务
-     * 2、新的 newTimeout 添加的定时任务，添加到格子
+     * 关闭动态开关。
+     * <p>
+     * 关闭后：
+     * <ul>
+     *   <li>每次 tick 只执行已过期的定时任务</li>
+     *   <li>新提交的任务正常进入格子等待</li>
+     * </ul>
+     * </p>
      */
     void closeSwitch();
 }

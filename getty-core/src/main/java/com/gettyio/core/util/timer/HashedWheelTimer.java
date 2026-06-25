@@ -283,7 +283,8 @@ public class HashedWheelTimer implements Timer {
         try {
             timeouts.put(timeout);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            logger.warn("Interrupted while adding timeout to queue", e);
+            Thread.currentThread().interrupt();
         }
         return timeout;
     }
@@ -423,27 +424,11 @@ public class HashedWheelTimer implements Timer {
 
 
     /**
-     * 初始化 ticksPerWheel 的值为 不小于 ticksPerWheel 的最小2的n次方
-     * 这里其实不建议使用这种方式，因为当ticksPerWheel的值很大的时候，这个方法会循环很多次，方法执行时间不稳定，效率也不够。
+     * 将 ticksPerWheel 向上取整到最近的 2 的幂次方。
+     * <p>参考 Java 8 HashMap 的算法，使用位运算固定步数完成计算。</p>
      *
-     * @param ticksPerWheel
-     * @return
-     */
-    private static int normalizeTicksPerWheelOld(int ticksPerWheel) {
-        int normalizedTicksPerWheel = 1;
-        while (normalizedTicksPerWheel < ticksPerWheel) {
-            normalizedTicksPerWheel <<= 1;
-        }
-
-        return normalizedTicksPerWheel;
-    }
-
-
-    /**
-     * 推荐使用java8 HashMap的做法：
-     *
-     * @param ticksPerWheel
-     * @return
+     * @param ticksPerWheel 期望的每圈格数
+     * @return 不小于 ticksPerWheel 的最小 2 的幂
      */
     private static int normalizeTicksPerWheel(int ticksPerWheel) {
         //这里参考java8 hashmap的算法，使推算的过程固定
@@ -457,19 +442,6 @@ public class HashedWheelTimer implements Timer {
         return (n < 0) ? 1 : (n >= 1073741824) ? 1073741824 : n + 1;
     }
 
-
-    @Override
-    protected void finalize() throws Throwable {
-        try {
-            super.finalize();
-        } finally {
-            // 该对象进行 GC 完成时，进行判断
-            // 如果我们还没有关闭，然后我们要确保减少活动实例计数。
-            if (WORKER_STATE_UPDATER.getAndSet(this, WORKER_STATE_SHUTDOWN) != WORKER_STATE_SHUTDOWN) {
-                INSTANCE_COUNTER.decrementAndGet();
-            }
-        }
-    }
 
     /**
      * 警告太多的实例
@@ -535,7 +507,7 @@ public class HashedWheelTimer implements Timer {
                 try {
                     timeout = timeouts.take();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.warn("Interrupted while collecting unprocessed timeouts", e);
                 }
                 if (timeout == null) {
                     break;
@@ -563,7 +535,7 @@ public class HashedWheelTimer implements Timer {
                 try {
                     timeout = timeouts.take();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.warn("Interrupted while transferring timeouts to buckets", e);
                 }
                 //如果没有任务了，直接跳出循环
                 if (timeout == null) {
@@ -603,7 +575,7 @@ public class HashedWheelTimer implements Timer {
                 try {
                     timeout = cancelledTimeouts.take();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.warn("Interrupted while processing cancelled tasks", e);
                 }
                 if (timeout == null) {
                     break;
@@ -859,7 +831,8 @@ public class HashedWheelTimer implements Timer {
             try {
                 timer.cancelledTimeouts.put(this);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                logger.warn("Interrupted while adding cancelled timeout to queue", e);
+                Thread.currentThread().interrupt();
             }
 
             return true;
