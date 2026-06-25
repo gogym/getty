@@ -21,7 +21,7 @@ import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
-import com.gettyio.core.function.Function;
+import java.util.function.Function;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;

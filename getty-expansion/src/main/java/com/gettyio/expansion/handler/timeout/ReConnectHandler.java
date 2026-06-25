@@ -19,6 +19,8 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.internal.ReadCompletionHandler;
+import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -39,55 +41,68 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * ReConnectHandler.java
+ * 异常断线重连处理器。
+ * <p>
+ * 当通道因异常断开（非主动关闭）时，自动按递增延迟进行重连。
+ * 支持 AIO 和 NIO 两种通道模式，重连策略采用线性递增（attempts * threshold），
+ * 最大重试次数可配置。
+ * </p>
  *
- * @description:异常断线重连
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p>使用示例：
+ * <pre>
+ *   // 默认：间隔 1000ms，最多重试 3 次
+ *   pipeline.addLast(new ReConnectHandler(connectHandler));
+ *   // 自定义间隔和次数
+ *   pipeline.addLast(new ReConnectHandler(2000, 5, connectHandler));
+ * </pre>
+ * </p>
+ *
+ * @author gogym
  */
 public class ReConnectHandler extends ChannelInboundHandlerAdapter implements TimerTask {
 
-    private final InternalLogger logger = InternalLoggerFactory.getInstance(ReConnectHandler.class);
-    /**
-     * 时间基数，重连时间会越来越长
-     */
-    private int attempts = 0;
-    /**
-     * 间隔阈值
-     */
-    private long threshold = 1000;
-    /**
-     * 创建一个定时器
-     */
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReConnectHandler.class);
+
+    /** 默认重连间隔基数（毫秒） */
+    private static final long DEFAULT_THRESHOLD = 1000L;
+
+    /** 默认最大重试次数 */
+    private static final int DEFAULT_RETRY = 3;
+
+    /** 重连间隔基数（毫秒），延迟 = attempts * threshold */
+    private final long threshold;
+
+    /** 最大重试次数 */
+    private final int retry;
+
+    /** 连接成功回调 */
+    private final ConnectHandler connectHandler;
+
+    /** 定时器 */
     private final HashedWheelTimer timer = new HashedWheelTimer();
-    /**
-     * channel
-     */
+
+    /** 当前通道引用 */
     private AbstractSocketChannel channel;
-    /**
-     * 连接回调
-     */
-    private ConnectHandler connectHandler;
-    /**
-     * 重试次数 ,默认3次
-     */
-    private int retry = 3;
+
+    /** 当前重连次数 */
+    private int attempts = 0;
+
+    /** 防止并发重连 */
+    private final AtomicBoolean reconnecting = new AtomicBoolean(false);
 
     public ReConnectHandler(ConnectHandler connectHandler) {
-        this.connectHandler = connectHandler;
+        this(DEFAULT_THRESHOLD, DEFAULT_RETRY, connectHandler);
     }
 
-    public ReConnectHandler(int threshold, ConnectHandler connectHandler) {
-        this.threshold = threshold;
-        this.connectHandler = connectHandler;
+    public ReConnectHandler(long threshold, ConnectHandler connectHandler) {
+        this(threshold, DEFAULT_RETRY, connectHandler);
     }
 
-    public ReConnectHandler(int threshold, int retry, ConnectHandler connectHandler) {
+    public ReConnectHandler(long threshold, int retry, ConnectHandler connectHandler) {
         this.threshold = threshold;
         this.retry = retry;
         this.connectHandler = connectHandler;
@@ -96,15 +111,16 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     @Override
     public void channelAdded(ChannelHandlerContext ctx) throws Exception {
         this.channel = ctx.channel();
-        //重置时间基数
+        // 重置重连计数
         attempts = 0;
+        reconnecting.set(false);
         super.channelAdded(ctx);
     }
 
     @Override
     public void channelClosed(ChannelHandlerContext ctx) throws Exception {
         if (!ctx.channel().isInitiateClose() && timer.workerState == HashedWheelTimer.WORKER_STATE_INIT) {
-            //如果不是主动关闭，则发起重连
+            // 非主动关闭时触发重连
             reConnect(ctx.channel());
         }
         super.channelClosed(ctx);
@@ -121,144 +137,140 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     @Override
     public void run(Timeout timeout) throws Exception {
         final BaseConfig clientConfig = channel.getConfig();
+
         if (channel instanceof AioChannel) {
-            AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
-                @Override
-                public Thread newThread(Runnable target) {
-                    return new Thread(target);
-                }
-            }));
-            if (clientConfig.getSocketOptions() != null) {
-                for (Map.Entry<SocketOption<Object>, Object> entry : clientConfig.getSocketOptions().entrySet()) {
-                    socketChannel.setOption(entry.getKey(), entry.getValue());
-                }
-            }
-            final AsynchronousSocketChannel finalSocketChannel = socketChannel;
-            /**
-             * 非阻塞连接
-             */
-            socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()), socketChannel, new java.nio.channels.CompletionHandler<Void, AsynchronousSocketChannel>() {
-                @Override
-                public void completed(Void result, AsynchronousSocketChannel attachment) {
-                    logger.info("connect aio server success");
-                    //连接成功则构造AIOSession对象
-                    channel = new AioChannel(finalSocketChannel, clientConfig, new com.gettyio.core.channel.internal.ReadCompletionHandler(), new com.gettyio.core.channel.internal.WriteCompletionHandler(), channel.getByteBufferPool(), channel.getChannelInitializer());
-
-                    if (null != connectHandler) {
-                        if (null != channel.getSslHandler()) {
-                            channel.setSslHandshakeListener(new IHandshakeListener() {
-                                @Override
-                                public void onComplete() {
-                                    logger.info("Ssl Handshake Completed");
-                                    connectHandler.onCompleted(channel);
-                                }
-
-                                @Override
-                                public void onFail(SSLException e) {
-                                    connectHandler.onFailed(e);
-                                }
-                            });
-                        } else {
-                            connectHandler.onCompleted(channel);
-                        }
-                    }
-                    channel.starRead();
-                }
-
-                @Override
-                public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                    logger.error("connect aio server  error", exc);
-                    reConnect(channel);
-                    if (null != connectHandler) {
-                        connectHandler.onFailed(exc);
-                    }
-                }
-            });
+            reconnectAio(clientConfig);
         } else if (channel instanceof NioChannel) {
+            reconnectNio(clientConfig);
+        }
+    }
 
+    /**
+     * AIO 模式重连。
+     */
+    private void reconnectAio(final BaseConfig clientConfig) throws Exception {
+        AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(
+                AsynchronousChannelGroup.withFixedThreadPool(1, r -> new Thread(r)));
+
+        applySocketOptions(socketChannel, clientConfig);
+
+        socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()),
+                socketChannel, new java.nio.channels.CompletionHandler<Void, AsynchronousSocketChannel>() {
+
+                    @Override
+                    public void completed(Void result, AsynchronousSocketChannel attachment) {
+                        LOGGER.info("reconnect AIO server success");
+                        channel = new AioChannel(attachment, clientConfig,
+                                new ReadCompletionHandler(), new WriteCompletionHandler(),
+                                channel.getByteBufferPool(), channel.getChannelInitializer());
+                        onConnectSuccess(channel);
+                        channel.starRead();
+                    }
+
+                    @Override
+                    public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
+                        LOGGER.error("reconnect AIO server failed", exc);
+                        onConnectFailed(exc);
+                    }
+                });
+    }
+
+    /**
+     * NIO 模式重连。
+     */
+    private void reconnectNio(final BaseConfig clientConfig) {
+        try {
             final java.nio.channels.SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
-
-            if (clientConfig.getSocketOptions() != null) {
-                for (Map.Entry<SocketOption<Object>, Object> entry : clientConfig.getSocketOptions().entrySet()) {
-                    socketChannel.setOption(entry.getKey(), entry.getValue());
-                }
-            }
+            applySocketOptions(socketChannel, clientConfig);
             socketChannel.configureBlocking(false);
-            /*
-             * 连接到指定的服务地址
-             */
             socketChannel.connect(new InetSocketAddress(clientConfig.getHost(), clientConfig.getPort()));
-            /*
-             * 创建一个事件选择器Selector
-             */
+
             SelectedSelector selector = new SelectedSelector(Selector.open());
-            /*
-             * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
-             */
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
+
             while (selector.select() > 0) {
                 Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                 while (it.hasNext()) {
                     SelectionKey sk = it.next();
                     if (sk.isConnectable()) {
-                        java.nio.channels.SocketChannel channels = (java.nio.channels.SocketChannel) sk.channel();
-                        //during connecting, finish the connect
-                        if (channels.isConnectionPending()) {
-                            try {
-                                channels.finishConnect();
-                                channel = new NioChannel(clientConfig, socketChannel, ((NioChannel) channel).getNioEventLoop(), channel.getByteBufferPool(), channel.getChannelInitializer());
-                                if (null != connectHandler) {
-                                    if (null != channel.getSslHandler()) {
-                                        channel.setSslHandshakeListener(new IHandshakeListener() {
-                                            @Override
-                                            public void onComplete() {
-                                                logger.info("Ssl Handshake Completed");
-                                                connectHandler.onCompleted(channel);
-                                            }
-
-                                            @Override
-                                            public void onFail(SSLException e) {
-                                                connectHandler.onFailed(e);
-                                            }
-                                        });
-                                    } else {
-                                        connectHandler.onCompleted(channel);
-                                    }
-                                }
-                                //创建成功立即开始读
-                                ((NioChannel) channel).register();
-                            } catch (Exception e) {
-                                logger.error(e.getMessage(), e);
-                                reConnect(channel);
-                                if (null != connectHandler) {
-                                    connectHandler.onFailed(e);
-                                }
-                                return;
-                            }
+                        java.nio.channels.SocketChannel ch = (java.nio.channels.SocketChannel) sk.channel();
+                        if (ch.isConnectionPending()) {
+                            ch.finishConnect();
+                            channel = new NioChannel(clientConfig, socketChannel,
+                                    ((NioChannel) channel).getNioEventLoop(),
+                                    channel.getByteBufferPool(), channel.getChannelInitializer());
+                            onConnectSuccess(channel);
+                            ((NioChannel) channel).register();
                         }
                     }
+                    it.remove();
                 }
-                it.remove();
+            }
+        } catch (Exception e) {
+            LOGGER.error("reconnect NIO server failed", e);
+            onConnectFailed(e);
+        }
+    }
+
+    /**
+     * 应用 Socket 配置选项。
+     */
+    @SuppressWarnings("unchecked")
+    private void applySocketOptions(java.nio.channels.NetworkChannel socketChannel, BaseConfig config) throws Exception {
+        if (config.getSocketOptions() != null) {
+            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
+                socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
     }
 
     /**
-     * 重连
-     *
-     * @param abstractSocketChannel
+     * 连接成功后的公共处理：SSL 握手监听 + 回调通知。
+     * 提取 AIO/NIO 共用的逻辑，避免代码重复。
+     */
+    private void onConnectSuccess(final AbstractSocketChannel newChannel) {
+        reconnecting.set(false);
+        if (connectHandler == null) {
+            return;
+        }
+        if (newChannel.getSslHandler() != null) {
+            newChannel.setSslHandshakeListener(new IHandshakeListener() {
+                @Override
+                public void onComplete() {
+                    LOGGER.info("SSL handshake completed on reconnect");
+                    connectHandler.onCompleted(newChannel);
+                }
+
+                @Override
+                public void onFail(SSLException e) {
+                    connectHandler.onFailed(e);
+                }
+            });
+        } else {
+            connectHandler.onCompleted(newChannel);
+        }
+    }
+
+    /**
+     * 连接失败后的公共处理：重新调度重连 + 回调通知。
+     */
+    private void onConnectFailed(Throwable cause) {
+        reconnecting.set(false);
+        reConnect(channel);
+        if (connectHandler != null) {
+            connectHandler.onFailed(cause);
+        }
+    }
+
+    /**
+     * 调度下一次重连。
      */
     private void reConnect(AbstractSocketChannel abstractSocketChannel) {
-        //判断是否已经连接
-        if (abstractSocketChannel.isInvalid()) {
-            logger.debug("reconnect...");
-            // 重连的间隔时间会越来越长
+        if (abstractSocketChannel.isInvalid() && attempts < retry) {
+            LOGGER.debug("scheduling reconnect, attempt {}/{}", attempts + 1, retry);
             long delay = attempts * threshold;
-            //启动定时器，通过定时器连接
             timer.newTimeout(this, delay, TimeUnit.MILLISECONDS);
-            if (attempts < retry) {
-                attempts++;
-            }
+            attempts++;
         }
     }
 }

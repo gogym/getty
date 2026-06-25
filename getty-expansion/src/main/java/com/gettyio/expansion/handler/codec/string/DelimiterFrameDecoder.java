@@ -19,55 +19,72 @@ import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
-
 /**
- * DelimiterFrameDecoder.java
+ * 分隔符帧解码器。
+ * <p>
+ * 按指定的分隔符（delimiter）将连续的字节流分割为独立的帧。
+ * 支持多字节分隔符，能正确处理跨数据包的分隔符匹配和半包累积。
+ * </p>
  *
- * @description:按标识符分割消息，目前默认\r\n
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p>使用示例：
+ * <pre>
+ *   // 以 \r\n 为分隔符
+ *   new DelimiterFrameDecoder(new byte[]{'\r', '\n'});
+ * </pre>
+ * </p>
+ *
+ * @author gogym
+ * @see StringDecoder
  */
 public class DelimiterFrameDecoder extends ByteToMessageDecoder {
 
-    /**
-     * 默认分隔符
-     */
-    public static byte[] lineDelimiter = new byte[]{'\r', '\n'};
-    AutoByteBuffer preBuffer = AutoByteBuffer.newByteBuffer();
+    /** 默认分隔符：\r\n */
+    public static final byte[] LINE_DELIMITER = {'\r', '\n'};
+
+    /** 累积缓冲区 */
+    private final AutoByteBuffer preBuffer = AutoByteBuffer.newByteBuffer();
+
+    /** 分隔符字节数组 */
+    private final byte[] delimiter;
+
+    /** 当前分隔符匹配进度 */
+    private int matchIndex;
 
     /**
-     * 消息结束标志
+     * 创建分隔符帧解码器。
+     *
+     * @param delimiter 分隔符字节数组
      */
-    private final byte[] endFLag;
-    /**
-     * 本次校验的结束标索引位
-     */
-    private int exceptIndex;
-
-    public DelimiterFrameDecoder(byte[] endFLag) {
-        this.endFLag = endFLag;
+    public DelimiterFrameDecoder(byte[] delimiter) {
+        if (delimiter == null || delimiter.length == 0) {
+            throw new IllegalArgumentException("delimiter must not be null or empty");
+        }
+        this.delimiter = delimiter;
     }
-
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        decode(ctx, in);
-    }
-
-    private void decode(ChannelHandlerContext ctx, Object in) throws Exception {
         byte[] bytes = (byte[]) in;
         int index = 0;
         while (index < bytes.length) {
             byte data = bytes[index];
-            if (data != endFLag[exceptIndex]) {
+            if (data == delimiter[matchIndex]) {
+                matchIndex++;
+                if (matchIndex == delimiter.length) {
+                    // 完整分隔符匹配成功，输出当前帧
+                    super.channelRead(ctx, preBuffer.allWriteBytesArray());
+                    preBuffer.clear();
+                    matchIndex = 0;
+                }
+            } else {
+                // 匹配失败：将之前已匹配的分隔符字节写入缓冲区
+                if (matchIndex > 0) {
+                    for (int i = 0; i < matchIndex; i++) {
+                        preBuffer.writeByte(delimiter[i]);
+                    }
+                    matchIndex = 0;
+                }
                 preBuffer.writeByte(data);
-                exceptIndex = 0;
-            } else if (++exceptIndex == endFLag.length) {
-                //传递到下一个解码器
-                super.channelRead(ctx, preBuffer.allWriteBytesArray());
-                preBuffer.clear();
-                exceptIndex = 0;
             }
             index++;
         }

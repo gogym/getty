@@ -19,14 +19,14 @@ import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
 
-
 /**
- * StringDecoder.java
+ * 字符串解码器。
+ * <p>
+ * 将 byte[] 数据按 UTF-8 编码解码为 {@link String} 对象，传递给下一个处理器。
+ * </p>
  *
- * @description:string解码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see StringEncoder
  */
 public class StringDecoder extends ByteToMessageDecoder {
 

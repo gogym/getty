@@ -23,12 +23,13 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * HttpEncodeSerializer.java
+ * HTTP 编码序列化工具类。
+ * <p>
+ * 将 {@link HttpRequest} 或 {@link HttpResponse} 对象编码为 HTTP 协议字节流，
+ * 包括初始行、头部和消息体的序列化。
+ * </p>
  *
- * @description:http编码序列化
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpEncodeSerializer {
 

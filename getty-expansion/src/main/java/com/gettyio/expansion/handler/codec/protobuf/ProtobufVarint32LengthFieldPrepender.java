@@ -15,79 +15,57 @@
  */
 package com.gettyio.expansion.handler.codec.protobuf;
 
-import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
-
 /**
- * ProtobufVarint32LengthFieldPrepender.java
+ * Protobuf Varint32 长度字段前缀编码器。
+ * <p>
+ * 在消息体前添加 Varint32 编码的长度字段，用于接收端的帧分割。
+ * 直接操作 byte[] 避免不必要的 {@link com.gettyio.core.buffer.AutoByteBuffer} 包装。
+ * </p>
  *
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see ProtobufVarint32FrameDecoder
  */
 public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] bytes = (byte[]) obj;
-
-        int bodyLen = bytes.length;
+        byte[] body = (byte[]) obj;
+        int bodyLen = body.length;
         int headerLen = computeRawVarint32Size(bodyLen);
-        byte[] b = new byte[headerLen + bodyLen];
+        byte[] output = new byte[headerLen + bodyLen];
 
-        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer(bodyLen);
-        writeRawVarint32(autoByteBuffer, bodyLen);
-        autoByteBuffer.writeBytes(bytes);
-        try {
-            autoByteBuffer.readBytes(b);
-        } catch (AutoByteBuffer.ByteBufferException e) {
-            e.printStackTrace();
-        }
-        super.channelWrite(ctx, b);
-    }
-
-
-    /**
-     * Writes protobuf varint32 to (@link ByteBuf).
-     *
-     * @param out   to be written to
-     * @param value to be written
-     */
-    static void writeRawVarint32(AutoByteBuffer out, int value) {
+        // 写入 Varint32 长度前缀
+        int offset = 0;
+        int value = bodyLen;
         while (true) {
             if ((value & ~0x7F) == 0) {
-                out.write(value);
-                return;
+                output[offset++] = (byte) value;
+                break;
             } else {
-                out.write((value & 0x7F) | 0x80);
+                output[offset++] = (byte) ((value & 0x7F) | 0x80);
                 value >>>= 7;
             }
         }
+        // 写入消息体
+        System.arraycopy(body, 0, output, headerLen, bodyLen);
+
+        super.channelWrite(ctx, output);
     }
 
-
     /**
-     * Computes size of protobuf varint32 after encoding.
+     * 计算 Varint32 编码后的字节数。
      *
-     * @param value which is to be encoded.
-     * @return size of value encoded as protobuf varint32.
+     * @param value 待编码的值
+     * @return 编码后占用的字节数（1-5）
      */
     static int computeRawVarint32Size(final int value) {
-        if ((value & (0xffffffff << 7)) == 0) {
-            return 1;
-        }
-        if ((value & (0xffffffff << 14)) == 0) {
-            return 2;
-        }
-        if ((value & (0xffffffff << 21)) == 0) {
-            return 3;
-        }
-        if ((value & (0xffffffff << 28)) == 0) {
-            return 4;
-        }
+        if ((value & (0xFFFFFFFF << 7)) == 0) return 1;
+        if ((value & (0xFFFFFFFF << 14)) == 0) return 2;
+        if ((value & (0xFFFFFFFF << 21)) == 0) return 3;
+        if ((value & (0xFFFFFFFF << 28)) == 0) return 4;
         return 5;
     }
 }

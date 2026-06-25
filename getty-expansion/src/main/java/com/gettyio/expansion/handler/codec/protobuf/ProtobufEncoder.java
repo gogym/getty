@@ -19,27 +19,26 @@ import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.google.protobuf.MessageLite;
 
-
 /**
- * ProtobufEncoder.java
+ * Protobuf 消息编码器。
+ * <p>
+ * 将 {@link MessageLite} 或其 Builder 对象序列化为 byte[]，传递给下一个处理器。
+ * 非 Protobuf 类型的数据将原样透传。
+ * </p>
  *
- * @description:protobuf编码
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see ProtobufDecoder
  */
 public class ProtobufEncoder extends MessageToByteEncoder {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-
         byte[] bytes = null;
         if (obj instanceof MessageLite) {
             bytes = ((MessageLite) obj).toByteArray();
-        }
-        if (obj instanceof MessageLite.Builder) {
+        } else if (obj instanceof MessageLite.Builder) {
             bytes = ((MessageLite.Builder) obj).build().toByteArray();
         }
-        super.channelWrite(ctx, bytes);
+        super.channelWrite(ctx, bytes != null ? bytes : obj);
     }
 }

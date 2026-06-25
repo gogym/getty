@@ -23,7 +23,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Payload of the {@link MqttSubscribeMessage}
+ * MQTT SUBSCRIBE 消息的负载部分。
+ * <p>包含订阅的主题过滤器和对应的 QoS 级别列表。</p>
+ *
+ * @see MqttSubscribeMessage
  */
 public final class MqttSubscribePayload {
 
@@ -40,10 +43,13 @@ public final class MqttSubscribePayload {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder(StringUtil.simpleClassName(this)).append('[');
-        for (int i = 0; i < topicSubscriptions.size() - 1; i++) {
-            builder.append(topicSubscriptions.get(i)).append(", ");
+        int size = topicSubscriptions.size();
+        for (int i = 0; i < size; i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append(topicSubscriptions.get(i));
         }
-        builder.append(topicSubscriptions.get(topicSubscriptions.size() - 1));
         builder.append(']');
         return builder.toString();
     }

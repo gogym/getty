@@ -21,7 +21,9 @@ import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.handler.codec.DecoderResult;
 
 /**
- * Utility class with factory methods to create different types of MQTT messages.
+ * MQTT 消息工厂类。
+ * <p>提供根据消息类型创建具体 {@link MqttMessage} 子类的静态工厂方法，
+ * 以及创建无效消息的辅助方法。</p>
  */
 public final class MqttMessageFactory {
 

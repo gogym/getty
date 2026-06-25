@@ -19,7 +19,8 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.handler.codec.DecoderException;
 
 /**
- * A {@link MqttIdentifierRejectedException} which is thrown when a CONNECT request contains invalid client identifier.
+ * MQTT 客户端标识符被拒绝异常。
+ * <p>当 CONNECT 请求包含无效的客户端标识符时抛出。</p>
  */
 public final class MqttIdentifierRejectedException extends DecoderException {
 

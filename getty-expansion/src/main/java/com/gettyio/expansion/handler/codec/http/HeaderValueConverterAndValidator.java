@@ -16,12 +16,13 @@
 package com.gettyio.expansion.handler.codec.http;
 
 /**
- * HeaderValueConverterAndValidator.java
+ * HTTP 头部值验证器。
+ * <p>
+ * 验证 HTTP 头部名称和值是否符合 RFC 2616 规范，
+ * 检查禁止字符（如 CR、LF、VT、FF 等）和 CRLF 续行规则。
+ * </p>
  *
- * @description:header头值转换和验证
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public final class HeaderValueConverterAndValidator {
 
@@ -114,7 +115,6 @@ public final class HeaderValueConverterAndValidator {
                         default:
                             throw new IllegalArgumentException("Only ' ' and '\\t' are allowed after '\\n': " + value);
                     }
-                default:
                     break;
             }
         }

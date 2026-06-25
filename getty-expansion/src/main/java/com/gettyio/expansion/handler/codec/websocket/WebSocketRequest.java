@@ -20,66 +20,49 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * WebSocketRequest.java
+ * WebSocket 握手请求信息载体。
+ * <p>
+ * 保存客户端 HTTP 升级请求中解析出的各字段，
+ * 包括请求 URI、主机、源、密钥、版本号等。
+ * 仅在 {@link WebSocketHandShake} 内部使用。
+ * </p>
  *
- * @description:请求信息bean
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 class WebSocketRequest {
-    /**
-     * 请求地址
-     */
+
+    /** 请求 URI */
     private String requestUri;
-    /**
-     * 机器地址
-     */
+    /** 主机地址 */
     private String host;
-    /**
-     * 源地址
-     */
+    /** 源地址 */
     private String origin;
-    /**
-     * cookie
-     */
+    /** Cookie */
     private String cookie;
-    /**
-     * 是否更新
-     */
-    private Boolean upgrade = false;
-    /**
-     * 是否保存链接
-     */
-    private Boolean connection = false;
-    private Long key1;
-    private Long key2;
-    /**
-     * 签名
-     */
+    /** 是否为 WebSocket 升级请求 */
+    private boolean upgrade = false;
+    /** 是否包含 Connection: Upgrade 头 */
+    private boolean connection = false;
+    /** Hixie-76 Key1 值 */
+    private long key1;
+    /** Hixie-76 Key2 值 */
+    private long key2;
+    /** 握手响应摘要（MD5 或 SHA-1+Base64） */
     private String digest;
-    /**
-     * 版本，默认为0
-     */
-    private Integer secVersion = 0;
-
-    /**
-     * 请求头
-     */
-    private Map<String,String> headers=new HashMap<>(8);
-
-    /**
-     * 读取状态
-     */
+    /** Sec-WebSocket-Version，默认 0 */
+    private int secVersion = 0;
+    /** 请求头映射 */
+    private final Map<String, String> headers = new HashMap<>(8);
+    /** 解析状态机状态 */
     private int readStatus;
-
+    /** 行/头部解析用临时缓冲区 */
     private final StringBuilder sb = new StringBuilder();
 
-    public Boolean getConnection() {
+    public boolean getConnection() {
         return connection;
     }
 
-    public void setConnection(Boolean connection) {
+    public void setConnection(boolean connection) {
         this.connection = connection;
     }
 
@@ -99,19 +82,19 @@ class WebSocketRequest {
         this.host = host;
     }
 
-    public Long getKey1() {
+    public long getKey1() {
         return key1;
     }
 
-    public void setKey1(Long key1) {
+    public void setKey1(long key1) {
         this.key1 = key1;
     }
 
-    public Long getKey2() {
+    public long getKey2() {
         return key2;
     }
 
-    public void setKey2(Long key2) {
+    public void setKey2(long key2) {
         this.key2 = key2;
     }
 
@@ -131,11 +114,11 @@ class WebSocketRequest {
         this.requestUri = requestUri;
     }
 
-    public Boolean getUpgrade() {
+    public boolean getUpgrade() {
         return upgrade;
     }
 
-    public void setUpgrade(Boolean upgrade) {
+    public void setUpgrade(boolean upgrade) {
         this.upgrade = upgrade;
     }
 
@@ -147,11 +130,11 @@ class WebSocketRequest {
         this.digest = digest;
     }
 
-    public Integer getSecVersion() {
+    public int getSecVersion() {
         return secVersion;
     }
 
-    public void setSecVersion(Integer secVersion) {
+    public void setSecVersion(int secVersion) {
         this.secVersion = secVersion;
     }
 
@@ -171,7 +154,7 @@ class WebSocketRequest {
         return headers;
     }
 
-    public void putHeader(String key,String value){
-        this.headers.put(key,value);
+    public void putHeader(String key, String value) {
+        this.headers.put(key, value);
     }
 }

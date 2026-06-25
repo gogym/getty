@@ -27,12 +27,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * HttpDecodeSerializer.java
+ * HTTP 解码序列化工具类。
+ * <p>
+ * 提供 HTTP 请求/响应的行、头部、内容解析，
+ * 支持 URL 参数解析和 multipart/form-data 文件上传解析。
+ * </p>
  *
- * @description:http解码序列化
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpDecodeSerializer {
 
@@ -275,7 +276,7 @@ public class HttpDecodeSerializer {
         String contentType = httpMessage.getHeader(HttpHeaders.Names.CONTENT_TYPE);
         httpMessage.getHttpBody().setContentType(contentType);
 
-        byte[] bytes = new byte[Long.valueOf(contentLength).intValue()];
+        byte[] bytes = new byte[(int) contentLength];
         buffer.readBytes(bytes);
         httpMessage.getHttpBody().setContent(bytes);
 
@@ -381,34 +382,10 @@ public class HttpDecodeSerializer {
                                 bodyBuffer.clear();
                                 continue;
                             } else {
-                                //读取到另一个数组暂存
+                                // 非边界行，累积到消息体缓冲区
                                 bodyBuffer.writeBytes(autoByteBuffer);
                                 autoByteBuffer.clear();
-                                continue;
                             }
-//                            nextByte = content[index];
-//                            if (nextByte == HttpConstants.CR) {
-//                                index++;
-//                                nextByte = content[index];
-//                                if (nextByte == HttpConstants.LF) {
-//                                    index++;
-//                                    step = Step.END;
-//                                    autoByteBuffer.clear();
-//                                    continue;
-//                                }
-//                            }
-//                            break;
-
-//                        case END:
-//                            String end = new String(autoByteBuffer.readableBytesArray());
-//                            if (end.equals(endBoundary)) {
-//                                return true;
-//                            } else if (end.equals(boundary)) {
-//                                step = Step.HEADER;
-//                                fileItem = new FileItem();
-//                                autoByteBuffer.clear();
-//                                continue;
-//                            }
                     }
                 }
             }

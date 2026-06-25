@@ -21,12 +21,13 @@ import com.gettyio.expansion.handler.codec.http.HttpMessage;
 import com.gettyio.expansion.handler.codec.http.HttpVersion;
 
 /**
- * HttpResponse.java
+ * HTTP 响应消息。
+ * <p>
+ * 封装 HTTP 响应的状态码和原因短语。
+ * 继承 {@link HttpMessage} 的头部和消息体功能。
+ * </p>
  *
- * @description:http返回值
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpResponse extends HttpMessage {
 

@@ -18,12 +18,13 @@ package com.gettyio.expansion.handler.codec.http.response;
 import com.gettyio.expansion.handler.codec.http.HttpConstants;
 
 /**
- * HttpResponseStatus.java
+ * HTTP 响应状态码。
+ * <p>
+ * 定义标准 HTTP 状态码（1xx~5xx），包含状态码数值和原因短语。
+ * 通过 {@link #valueOf(int)} 方法获取缓存实例或创建新实例。
+ * </p>
  *
- * @description:http状态类
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
 

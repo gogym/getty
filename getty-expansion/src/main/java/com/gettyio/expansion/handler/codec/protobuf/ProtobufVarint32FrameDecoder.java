@@ -19,102 +19,89 @@ import com.gettyio.core.buffer.AutoByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
-import java.io.IOException;
-
-
 /**
- * ProtobufVarint32FrameDecoder.java
+ * Protobuf Varint32 帧解码器。
+ * <p>
+ * 使用 Protobuf 的 Varint32 编码作为帧长度字段，将连续的字节流分割为独立的消息帧。
+ * 支持半包累积：当数据不足以组成一个完整帧时，缓存到下一次数据到达。
+ * </p>
  *
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see ProtobufVarint32LengthFieldPrepender
  */
 public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
 
-    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+    /** 半包累积缓冲区 */
+    private final AutoByteBuffer cumulation = AutoByteBuffer.newByteBuffer();
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-
         byte[] bytes = (byte[]) in;
-        autoByteBuffer.writeBytes(bytes);
+        cumulation.writeBytes(bytes);
 
-        while (autoByteBuffer.hasRemaining()) {
-            int preIndex = autoByteBuffer.readerIndex();
-            int length = readRawVarint32(autoByteBuffer);
-            if (preIndex == autoByteBuffer.readerIndex()) {
+        while (cumulation.hasRemaining()) {
+            int preIndex = cumulation.readerIndex();
+            int length = readRawVarint32(cumulation);
+
+            // 没有读取到任何新字节，说明数据不足
+            if (preIndex == cumulation.readerIndex()) {
                 return;
             }
             if (length < 0) {
                 throw new RuntimeException("negative length: " + length);
             }
-            if (autoByteBuffer.readableBytes() < length) {
-                autoByteBuffer.readerIndex(0);
+            if (cumulation.readableBytes() < length) {
+                // 数据不足以组成一帧，回退等待更多数据
+                cumulation.readerIndex(preIndex);
                 break;
-            } else {
-                byte[] b = new byte[length];
-                autoByteBuffer.readBytes(b);
-                autoByteBuffer.discardReadBytes();
-                //解码
-                super.channelRead(ctx, b);
             }
+
+            byte[] frame = new byte[length];
+            cumulation.readBytes(frame);
+            cumulation.discardReadBytes();
+            super.channelRead(ctx, frame);
         }
     }
 
-
     /**
-     * Reads variable length 32bit int from buffer
+     * 从缓冲区读取 Protobuf Varint32 编码的整数。
      *
-     * @return decoded int if buffers readerIndex has been forwarded else nonsense value
+     * @param buffer 数据缓冲区
+     * @return 解码后的整数值
+     * @throws RuntimeException 如果 Varint 格式不合法
+     * @throws Exception 读取缓冲区数据时可能抛出异常
      */
-    private static int readRawVarint32(AutoByteBuffer buffer) throws IOException {
-
+    private static int readRawVarint32(AutoByteBuffer buffer) throws Exception {
         if (!buffer.hasRemaining()) {
             return 0;
         }
-        //buffer.markReaderIndex();
+
         byte tmp = buffer.readByte();
         if (tmp >= 0) {
             return tmp;
-        } else {
-            int result = tmp & 127;
-            if (!buffer.hasRemaining()) {
-                buffer.reset();
-                return 0;
-            }
-            if ((tmp = buffer.readByte()) >= 0) {
-                result |= tmp << 7;
-            } else {
-                result |= (tmp & 127) << 7;
-                if (!buffer.hasRemaining()) {
-                    buffer.reset();
-                    return 0;
-                }
-                if ((tmp = buffer.readByte()) >= 0) {
-                    result |= tmp << 14;
-                } else {
-                    result |= (tmp & 127) << 14;
-                    if (!buffer.hasRemaining()) {
-                        buffer.reset();
-                        return 0;
-                    }
-                    if ((tmp = buffer.readByte()) >= 0) {
-                        result |= tmp << 21;
-                    } else {
-                        result |= (tmp & 127) << 21;
-                        if (!buffer.hasRemaining()) {
-                            buffer.reset();
-                            return 0;
-                        }
-                        result |= (tmp = buffer.readByte()) << 28;
-                        if (tmp < 0) {
-                            throw new RuntimeException("malformed varint.");
-                        }
-                    }
-                }
-            }
-            return result;
         }
+
+        int result = tmp & 0x7F;
+        if (!buffer.hasRemaining()) { buffer.readerIndex(buffer.readerIndex() - 1); return 0; }
+        if ((tmp = buffer.readByte()) >= 0) { result |= tmp << 7; }
+        else {
+            result |= (tmp & 0x7F) << 7;
+            if (!buffer.hasRemaining()) { buffer.readerIndex(buffer.readerIndex() - 2); return 0; }
+            if ((tmp = buffer.readByte()) >= 0) { result |= tmp << 14; }
+            else {
+                result |= (tmp & 0x7F) << 14;
+                if (!buffer.hasRemaining()) { buffer.readerIndex(buffer.readerIndex() - 3); return 0; }
+                if ((tmp = buffer.readByte()) >= 0) { result |= tmp << 21; }
+                else {
+                    result |= (tmp & 0x7F) << 21;
+                    if (!buffer.hasRemaining()) { buffer.readerIndex(buffer.readerIndex() - 4); return 0; }
+                    result |= (tmp = buffer.readByte()) << 28;
+                    if (tmp < 0) {
+                        throw new RuntimeException("malformed varint");
+                    }
+                }
+            }
+        }
+        return result;
     }
 }

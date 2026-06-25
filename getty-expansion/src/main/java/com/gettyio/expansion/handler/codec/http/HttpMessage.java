@@ -19,34 +19,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * HttpMessage.java
+ * HTTP 消息封装基类。
+ * <p>
+ * 封装 HTTP 版本号、头部、消息体和解析状态，
+ * 作为 {@link com.gettyio.expansion.handler.codec.http.request.HttpRequest}
+ * 和 {@link com.gettyio.expansion.handler.codec.http.response.HttpResponse} 的公共父类。
+ * </p>
  *
- * @description:http消息封装
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
-
 public class HttpMessage {
 
-    /**
-     * http版本
-     */
+    /** HTTP 协议版本 */
     protected HttpVersion httpVersion;
-    /**
-     * http headers
-     */
+    /** HTTP 头部集合 */
     protected HttpHeaders httpHeaders = new HttpHeaders();
-    /**
-     * http body
-     */
+    /** HTTP 消息体 */
     protected HttpBody httpBody = new HttpBody();
-    /**
-     * 读取状态
-     */
+    /** 解析状态机状态 */
     private int readStatus;
-
-    public StringBuilder sb = new StringBuilder();
+    /** 行/头部解析用临时缓冲区 */
+    private final StringBuilder sb = new StringBuilder();
 
     public HttpVersion getHttpVersion() {
         return httpVersion;

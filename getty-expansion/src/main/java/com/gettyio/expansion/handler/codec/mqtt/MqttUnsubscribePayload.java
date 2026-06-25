@@ -23,7 +23,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Payload of the {@link MqttUnsubscribeMessage}
+ * MQTT UNSUBSCRIBE 消息的负载部分。
+ * <p>包含取消订阅的主题过滤器列表。</p>
+ *
+ * @see MqttUnsubscribeMessage
  */
 public final class MqttUnsubscribePayload {
 
@@ -40,11 +43,14 @@ public final class MqttUnsubscribePayload {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder(StringUtil.simpleClassName(this)).append('[');
-        for (int i = 0; i < topics.size() - 1; i++) {
-            builder.append("topicName = ").append(topics.get(i)).append(", ");
+        int size = topics.size();
+        for (int i = 0; i < size; i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append("topicName=").append(topics.get(i));
         }
-        builder.append("topicName = ").append(topics.get(topics.size() - 1))
-               .append(']');
+        builder.append(']');
         return builder.toString();
     }
 }

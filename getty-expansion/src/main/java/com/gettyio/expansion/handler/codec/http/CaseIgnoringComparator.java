@@ -20,12 +20,12 @@ import java.util.Comparator;
 
 
 /**
- * 忽略大小写的比较器
- * @ClassName CaseIgnoringComparator.java
- * @author gogym.ggj
- * @version 1.0.0
- * @Description
- * @createTime 2020/12/15 14:34:21
+ * 忽略大小写的字符串比较器。
+ * <p>
+ * 单例模式，用于 HTTP 头部名称的忽略大小写比较。
+ * </p>
+ *
+ * @author gogym
  */
 public final class CaseIgnoringComparator implements Comparator<String>, Serializable {
 

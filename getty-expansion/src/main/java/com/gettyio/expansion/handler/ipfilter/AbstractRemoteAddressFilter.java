@@ -24,18 +24,19 @@ import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import java.io.IOException;
 import java.net.SocketAddress;
 
-
 /**
- * AbstractRemoteAddressFilter.java
+ * 抽象远程地址过滤器。
+ * <p>
+ * 在通道加入管道时（{@link #channelAdded}）自动提取远程地址并调用 {@link #accept} 方法，
+ * 由子类决定是否允许该地址通过。若不允许或地址为 null，则关闭连接。
+ * </p>
  *
- * @description:抽象IP过滤器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @param <T> SocketAddress 的子类型
+ * @author gogym
  */
 abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends ChannelInboundHandlerAdapter {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractRemoteAddressFilter.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AbstractRemoteAddressFilter.class);
 
     @Override
     public void channelAdded(ChannelHandlerContext ctx) throws Exception {
@@ -44,32 +45,30 @@ abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends Chan
     }
 
     /**
-     * 执行IP验证
-     *
-     * @return void
-     * @params [aioChannel]
+     * 检查新通道的远程地址是否符合过滤规则。
      */
+    @SuppressWarnings("unchecked")
     private void handleNewChannel(AbstractSocketChannel abstractSocketChannel) {
         try {
             T remoteAddress = (T) abstractSocketChannel.getRemoteAddress();
             if (remoteAddress == null) {
                 abstractSocketChannel.close();
+                return;
             }
-            boolean flag = accept(abstractSocketChannel, remoteAddress);
-            if (!flag) {
+            if (!accept(abstractSocketChannel, remoteAddress)) {
                 abstractSocketChannel.close();
             }
         } catch (IOException e) {
-            logger.error("filter remote address failed", e);
+            LOGGER.error("filter remote address failed", e);
         }
     }
 
     /**
-     * @param aioChannel    通道
-     * @param remoteAddress 远程地址
-     * @return Return true if connections from this IP address and port should be accepted. False otherwise.
+     * 判断是否允许指定远程地址的通道通过。
+     *
+     * @param abstractSocketChannel 通道
+     * @param remoteAddress         远程地址
+     * @return true 表示允许，false 表示拒绝（将关闭连接）
      */
-    protected abstract boolean accept(AbstractSocketChannel aioChannel, T remoteAddress);
-
-
+    protected abstract boolean accept(AbstractSocketChannel abstractSocketChannel, T remoteAddress);
 }

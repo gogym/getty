@@ -15,52 +15,60 @@
  */
 package com.gettyio.expansion.handler.ipfilter;
 
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.NetWorkUtil;
 
 import java.net.InetSocketAddress;
 import java.util.List;
 
 /**
- * RuleBasedIpFilter.java
+ * 基于 IP 地址段的过滤规则实现。
+ * <p>
+ * 在构造时预计算所有 IP 段的 long 值，避免每次匹配时重复转换，提升性能。
+ * </p>
  *
- * @description:Ip规则过滤器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
- * @see RuleBasedIpFilter
+ * @author gogym
+ * @see IpFilterRuleHandler
  */
 class RuleBasedIpFilter implements IpFilterRule {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(RuleBasedIpFilter.class);
 
-    List<IpRange> ips;
-    IpFilterRuleType ipFilterRuleType;
+    private final List<IpRange> ipRanges;
+    private final IpFilterRuleType ipFilterRuleType;
 
+    /** 预计算的 IP 段 long 值数组，避免每次匹配时重复调用 ipToLong */
+    private final long[] ipStartLongs;
+    private final long[] ipEndLongs;
+
+    /**
+     * 创建基于规则的 IP 过滤器。
+     *
+     * @param ips             IP 地址段列表
+     * @param ipFilterRuleType 过滤策略
+     */
     public RuleBasedIpFilter(List<IpRange> ips, IpFilterRuleType ipFilterRuleType) {
-        if (ips == null) {
-            logger.warn("blackIps was null");
-        }
-        this.ips = ips;
+        this.ipRanges = ips;
         this.ipFilterRuleType = ipFilterRuleType;
-    }
 
+        if (ips != null) {
+            ipStartLongs = new long[ips.size()];
+            ipEndLongs = new long[ips.size()];
+            for (int i = 0; i < ips.size(); i++) {
+                ipStartLongs[i] = NetWorkUtil.ipToLong(ips.get(i).getIpStart());
+                ipEndLongs[i] = NetWorkUtil.ipToLong(ips.get(i).getIpEnd());
+            }
+        } else {
+            ipStartLongs = null;
+            ipEndLongs = null;
+        }
+    }
 
     @Override
     public boolean matches(InetSocketAddress remoteAddress) {
-
-        if (ips == null) {
+        if (ipRanges == null) {
             return true;
         }
-        // ip转成long类型
-        String ip = remoteAddress.getHostString();
-        long ipLong = NetWorkUtil.ipToLong(ip);
-
-        for (IpRange ipRange : ips) {
-            long ipStart = NetWorkUtil.ipToLong(ipRange.getIpStart());
-            long ipEnd = NetWorkUtil.ipToLong(ipRange.getIpEnd());
-            // 比较ip区间
-            if (ipLong >= ipStart && ipLong <= ipEnd) {
+        long ipLong = NetWorkUtil.ipToLong(remoteAddress.getHostString());
+        for (int i = 0; i < ipStartLongs.length; i++) {
+            if (ipLong >= ipStartLongs[i] && ipLong <= ipEndLongs[i]) {
                 return true;
             }
         }
@@ -69,8 +77,6 @@ class RuleBasedIpFilter implements IpFilterRule {
 
     @Override
     public IpFilterRuleType ruleType() {
-        // 返回拒绝则表示拒绝连接，返回接受则表示可以连接
         return ipFilterRuleType;
     }
-
 }

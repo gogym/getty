@@ -23,7 +23,14 @@ import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.expansion.handler.codec.websocket.frame.WebSocketFrame;
 
 /**
- * version 5+
+ * WebSocket 帧编码器。
+ * <p>
+ * 将 {@link WebSocketFrame} 或其他对象编码为符合 RFC 6455 的 WebSocket 帧格式。
+ * 服务端发送的帧不做掩码处理（仅客户端到服务端的帧需要掩码）。
+ * </p>
+ *
+ * <pre>
+ * RFC 6455 帧格式：
  * 0                   1                   2                   3
  * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-+-+-+-+-------+-+-------------+-------------------------------+
@@ -31,114 +38,78 @@ import com.gettyio.expansion.handler.codec.websocket.frame.WebSocketFrame;
  * |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
  * |N|V|V|V|       |S|             |   (if payload len==126/127)   |
  * | |1|2|3|       |K|             |                               |
- * +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
- * |     Extended payload length continued, if payload len == 127  |
- * + - - - - - - - - - - - - - - - +-------------------------------+
- * |                               |Masking-key, if MASK set to 1  |
- * +-------------------------------+-------------------------------+
- * | Masking-key (continued)       |          Payload Data         |
- * +-------------------------------- - - - - - - - - - - - - - - - +
- * :                     Payload Data continued ...                :
- * + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
- * |                     Payload Data continued ...                |
- * +---------------------------------------------------------------+
- * version 1-4
- * 0                   1                   2                   3
- * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-+-+-+-+-------+-+-------------+-------------------------------+
- * |M|R|R|R| opcode|R| Payload len |    Extended payload length    |
- * |O|S|S|S|  (4)  |S|     (7)     |             (16/63)           |
- * |R|V|V|V|       |V|             |   (if payload len==126/127)   |
- * |E|1|2|3|       |4|             |                               |
- * +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
  * |     Extended payload length continued, if payload len == 127  |
- * + - - - - - - - - - - - - - - - +-------------------------------+
- * |                               |         Extension data        |
- * +-------------------------------+ - - - - - - - - - - - - - - - +
- * :                                                               :
  * +---------------------------------------------------------------+
- * :                       Application data                        :
+ * |                               |          Payload Data         |
  * +---------------------------------------------------------------+
- */
-
-/**
- * WebSocketEncoder.java
+ * </pre>
  *
- * @description:http协议响应编码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class WebSocketEncoder extends MessageToByteEncoder {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        if (ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE) != null && (boolean) ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE)) {
-            byte[] bytes;
+        Object handshakeAttr = ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE);
+        if (handshakeAttr != null && (boolean) handshakeAttr) {
             if (obj instanceof WebSocketFrame) {
-                bytes = ((WebSocketFrame) obj).getPayloadData();
-                if ((int) ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION) <= WebSocketConstants.SPLIT_VERSION0) {
-                    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-                    autoByteBuffer.writeBytes(WebSocketConstants.BEGIN_MSG.getBytes(CharsetUtil.UTF_8));
-                    autoByteBuffer.writeBytes(bytes);
-                    autoByteBuffer.writeBytes(WebSocketConstants.END_MSG.getBytes(CharsetUtil.UTF_8));
-                    obj = autoByteBuffer.array();
+                WebSocketFrame frame = (WebSocketFrame) obj;
+                byte[] payload = frame.getPayloadData();
+                int version = (int) ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_PROTOCOL_VERSION);
+                if (version <= WebSocketConstants.SPLIT_VERSION0) {
+                    // Hixie-76 格式：\u0000 + payload + \u00FF
+                    AutoByteBuffer buf = AutoByteBuffer.newByteBuffer();
+                    buf.writeBytes(WebSocketConstants.BEGIN_MSG.getBytes(CharsetUtil.UTF_8));
+                    buf.writeBytes(payload);
+                    buf.writeBytes(WebSocketConstants.END_MSG.getBytes(CharsetUtil.UTF_8));
+                    obj = buf.array();
                 } else {
-                    obj = codeVersion6(bytes, ((WebSocketFrame) obj).getOpcode());
+                    obj = encodeFrame(payload, frame.getOpcode());
                 }
             } else {
-                //如果发送的不是WebSocketFrame，则默认构建二进制WebSocketFrame
-                bytes = ObjectUtil.ObjToByteArray(obj);
-                obj = codeVersion6(bytes, Opcode.BINARY.getCode());
+                // 非 WebSocketFrame 对象，默认构建二进制帧
+                byte[] payload = ObjectUtil.ObjToByteArray(obj);
+                obj = encodeFrame(payload, Opcode.BINARY.getCode());
             }
         }
         super.channelWrite(ctx, obj);
     }
 
-
     /**
-     * 方法名：codeVersion6
+     * 将负载数据编码为 RFC 6455 WebSocket 帧。
+     * <p>
+     * 服务端发送的帧不做掩码处理（MASK=0）。
+     * </p>
      *
-     * @param msg byte[]
-     * @return byte[]
-     * 对websocket协议进行编码
+     * @param payload 负载数据
+     * @param opcode  操作码（文本、二进制等）
+     * @return 编码后的完整帧字节数组
      */
-    public byte[] codeVersion6(byte[] msg, byte op) {
+    private static byte[] encodeFrame(byte[] payload, byte opcode) {
+        int len = payload.length;
+        AutoByteBuffer buf = AutoByteBuffer.newByteBuffer();
 
-        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-        WebSocketFrame messageFrame = new WebSocketFrame();
-        messageFrame.setPayloadLen(msg.length);
+        // 第 1 字节：FIN=1 + RSV=0 + opcode
+        buf.writeByte((byte) (WebSocketFrame.FIN | opcode));
 
-        byte[] headers = new byte[2];
-        headers[0] = WebSocketFrame.FIN;
-        headers[0] |= messageFrame.getRsv1() | messageFrame.getRsv2() | messageFrame.getRsv3() | op;
-        headers[1] = 0;
-        headers[1] |= 0x00 | messageFrame.getPayloadLen();
-        // 头部控制信息
-        autoByteBuffer.writeBytes(headers);
-        if (messageFrame.getPayloadLen() == WebSocketFrame.HAS_EXTEND_DATA) {
-            // 处理数据长度为126位的情况
-            autoByteBuffer.writeBytes(ObjectUtil.shortToByte(messageFrame.getPayloadLenExtended()));
-        } else if (messageFrame.getPayloadLen() == WebSocketFrame.HAS_EXTEND_DATA_CONTINUE) {
-            // 处理数据长度为127位的情况
-            autoByteBuffer.writeBytes(ObjectUtil.longToByte(messageFrame.getPayloadLenExtendedContinued()));
+        // 第 2 字节及后续：MASK=0 + payload length
+        if (len < 126) {
+            buf.writeByte((byte) len);
+        } else if (len <= 0xFFFF) {
+            // 16 位扩展长度
+            buf.writeByte((byte) 126);
+            buf.writeByte((byte) (len >> 8));
+            buf.writeByte((byte) len);
+        } else {
+            // 64 位扩展长度
+            buf.writeByte((byte) 127);
+            for (int i = 56; i >= 0; i -= 8) {
+                buf.writeByte((byte) (len >> i));
+            }
         }
 
-        //写到客户端不需要做掩码处理
-//        if (messageFrame.isMask()) {
-//            // 做了掩码处理的，需要传递掩码的key
-//            byte[] keys = messageFrame.getMaskingKey();
-//            autoByteBuffer.writeBytes(messageFrame.getMaskingKey());
-//            for (int i = 0; i < autoByteBuffer.array().length; ++i) {
-//                //进行掩码处理
-//                autoByteBuffer.array()[i] ^= keys[i % 4];
-//            }
-//        }
-
-        autoByteBuffer.writeBytes(msg);
-
-        return autoByteBuffer.readableBytesArray();
+        buf.writeBytes(payload);
+        return buf.readableBytesArray();
     }
-
-
 }

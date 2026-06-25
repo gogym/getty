@@ -17,11 +17,13 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.CharsetUtil;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * Payload of {@link MqttConnectMessage}
+ * MQTT CONNECT 消息的负载部分。
+ * <p>包含客户端标识、遗嘱主题/消息、用户名和密码。</p>
+ *
+ * @see MqttConnectMessage
  */
 public final class MqttConnectPayload {
 
@@ -32,13 +34,14 @@ public final class MqttConnectPayload {
     private final byte[] password;
 
     /**
-     * @deprecated use {@link MqttConnectPayload#MqttConnectPayload(String, String, byte[], String, byte[])} instead
+     * 创建 CONNECT 负载
+     *
+     * @param clientIdentifier 客户端标识符
+     * @param willTopic        遗嘱主题（可选，无遗嘱时为 null）
+     * @param willMessage      遗嘱消息字节数组（可选，无遗嘱时为 null）
+     * @param userName         用户名（可选）
+     * @param password         密码字节数组（可选）
      */
-    @Deprecated
-    public MqttConnectPayload(String clientIdentifier, String willTopic, String willMessage, String userName, String password) {
-        this(clientIdentifier, willTopic, willMessage.getBytes(CharsetUtil.UTF_8), userName, password.getBytes(CharsetUtil.UTF_8));
-    }
-
     public MqttConnectPayload(String clientIdentifier, String willTopic, byte[] willMessage, String userName, byte[] password) {
         this.clientIdentifier = clientIdentifier;
         this.willTopic = willTopic;
@@ -47,38 +50,47 @@ public final class MqttConnectPayload {
         this.password = password;
     }
 
+    /**
+     * 获取客户端标识符
+     *
+     * @return 客户端标识符
+     */
     public String clientIdentifier() {
         return clientIdentifier;
     }
 
+    /**
+     * 获取遗嘱主题
+     *
+     * @return 遗嘱主题，无遗嘱时返回 null
+     */
     public String willTopic() {
         return willTopic;
     }
 
     /**
-     * @deprecated use {@link MqttConnectPayload#willMessageInBytes()} instead
+     * 获取遗嘱消息字节数组
+     *
+     * @return 遗嘱消息字节数组，无遗嘱时返回 null
      */
-    @Deprecated
-    public String willMessage() {
-        return willMessage == null ? null : new String(willMessage, CharsetUtil.UTF_8);
-    }
-
     public byte[] willMessageInBytes() {
         return willMessage;
     }
 
+    /**
+     * 获取用户名
+     *
+     * @return 用户名，未设置时返回 null
+     */
     public String userName() {
         return userName;
     }
 
     /**
-     * @deprecated use {@link MqttConnectPayload#passwordInBytes()} instead
+     * 获取密码字节数组
+     *
+     * @return 密码字节数组，未设置时返回 null
      */
-    @Deprecated
-    public String password() {
-        return password == null ? null : new String(password, CharsetUtil.UTF_8);
-    }
-
     public byte[] passwordInBytes() {
         return password;
     }

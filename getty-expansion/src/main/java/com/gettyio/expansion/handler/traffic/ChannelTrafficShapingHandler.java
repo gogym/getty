@@ -18,94 +18,85 @@ package com.gettyio.expansion.handler.traffic;
 import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
-import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.core.util.thread.ThreadPool;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * ChannelTrafficShapingHandler.java
+ * 通道级别流量统计处理器。
+ * <p>
+ * 统计通道读写操作的字节数和次数，并按指定间隔回调 {@link TrafficShapingHandler}，
+ * 报告累计流量和周期内吞吐量。使用 {@link AtomicLong} 保证读写计数器的线程安全。
+ * </p>
  *
- * @description:通道级别流量统计
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see TrafficShapingHandler
  */
 public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter {
 
-    /**
-     * 总读取字节
-     */
-    private long totalRead;
-    /**
-     * 总写出字节
-     */
-    private long totalWrite;
-    /**
-     * 时间间隔内的吞吐量
-     */
+    /** 累计读取字节数 */
+    private final AtomicLong totalRead = new AtomicLong();
+
+    /** 累计写出字节数 */
+    private final AtomicLong totalWrite = new AtomicLong();
+
+    /** 当前周期读取字节数（仅在定时器线程中读写，无需 volatile） */
     private long intervalTotalRead;
+
+    /** 当前周期写出字节数（仅在定时器线程中读写，无需 volatile） */
     private long intervalTotalWrite;
 
+    /** 周期内读取字节临时累加器 */
+    private final AtomicLong intervalTotalReadTmp = new AtomicLong();
 
-    long intervalTotalReadTmp = 0;
-    long intervalTotalWriteTmp = 0;
+    /** 周期内写出字节临时累加器 */
+    private final AtomicLong intervalTotalWriteTmp = new AtomicLong();
+
+    /** 累计读取次数 */
+    private final AtomicLong totalReadCount = new AtomicLong();
+
+    /** 累计写出次数 */
+    private final AtomicLong totalWriteCount = new AtomicLong();
+
+    /** 定时任务线程池 */
+    private final ThreadPool pool;
 
     /**
-     * 读写次数
+     * 创建通道流量统计处理器。
+     *
+     * @param checkInterval       统计回调间隔（毫秒）
+     * @param trafficShapingHandler 流量回调处理器，可为 null
      */
-    private long totalReadCount;
-    private long totalWriteCount;
-
-    /**
-     * 线程池
-     */
-    ThreadPool pool;
-
     public ChannelTrafficShapingHandler(int checkInterval, final TrafficShapingHandler trafficShapingHandler) {
-
         pool = new ThreadPool(ThreadPool.SingleThread, 1);
-        pool.scheduleWithFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                intervalTotalRead = intervalTotalReadTmp;
-                intervalTotalReadTmp = 0;
-                intervalTotalWrite = intervalTotalWriteTmp;
-                intervalTotalWriteTmp = 0;
-                if (trafficShapingHandler != null) {
-                    trafficShapingHandler.callback(totalRead, totalWrite, intervalTotalRead, intervalTotalWrite, totalReadCount, totalWriteCount);
-                }
-
+        pool.scheduleWithFixedRate(() -> {
+            intervalTotalRead = intervalTotalReadTmp.getAndSet(0);
+            intervalTotalWrite = intervalTotalWriteTmp.getAndSet(0);
+            if (trafficShapingHandler != null) {
+                trafficShapingHandler.callback(
+                        totalRead.get(), totalWrite.get(),
+                        intervalTotalRead, intervalTotalWrite,
+                        totalReadCount.get(), totalWriteCount.get());
             }
         }, 0, checkInterval, TimeUnit.MILLISECONDS);
     }
 
-
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        byte[] bytes;
-        if (in instanceof byte[]) {
-            bytes = (byte[]) in;
-        } else {
-            bytes = ObjectUtil.ObjToByteArray(in);
-        }
-        totalRead += bytes.length;
-        intervalTotalReadTmp += bytes.length;
-        totalReadCount++;
+        int len = getDataLength(in);
+        totalRead.addAndGet(len);
+        intervalTotalReadTmp.addAndGet(len);
+        totalReadCount.incrementAndGet();
         ctx.fireChannelProcess(ChannelState.CHANNEL_READ, in);
     }
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] bytes;
-        if (obj instanceof byte[]) {
-            bytes = (byte[]) obj;
-        } else {
-            bytes = ObjectUtil.ObjToByteArray(obj);
-        }
-        totalWrite += bytes.length;
-        intervalTotalWriteTmp += bytes.length;
-        totalWriteCount++;
+        int len = getDataLength(obj);
+        totalWrite.addAndGet(len);
+        intervalTotalWriteTmp.addAndGet(len);
+        totalWriteCount.incrementAndGet();
         ctx.fireChannelProcess(ChannelState.CHANNEL_WRITE, obj);
     }
 
@@ -115,13 +106,27 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
         super.channelClosed(ctx);
     }
 
+    /**
+     * 获取数据长度。
+     * <p>
+     * 优先判断 byte[] 类型（零开销），其他类型尝试转为 byte[]。
+     * </p>
+     */
+    private int getDataLength(Object data) {
+        if (data instanceof byte[]) {
+            return ((byte[]) data).length;
+        }
+        // 非 byte[] 类型，尝试序列化（有性能开销）
+        byte[] bytes = com.gettyio.core.util.ObjectUtil.ObjToByteArray(data);
+        return bytes.length;
+    }
 
     public long getTotalRead() {
-        return totalRead;
+        return totalRead.get();
     }
 
     public long getTotalWrite() {
-        return totalWrite;
+        return totalWrite.get();
     }
 
     public long getIntervalTotalRead() {
@@ -133,12 +138,10 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
     }
 
     public long getTotalReadCount() {
-        return totalReadCount;
+        return totalReadCount.get();
     }
 
     public long getTotalWriteCount() {
-        return totalWriteCount;
+        return totalWriteCount.get();
     }
-
-
 }

@@ -20,8 +20,10 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * Variable Header containing only Message Id
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#msg-id">MQTTV3.1/msg-id</a>
+ * MQTT 可变头部（仅包含消息ID）。
+ * <p>用于 PUBACK、PUBREC、PUBREL、PUBCOMP、SUBACK、UNSUBACK 等仅含消息ID的消息类型。</p>
+ *
+ * @see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718053">MQTT v3.1.1 - Message ID</a>
  */
 public final class MqttMessageIdVariableHeader {
 

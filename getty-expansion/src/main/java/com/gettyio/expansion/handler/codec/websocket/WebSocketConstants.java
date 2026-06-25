@@ -16,67 +16,47 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 /**
- * WebSocketConstants.java
+ * WebSocket 协议常量。
+ * <p>
+ * 包含帧边界字符、协议 GUID、版本号和通道属性键名等定义。
+ * </p>
  *
- * @description:常量
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
-public class WebSocketConstants {
+public final class WebSocketConstants {
 
-    /**
-     * 开始字符
-     */
+    private WebSocketConstants() {
+    }
+
+    /** Hixie-76 帧开始字符 (0x00) */
     public static final char BEGIN_CHAR = 0x00;
-    /**
-     * 结束字符
-     */
+    /** Hixie-76 帧结束字符 (0xFF) */
     public static final char END_CHAR = 0xFF;
-    /**
-     * 消息开始
-     */
+    /** Hixie-76 帧开始标记 */
     public static final String BEGIN_MSG = String.valueOf(BEGIN_CHAR);
-    /**
-     * 消息结束
-     */
+    /** Hixie-76 帧结束标记 */
     public static final String END_MSG = String.valueOf(END_CHAR);
-    /**
-     * 空白字符串
-     */
+    /** 空白字符串 */
     public static final String BLANK = "";
 
+    /** RFC 6455 握手 GUID，用于计算 Sec-WebSocket-Accept */
     public static final String GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    /** 握手请求头部编码 */
     public static final String HEADER_CODE = "iso-8859-1";
 
-    /**
-     * 版本0
-     */
+    /** 协议版本 0（Hixie-76） */
     public static final int SPLIT_VERSION0 = 0;
-    /**
-     * 版本6
-     */
+    /** 协议版本 6 */
     public static final int SPLIT_VERSION6 = 6;
-    /**
-     * 版本7
-     */
+    /** 协议版本 7 */
     public static final int SPLIT_VERSION7 = 7;
-    /**
-     * 版本8
-     */
+    /** 协议版本 8 */
     public static final int SPLIT_VERSION8 = 8;
-    /**
-     * 版本9
-     */
+    /** 协议版本 13（RFC 6455 最终版本） */
     public static final int SPLIT_VERSION13 = 13;
 
-    /**
-     * 握手标记
-     */
+    /** 通道属性键：握手状态 */
     public static final String WEB_SOCKET_HAND_SHAKE = "webSocketHandShake";
-    /**
-     * 版本标记
-     */
+    /** 通道属性键：协议版本 */
     public static final String WEB_SOCKET_PROTOCOL_VERSION = "webSocketProtocolVersion";
-
 }

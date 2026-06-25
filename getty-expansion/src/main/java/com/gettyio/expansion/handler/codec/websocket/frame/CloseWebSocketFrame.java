@@ -18,10 +18,14 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
 
-
-
 /**
- * 关闭帧，这个帧不能主动发送。由websocket自身控制，一般用于接收判断即可
+ * WebSocket 关闭帧。
+ * <p>
+ * 用于通知对端关闭连接（Opcode = 0x8）。
+ * 收到此帧后应停止发送数据并关闭连接。
+ * </p>
+ *
+ * @author gogym
  */
 public class CloseWebSocketFrame extends WebSocketFrame {
 

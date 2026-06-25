@@ -19,8 +19,8 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.handler.codec.DecoderException;
 
 /**
- * A {@link MqttUnacceptableProtocolVersionException} which is thrown when
- * a CONNECT request contains unacceptable protocol version.
+ * MQTT 协议版本不可接受异常。
+ * <p>当 CONNECT 请求包含不支持的协议版本时抛出。</p>
  */
 public final class MqttUnacceptableProtocolVersionException extends DecoderException {
 

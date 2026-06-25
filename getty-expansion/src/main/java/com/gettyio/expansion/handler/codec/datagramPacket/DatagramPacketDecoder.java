@@ -31,7 +31,7 @@ public class DatagramPacketDecoder extends ByteToMessageDecoder {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         DatagramPacket datagramPacket = (DatagramPacket) in;
-        super.channelRead(ctx,datagramPacket);
+        super.channelRead(ctx, datagramPacket);
     }
 
 }

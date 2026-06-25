@@ -17,8 +17,10 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">
- *     MQTTV3.1/subscribe</a>
+ * MQTT SUBSCRIBE 消息。
+ * <p>客户端发送的订阅请求，包含消息ID和主题订阅列表。</p>
+ *
+ * @see MqttSubscribePayload
  */
 public final class MqttSubscribeMessage extends MqttMessage {
 

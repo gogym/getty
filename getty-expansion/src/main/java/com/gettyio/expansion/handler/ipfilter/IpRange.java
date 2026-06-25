@@ -16,39 +16,39 @@
 package com.gettyio.expansion.handler.ipfilter;
 
 /**
- * IpRange.java
+ * IP 地址段，表示一个从 {@code ipStart} 到 {@code ipEnd} 的闭区间。
  *
- * @description:包装起止ip段
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
- class IpRange {
+class IpRange {
+
+    private final String ipStart;
+    private final String ipEnd;
 
     /**
-     * 开始ip
+     * 创建 IP 地址段。
+     *
+     * @param ipStart 起始 IP 地址（如 "192.168.0.1"）
+     * @param ipEnd   结束 IP 地址（如 "192.168.0.255"）
+     * @throws NullPointerException     如果 ipStart 或 ipEnd 为 null
+     * @throws IllegalArgumentException 如果 ipStart 或 ipEnd 为空字符串
      */
-    private String ipStart;
-
-    /**
-     * 结束ip
-     */
-    private String ipEnd;
-
     public IpRange(String ipStart, String ipEnd) {
-
+        if (ipStart == null || ipEnd == null) {
+            throw new NullPointerException("ipStart and ipEnd must not be null");
+        }
+        if (ipStart.isEmpty() || ipEnd.isEmpty()) {
+            throw new IllegalArgumentException("ipStart and ipEnd must not be empty");
+        }
         this.ipStart = ipStart;
         this.ipEnd = ipEnd;
     }
 
     public String getIpStart() {
-
         return ipStart;
     }
 
     public String getIpEnd() {
-
         return ipEnd;
     }
-
 }

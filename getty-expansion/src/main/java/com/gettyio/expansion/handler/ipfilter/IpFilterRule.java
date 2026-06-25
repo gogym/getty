@@ -17,30 +17,30 @@ package com.gettyio.expansion.handler.ipfilter;
 
 import java.net.InetSocketAddress;
 
-
 /**
- * IpFilterRule.java
+ * IP 过滤规则接口。
+ * <p>
+ * 定义了两个方法：{@link #matches(InetSocketAddress)} 判断地址是否匹配，
+ * {@link #ruleType()} 返回匹配结果的处理策略。
+ * </p>
  *
- * @description:ip过滤规则
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public interface IpFilterRule {
 
     /**
-     * 对比地址
+     * 判断远程地址是否匹配此规则。
      *
      * @param remoteAddress 远程地址
-     * @return This method should return true if remoteAddress is valid according to your criteria. False otherwise.
+     * @return true 表示匹配
      */
     boolean matches(InetSocketAddress remoteAddress);
 
     /**
-     * @return This method should return {@link IpFilterRuleType#ACCEPT} if all
-     * {@link IpFilterRule#matches(InetSocketAddress)} for which {@link #matches(InetSocketAddress)}
-     * returns true should the accepted. If you want to exclude all of those IP addresses then
-     * {@link IpFilterRuleType#REJECT} should be returned.
+     * 返回匹配结果的处理策略。
+     *
+     * @return {@link IpFilterRuleType#ACCEPT} 表示匹配地址允许连接，
+     *         {@link IpFilterRuleType#REJECT} 表示匹配地址拒绝连接
      */
     IpFilterRuleType ruleType();
 }

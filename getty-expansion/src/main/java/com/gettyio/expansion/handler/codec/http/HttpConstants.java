@@ -20,12 +20,12 @@ import com.gettyio.core.util.CharsetUtil;
 import java.nio.charset.Charset;
 
 /**
- * HttpConstants.java
+ * HTTP 协议常量。
+ * <p>
+ * 定义 HTTP 协议中使用的特殊字节和默认字符集。
+ * </p>
  *
- * @description:http常量
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public final class HttpConstants {
 

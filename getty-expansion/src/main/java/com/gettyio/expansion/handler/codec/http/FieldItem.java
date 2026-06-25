@@ -16,12 +16,12 @@
 package com.gettyio.expansion.handler.codec.http;
 
 /**
- * FieldItem.java
+ * HTTP multipart 表单字段项。
+ * <p>
+ * 封装 multipart/form-data 请求中的单个字段，支持普通表单字段和文件上传字段。
+ * </p>
  *
- * @description:上传文件包装类
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class FieldItem {
 

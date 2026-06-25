@@ -19,7 +19,12 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
 
 /**
- * Web Socket frame containing binary data.
+ * WebSocket 二进制数据帧。
+ * <p>
+ * 负载数据为原始二进制字节（Opcode = 0x2）。
+ * </p>
+ *
+ * @author gogym
  */
 public class BinaryWebSocketFrame extends WebSocketFrame {
 

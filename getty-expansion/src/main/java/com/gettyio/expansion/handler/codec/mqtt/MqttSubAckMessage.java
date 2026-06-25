@@ -17,7 +17,10 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#suback">MQTTV3.1/suback</a>
+ * MQTT SUBACK 消息。
+ * <p>服务端对客户端订阅请求的确认，包含消息ID和授予的 QoS 级别列表。</p>
+ *
+ * @see MqttSubAckPayload
  */
 public final class MqttSubAckMessage extends MqttMessage {
 

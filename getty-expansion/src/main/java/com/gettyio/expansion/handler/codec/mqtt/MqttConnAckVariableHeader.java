@@ -20,7 +20,10 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * Variable header of {@link MqttConnectMessage}
+ * MQTT CONNACK 消息的可变头部。
+ * <p>包含连接返回码和会话存在标志。</p>
+ *
+ * @see MqttConnAckMessage
  */
 public final class MqttConnAckVariableHeader {
 

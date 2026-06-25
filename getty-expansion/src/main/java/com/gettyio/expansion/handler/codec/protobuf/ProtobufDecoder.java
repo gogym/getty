@@ -15,47 +15,48 @@
  */
 package com.gettyio.expansion.handler.codec.protobuf;
 
-import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
+import com.gettyio.core.logging.InternalLogger;
+import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
-import com.gettyio.core.handler.codec.ByteToMessageDecoder;
-
 
 /**
- * ProtobufDecoder.java
+ * Protobuf 消息解码器。
+ * <p>
+ * 将 byte[] 数据解码为 Protobuf {@link MessageLite} 对象。
+ * 支持 Protobuf 2.5.0+ 的 Parser API，对低版本使用 Builder API 兼容。
+ * </p>
  *
- * @description:protobuf解码
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see ProtobufEncoder
  */
 public class ProtobufDecoder extends ByteToMessageDecoder {
 
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ProtobufDecoder.class);
 
+    /** 是否支持 getParserForType()（protobuf 2.5.0+） */
     private static final boolean HAS_PARSER;
 
     static {
         boolean hasParser = false;
         try {
-            // MessageLite.getParserForType() is not available until protobuf 2.5.0.
             MessageLite.class.getDeclaredMethod("getParserForType");
             hasParser = true;
         } catch (Throwable t) {
-            // Ignore
+            // protobuf < 2.5.0，忽略
         }
-
         HAS_PARSER = hasParser;
     }
 
     private final MessageLite prototype;
     private final ExtensionRegistryLite extensionRegistry;
 
-
     public ProtobufDecoder(MessageLite prototype) {
-        this(prototype, null);
+        this(prototype, (ExtensionRegistryLite) null);
     }
 
     public ProtobufDecoder(MessageLite prototype, ExtensionRegistry extensionRegistry) {
@@ -70,51 +71,32 @@ public class ProtobufDecoder extends ByteToMessageDecoder {
         this.extensionRegistry = extensionRegistry;
     }
 
-
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-
         byte[] bytes = (byte[]) in;
-        final byte[] array;
-        final int offset;
-
-        AutoByteBuffer msg = AutoByteBuffer.newByteBuffer(bytes.length);
-        msg.writeBytes(bytes);
-        final int length = msg.readableBytes();
-        if (msg.hasRemaining()) {
-            array = msg.array();
-            offset = msg.readerIndex();
-        } else {
+        if (bytes.length == 0) {
             return;
         }
 
-        MessageLite messageLite = null;
-        if (extensionRegistry == null) {
-            try {
+        MessageLite messageLite;
+        try {
+            if (extensionRegistry == null) {
                 if (HAS_PARSER) {
-                    messageLite = prototype.getParserForType().parseFrom(array, offset, length);
+                    messageLite = prototype.getParserForType().parseFrom(bytes);
                 } else {
-                    messageLite = prototype.newBuilderForType().mergeFrom(array, offset, length).build();
+                    messageLite = prototype.newBuilderForType().mergeFrom(bytes).build();
                 }
-
-            } catch (InvalidProtocolBufferException e) {
-                e.printStackTrace();
-            }
-
-        } else {
-
-            try {
+            } else {
                 if (HAS_PARSER) {
-                    messageLite = prototype.getParserForType().parseFrom(
-                            array, offset, length, extensionRegistry);
+                    messageLite = prototype.getParserForType().parseFrom(bytes, extensionRegistry);
                 } else {
-                    messageLite = prototype.newBuilderForType().mergeFrom(
-                            array, offset, length, extensionRegistry).build();
+                    messageLite = prototype.newBuilderForType().mergeFrom(bytes, extensionRegistry).build();
                 }
-            } catch (InvalidProtocolBufferException e) {
-                e.printStackTrace();
             }
+        } catch (InvalidProtocolBufferException e) {
+            LOGGER.error("protobuf decode failed", e);
+            return;
         }
-        super.channelRead(ctx,messageLite);
+        super.channelRead(ctx, messageLite);
     }
 }

@@ -22,69 +22,65 @@ import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.websocket.frame.*;
 
 /**
- * WebSocketDecoder.java
+ * WebSocket 解码器。
+ * <p>
+ * 负责处理 WebSocket 连接的完整生命周期：
+ * <ol>
+ *   <li>握手阶段：解析客户端 HTTP 升级请求，发送握手响应</li>
+ *   <li>数据阶段：解析 RFC 6455 帧格式，解码为具体 {@link WebSocketFrame} 子类</li>
+ * </ol>
+ * 支持 Hixie-76（版本 0~3）和 RFC 6455（版本 6+）协议。
+ * </p>
  *
- * @description:websocket解码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class WebSocketDecoder extends ByteToMessageDecoder {
 
+    /** 协议版本，默认 0（握手完成后更新） */
+    private int protocolVersion = WebSocketConstants.SPLIT_VERSION0;
 
-    /**
-     * 协议版本,默认0
-     */
-    public int protocolVersion = WebSocketConstants.SPLIT_VERSION0;
+    /** 是否已完成握手 */
+    private boolean handShake = false;
 
-    /**
-     * 是否已经握手
-     */
-    public boolean handShake = false;
+    /** 当前正在解析的数据帧（用于半包场景） */
+    private WebSocketFrame messageFrame;
 
-    /**
-     * websocket数据帧
-     */
-    WebSocketFrame messageFrame;
-    /**
-     * 用于保存数据帧
-     */
-    AutoByteBuffer byteBuffer = AutoByteBuffer.newByteBuffer();
-    /**
-     * 请求信息
-     */
-    WebSocketRequest requestInfo = new WebSocketRequest();
+    /** 接收数据缓冲区 */
+    private final AutoByteBuffer byteBuffer = AutoByteBuffer.newByteBuffer();
+
+    /** 握手请求信息 */
+    private WebSocketRequest requestInfo = new WebSocketRequest();
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx,Object in) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         if (handShake) {
-            // 已经握手处理
+            // 已握手：解析数据帧
             if (protocolVersion >= WebSocketConstants.SPLIT_VERSION6) {
                 byteBuffer.writeBytes((byte[]) in);
-                //解析数据帧
-                WebSocketFrame frame = parserVersion6(byteBuffer);
+                WebSocketFrame frame = decodeFrame(byteBuffer);
                 if (frame != null) {
-                    ctx.fireChannelProcess(ChannelState.CHANNEL_READ,frame);
+                    ctx.fireChannelProcess(ChannelState.CHANNEL_READ, frame);
                     messageFrame = null;
                 }
             } else {
-                super.channelRead(ctx,in);
+                // 低版本协议透传给父类处理
+                super.channelRead(ctx, in);
             }
         } else {
-            // 进行握手处理
+            // 未握手：解析握手请求
             byteBuffer.writeBytes((byte[]) in);
             WebSocketHandShake.parserRequest(byteBuffer, requestInfo);
             if (requestInfo.getReadStatus() != WebSocketHandShake.READ_CONTENT) {
+                // 数据不完整，等待更多数据
                 return;
             }
-            //写出握手信息到客户端
-            byte[] bytes = WebSocketHandShake.generateHandshake(requestInfo, ctx.channel()).getBytes();
+            // 发送握手响应
+            byte[] response = WebSocketHandShake.generateHandshake(requestInfo, ctx.channel()).getBytes();
             if (ctx.channel().getSslHandler() == null) {
-                ctx.channel().writeToChannel(bytes);
+                ctx.channel().writeToChannel(response);
             } else {
-                //需要注意的是，当开启了ssl，握手信息需要经过ssl encode之后才能输出给客户端。
-                //为了避免握手信息经过其他的encoder，所以直接指定通过sslHandler输出
-                ctx.channel().getSslHandler().channelWrite(ctx, bytes);
+                // SSL 模式下，握手信息需经 SSL 编码后直接发送，避免经过其他 encoder
+                ctx.channel().getSslHandler().channelWrite(ctx, response);
             }
             protocolVersion = requestInfo.getSecVersion();
             handShake = true;
@@ -96,23 +92,24 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
 
 
     /**
-     * 方法名：parser
+     * 解析 RFC 6455（版本 6+）数据帧。
+     * <p>
+     * 根据 opcode 构建对应的帧子类，并解析帧头部和负载数据。
+     * 支持半包场景，多次调用直到帧完整。
+     * </p>
      *
-     * @param buffer
-     * @return byte[]
-     * 说明：解析版本6以后的数据帧格式
+     * @param buffer 接收数据缓冲区
+     * @return 解析完成的帧，未完成时返回 null
      */
-    private WebSocketFrame parserVersion6(AutoByteBuffer buffer) throws Exception {
+    private WebSocketFrame decodeFrame(AutoByteBuffer buffer) throws Exception {
         do {
             if (messageFrame == null) {
-                // 没有出现半包
-                //获取opcode
+                // 解析新帧：获取 opcode 并构建对应帧类型
                 byte bt = buffer.read(0);
                 byte opcode = (byte) (bt & 0x0F);
-                if (null == Opcode.valueOf(opcode)) {
+                if (Opcode.valueOf(opcode) == null) {
                     return null;
                 }
-                //按类型构建帧
                 switch (Opcode.valueOf(opcode)) {
                     case CONTINUATION:
                         messageFrame = new ContinuationWebSocketFrame();
@@ -137,7 +134,7 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
                 }
             }
 
-            //解析消息
+            // 解析帧数据（支持半包累积）
             messageFrame.parseMessage(buffer);
             if (messageFrame.isReadFinish()) {
                 return messageFrame;

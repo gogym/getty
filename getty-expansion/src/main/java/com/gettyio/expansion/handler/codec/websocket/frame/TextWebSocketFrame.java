@@ -21,10 +21,13 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.CharsetUtil;
 
-import java.io.UnsupportedEncodingException;
-
 /**
- * Web Socket frame containing binary data.
+ * WebSocket 文本数据帧。
+ * <p>
+ * 负载数据为 UTF-8 编码的文本内容（Opcode = 0x1）。
+ * </p>
+ *
+ * @author gogym
  */
 public class TextWebSocketFrame extends WebSocketFrame {
 

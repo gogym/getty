@@ -28,7 +28,7 @@ public class DatagramPacketEncoder extends MessageToByteEncoder {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        //udp包直接由通道发出，实际这里并没有处理什么
-        super.channelWrite(ctx,obj);
+        // UDP 包直接由通道发出，此处理器不执行额外转换
+        super.channelWrite(ctx, obj);
     }
 }

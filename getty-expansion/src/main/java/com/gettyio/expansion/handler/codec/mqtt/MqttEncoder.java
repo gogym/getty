@@ -25,32 +25,41 @@ import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.isValidClie
 
 
 /**
- * MqttEncoder.java
- * @description:MQTT编码器，基于netty改造
- * @author:gogym
- * @date:2020/6/9
- * @copyright: Copyright by gettyio.com
+ * MQTT 消息编码器，基于 Netty MQTT Codec 改造。
+ * <p>
+ * 将 {@link MqttMessage} 编码为字节数组，支持 MQTT v3.1 和 v3.1.1 协议定义的全部消息类型：
+ * CONNECT、CONNACK、PUBLISH、SUBSCRIBE、UNSUBSCRIBE、SUBACK、UNSUBACK、
+ * PUBACK、PUBREC、PUBREL、PUBCOMP、PINGREQ、PINGRESP、DISCONNECT。
+ * </p>
+ * <p>本类为单例模式，通过 {@link #INSTANCE} 获取唯一实例。</p>
+ *
+ * @author gogym
+ * @see MqttMessage
+ * @see MqttDecoder
  */
 public final class MqttEncoder extends MessageToByteEncoder {
 
-    public static final byte[] EMPTY_BYTES = {};
+    /** 空字节数组常量，用于替代 null 值 */
+    private static final byte[] EMPTY_BYTES = {};
+
+    /** 单例实例 */
     public static final MqttEncoder INSTANCE = new MqttEncoder();
 
     private MqttEncoder() {
     }
 
     @Override
-    public void channelWrite(ChannelHandlerContext ctx,Object obj) throws Exception {
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         AutoByteBuffer autoByteBuffer = doEncode((MqttMessage) obj);
-        super.channelWrite(ctx,autoByteBuffer.array());
+        super.channelWrite(ctx, autoByteBuffer.array());
     }
 
     /**
-     * This is the main encoding method.
-     * It's only visible for testing.
+     * 编码 MQTT 消息为字节缓冲。
      *
-     * @param message MQTT message to encode
-     * @return ByteBuf with encoded bytes
+     * @param message 待编码的 MQTT 消息
+     * @return 编码后的字节缓冲
+     * @throws IllegalArgumentException 未知的消息类型
      */
     static AutoByteBuffer doEncode(MqttMessage message) {
 
@@ -308,7 +317,7 @@ public final class MqttEncoder extends MessageToByteEncoder {
         buf.writeShort(topicNameBytes.length);
         buf.writeBytes(topicNameBytes);
         if (mqttFixedHeader.qosLevel().value() > 0) {
-            buf.write(variableHeader.messageId());
+            buf.writeShort(variableHeader.packetId());
         }
         buf.writeBytes(payload);
 
@@ -338,9 +347,11 @@ public final class MqttEncoder extends MessageToByteEncoder {
         return buf;
     }
 
+    /**
+     * 组装固定头部第一个字节：消息类型(4位) + DUP(1位) + QoS(2位) + Retain(1位)
+     */
     private static int getFixedHeaderByte1(MqttFixedHeader header) {
-        int ret = 0;
-        ret |= header.messageType().value() << 4;
+        int ret = header.messageType().value() << 4;
         if (header.isDup()) {
             ret |= 0x08;
         }
@@ -351,6 +362,10 @@ public final class MqttEncoder extends MessageToByteEncoder {
         return ret;
     }
 
+    /**
+     * 将整数编码为 MQTT 可变长度格式（1~4 字节）写入缓冲。
+     * <p>每个字节的低 7 位表示数据，最高位为延续标志（1=后续还有字节）。</p>
+     */
     private static void writeVariableLengthInt(AutoByteBuffer buf, int num) {
         do {
             int digit = num % 128;
@@ -362,6 +377,9 @@ public final class MqttEncoder extends MessageToByteEncoder {
         } while (num > 0);
     }
 
+    /**
+     * 计算整数以 MQTT 可变长度格式编码所需的字节数（1~4）
+     */
     private static int getVariableLengthInt(int num) {
         int count = 0;
         do {
@@ -371,6 +389,9 @@ public final class MqttEncoder extends MessageToByteEncoder {
         return count;
     }
 
+    /**
+     * 将字符串编码为 UTF-8 字节数组
+     */
     private static byte[] encodeStringUtf8(String s) {
         return s.getBytes(CharsetUtil.UTF_8);
     }

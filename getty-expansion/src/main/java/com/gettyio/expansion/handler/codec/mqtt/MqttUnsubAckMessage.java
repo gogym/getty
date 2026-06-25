@@ -17,7 +17,8 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsuback">MQTTV3.1/unsuback</a>
+ * MQTT UNSUBACK 消息。
+ * <p>服务端对客户端取消订阅请求的确认，仅包含消息ID。</p>
  */
 public final class MqttUnsubAckMessage extends MqttMessage {
 

@@ -19,9 +19,12 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.buffer.AutoByteBuffer;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">MQTTV3.1/publish</a>
+ * MQTT PUBLISH 消息。
+ * <p>客户端或服务端发送的发布消息，包含主题名、消息ID和负载数据。</p>
+ *
+ * @see MqttPublishVariableHeader
  */
-public class MqttPublishMessage extends MqttMessage {
+public final class MqttPublishMessage extends MqttMessage {
 
     public MqttPublishMessage(
             MqttFixedHeader mqttFixedHeader,
@@ -37,8 +40,7 @@ public class MqttPublishMessage extends MqttMessage {
 
     @Override
     public AutoByteBuffer payload() {
-        final AutoByteBuffer data = (AutoByteBuffer) super.payload();
-        return data;
+        return (AutoByteBuffer) super.payload();
     }
 
 }

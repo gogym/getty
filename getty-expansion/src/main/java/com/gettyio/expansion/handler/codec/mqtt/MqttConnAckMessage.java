@@ -17,7 +17,10 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connack">MQTTV3.1/connack</a>
+ * MQTT CONNACK 消息。
+ * <p>服务端响应客户端连接请求的确认消息，包含连接返回码和会话状态。</p>
+ *
+ * @see MqttConnAckVariableHeader
  */
 public final class MqttConnAckMessage extends MqttMessage {
 

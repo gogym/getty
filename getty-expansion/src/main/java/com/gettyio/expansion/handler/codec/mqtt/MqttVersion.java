@@ -21,10 +21,13 @@ import com.gettyio.core.util.CharsetUtil;
 import com.gettyio.core.util.ObjectUtil;
 
 /**
- * Mqtt version specific constant values used by multiple classes in mqtt-codec.
+ * MQTT 协议版本枚举。
+ * <p>支持 MQTT v3.1 和 v3.1.1 两个版本，每个版本定义了协议名称和协议级别。</p>
  */
 public enum MqttVersion {
+    /** MQTT v3.1，协议名称 "MQIsdp"，级别 3 */
     MQTT_3_1("MQIsdp", (byte) 3),
+    /** MQTT v3.1.1，协议名称 "MQTT"，级别 4 */
     MQTT_3_1_1("MQTT", (byte) 4);
 
     private final String name;
@@ -35,29 +38,52 @@ public enum MqttVersion {
         level = protocolLevel;
     }
 
+    /**
+     * 获取协议名称
+     *
+     * @return 协议名称字符串
+     */
     public String protocolName() {
         return name;
     }
 
+    /**
+     * 获取协议名称的 UTF-8 字节数组
+     *
+     * @return 协议名称字节数组
+     */
     public byte[] protocolNameBytes() {
         return name.getBytes(CharsetUtil.UTF_8);
     }
 
+    /**
+     * 获取协议级别
+     *
+     * @return 协议级别字节值
+     */
     public byte protocolLevel() {
         return level;
     }
 
+    /**
+     * 根据协议名称和协议级别获取对应的 MQTT 版本
+     *
+     * @param protocolName  协议名称
+     * @param protocolLevel 协议级别
+     * @return 对应的 MQTT 版本
+     * @throws MqttUnacceptableProtocolVersionException 协议名称或级别不匹配
+     */
     public static MqttVersion fromProtocolNameAndLevel(String protocolName, byte protocolLevel) {
         for (MqttVersion mv : values()) {
             if (mv.name.equals(protocolName)) {
                 if (mv.level == protocolLevel) {
                     return mv;
                 } else {
-                    throw new MqttUnacceptableProtocolVersionException(protocolName + " and " +
-                            protocolLevel + " are not match");
+                    throw new MqttUnacceptableProtocolVersionException(
+                            protocolName + " and " + protocolLevel + " do not match");
                 }
             }
         }
-        throw new MqttUnacceptableProtocolVersionException(protocolName + "is unknown protocol name");
+        throw new MqttUnacceptableProtocolVersionException(protocolName + " is unknown protocol name");
     }
 }

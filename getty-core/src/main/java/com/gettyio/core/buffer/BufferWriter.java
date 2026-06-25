@@ -17,7 +17,7 @@ package com.gettyio.core.buffer;
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
-import com.gettyio.core.function.Function;
+import java.util.function.Function;
 import com.gettyio.core.util.queue.LinkedBlockQueue;
 import com.gettyio.core.util.queue.LinkedQueue;
 

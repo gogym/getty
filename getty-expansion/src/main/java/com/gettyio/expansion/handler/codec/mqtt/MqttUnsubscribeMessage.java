@@ -17,8 +17,10 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsubscribe">
- *     MQTTV3.1/unsubscribe</a>
+ * MQTT UNSUBSCRIBE 消息。
+ * <p>客户端发送的取消订阅请求，包含消息ID和主题列表。</p>
+ *
+ * @see MqttUnsubscribePayload
  */
 public final class MqttUnsubscribeMessage extends MqttMessage {
 

@@ -15,13 +15,30 @@
 
 package com.gettyio.expansion.handler.codec.mqtt;
 
+/**
+ * MQTT QoS（服务质量）级别枚举。
+ * <p>定义了 MQTT 协议支持的 QoS 级别：0、1、2 以及失败标志。</p>
+ */
 public enum MqttQoS {
+    /** QoS 0：最多一次传递（“即发即忘”） */
     AT_MOST_ONCE(0),
+    /** QoS 1：至少一次传递（确认传递） */
     AT_LEAST_ONCE(1),
+    /** QoS 2：恰好一次传递（保证传递） */
     EXACTLY_ONCE(2),
+    /** SUBACK 中订阅失败标志（0x80） */
     FAILURE(0x80);
 
     private final int value;
+
+    /** 按 QoS 值索引的查找表，覆盖 0~2 和 0x80 */
+    private static final MqttQoS[] LOOKUP = new MqttQoS[0x81];
+
+    static {
+        for (MqttQoS q : values()) {
+            LOOKUP[q.value] = q;
+        }
+    }
 
     MqttQoS(int value) {
         this.value = value;
@@ -31,11 +48,16 @@ public enum MqttQoS {
         return value;
     }
 
+    /**
+     * 根据 QoS 值获取对应的枚举实例
+     *
+     * @param value QoS 值 (0、1、2 或 0x80)
+     * @return 对应的 QoS 枚举
+     * @throws IllegalArgumentException 无效的 QoS 值
+     */
     public static MqttQoS valueOf(int value) {
-        for (MqttQoS q: values()) {
-            if (q.value == value) {
-                return q;
-            }
+        if (value >= 0 && value < LOOKUP.length && LOOKUP[value] != null) {
+            return LOOKUP[value];
         }
         throw new IllegalArgumentException("invalid QoS: " + value);
     }

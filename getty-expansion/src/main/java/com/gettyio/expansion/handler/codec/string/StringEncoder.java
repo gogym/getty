@@ -19,14 +19,15 @@ import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
 
-
 /**
- * StringEncoder.java
+ * 字符串编码器。
+ * <p>
+ * 将 {@link String} 对象按 UTF-8 编码转换为 byte[]，传递给下一个处理器。
+ * 非 String 类型的数据将原样透传。
+ * </p>
  *
- * @description:String编码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see StringDecoder
  */
 public class StringEncoder extends MessageToByteEncoder {
 
@@ -37,6 +38,4 @@ public class StringEncoder extends MessageToByteEncoder {
         }
         super.channelWrite(ctx, obj);
     }
-
-
 }

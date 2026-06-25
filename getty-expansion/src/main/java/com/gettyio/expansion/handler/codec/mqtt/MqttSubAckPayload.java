@@ -24,32 +24,47 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Payload of the {@link MqttSubAckMessage}
+ * MQTT SUBACK 消息的负载部分。
+ * <p>包含服务端授予的 QoS 级别列表。</p>
+ *
+ * @see MqttSubAckMessage
  */
 public class MqttSubAckPayload {
 
     private final List<Integer> grantedQoSLevels;
 
+    /**
+     * 通过可变参数创建 SUBACK 负载
+     *
+     * @param grantedQoSLevels 授予的 QoS 级别数组
+     * @throws NullPointerException 参数为 null
+     */
     public MqttSubAckPayload(int... grantedQoSLevels) {
         if (grantedQoSLevels == null) {
             throw new NullPointerException("grantedQoSLevels");
         }
 
         List<Integer> list = new ArrayList<Integer>(grantedQoSLevels.length);
-        for (int v: grantedQoSLevels) {
+        for (int v : grantedQoSLevels) {
             list.add(v);
         }
         this.grantedQoSLevels = Collections.unmodifiableList(list);
     }
 
+    /**
+     * 通过可迭代集合创建 SUBACK 负载
+     *
+     * @param grantedQoSLevels 授予的 QoS 级别集合
+     * @throws NullPointerException 参数为 null
+     */
     public MqttSubAckPayload(Iterable<Integer> grantedQoSLevels) {
         if (grantedQoSLevels == null) {
             throw new NullPointerException("grantedQoSLevels");
         }
         List<Integer> list = new ArrayList<Integer>();
-        for (Integer v: grantedQoSLevels) {
+        for (Integer v : grantedQoSLevels) {
             if (v == null) {
-                break;
+                continue;
             }
             list.add(v);
         }

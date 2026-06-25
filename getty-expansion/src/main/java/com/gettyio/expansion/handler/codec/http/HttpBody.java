@@ -16,12 +16,12 @@
 package com.gettyio.expansion.handler.codec.http;
 
 /**
- * HttpBody.java
+ * HTTP 消息体封装。
+ * <p>
+ * 保存 HTTP 消息的内容类型、内容长度和原始字节数据。
+ * </p>
  *
- * @description:http消息体
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpBody {
 

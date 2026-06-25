@@ -26,66 +26,84 @@ import com.gettyio.core.util.CharsetUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.*;
+import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.isValidClientId;
+import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.isValidMessageId;
+import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.isValidPublishTopicName;
+import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.resetUnusedFields;
+import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.validateFixedHeader;
 
 
 /**
- * MqttDecoder.java
+ * MQTT 消息解码器，基于 Netty MQTT Codec 改造。
+ * <p>
+ * 采用状态机模式依次解码固定头部、可变头部和负载：
+ * <ol>
+ *   <li>{@code READ_FIXED_HEADER} — 解码固定头部（1字节标志 + 可变长度剩余长度）</li>
+ *   <li>{@code READ_VARIABLE_HEADER} — 解码可变头部（根据消息类型不同）</li>
+ *   <li>{@code READ_PAYLOAD} — 解码负载数据</li>
+ * </ol>
+ * 支持 MQTT v3.1 和 v3.1.1 协议。
+ * </p>
  *
- * @description:mqtt解码器，基于netty改造
- * @author:gogym
- * @date:2020/6/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see MqttEncoder
+ * @see MqttMessage
  */
 public final class MqttDecoder extends ByteToMessageDecoder {
 
-    private static final int DEFAULT_MAX_BYTES_IN_MESSAGE = 8092;
+    /** 默认消息最大字节数：8192 (8KB) */
+    private static final int DEFAULT_MAX_BYTES_IN_MESSAGE = 8 * 1024;
 
     /**
-     * States of the decoder.
-     * We start at READ_FIXED_HEADER, followed by
-     * READ_VARIABLE_HEADER and finally READ_PAYLOAD.
+     * 解码器状态机。
+     * 从 {@code READ_FIXED_HEADER} 开始，依次经过
+     * {@code READ_VARIABLE_HEADER}、{@code READ_PAYLOAD}，
+     * 解码异常时进入 {@code BAD_MESSAGE} 状态。
      */
-    enum DecoderState {
+    private enum DecoderState {
+        /** 读取固定头部 */
         READ_FIXED_HEADER,
+        /** 读取可变头部 */
         READ_VARIABLE_HEADER,
+        /** 读取负载 */
         READ_PAYLOAD,
-        BAD_MESSAGE,
+        /** 消息异常，等待断开连接 */
+        BAD_MESSAGE
     }
 
     private MqttFixedHeader mqttFixedHeader;
     private Object variableHeader;
     private int bytesRemainingInVariablePart;
     private final int maxBytesInMessage;
-
     private DecoderState state;
 
     /**
-     * Returns the current state of this decoder.
+     * 获取当前解码器状态
      *
-     * @return the current state of this decoder
+     * @return 当前状态
      */
-    protected DecoderState state() {
+    private DecoderState state() {
         return state;
     }
 
     /**
-     * Sets the current state of this decoder.
+     * 设置解码器状态
      *
-     * @return the old state of this decoder
+     * @param newState 新状态
+     * @return 旧状态
      */
-    protected DecoderState state(DecoderState newState) {
+    private DecoderState state(DecoderState newState) {
         DecoderState oldState = state;
         state = newState;
         return oldState;
     }
 
-
     /**
-     * Stores the internal cumulative buffer's reader position and updates
-     * the current decoder state.
+     * 更新解码器状态（检查点）
+     *
+     * @param state 新状态
      */
-    protected void checkpoint(DecoderState state) {
+    private void checkpoint(DecoderState state) {
         state(state);
     }
 
@@ -94,6 +112,11 @@ public final class MqttDecoder extends ByteToMessageDecoder {
         this(DEFAULT_MAX_BYTES_IN_MESSAGE);
     }
 
+    /**
+     * 创建指定最大消息字节数的解码器
+     *
+     * @param maxBytesInMessage 单条消息最大字节数，超过此值将拒绝消息
+     */
     public MqttDecoder(int maxBytesInMessage) {
         state = DecoderState.READ_FIXED_HEADER;
         this.maxBytesInMessage = maxBytesInMessage;
@@ -102,7 +125,6 @@ public final class MqttDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-
         AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer().writeBytes((byte[]) in);
         MqttMessage mqttMessage = null;
         switch (state()) {
@@ -161,16 +183,20 @@ public final class MqttDecoder extends ByteToMessageDecoder {
         super.channelRead(ctx,mqttMessage);
     }
 
+    /**
+     * 创建无效消息并切换解码器到 {@code BAD_MESSAGE} 状态
+     */
     private MqttMessage invalidMessage(Throwable cause) {
         checkpoint(DecoderState.BAD_MESSAGE);
         return MqttMessageFactory.newInvalidMessage(mqttFixedHeader, variableHeader, cause);
     }
 
     /**
-     * Decodes the fixed header. It's one byte for the flags and then variable bytes for the remaining length.
+     * 解码固定头部：1字节标志位 + 可变长度编码的剩余长度。
      *
-     * @param buffer the buffer to decode from
-     * @return the fixed header
+     * @param buffer 输入缓冲
+     * @return 解码后的固定头部
+     * @throws DecoderException 剩余长度超过4字节或头部校验失败
      */
     private static MqttFixedHeader decodeFixedHeader(AutoByteBuffer buffer) throws Exception {
         short b1 = buffer.readUnsignedByte();
@@ -200,11 +226,11 @@ public final class MqttDecoder extends ByteToMessageDecoder {
     }
 
     /**
-     * Decodes the variable header (if any)
+     * 根据消息类型解码可变头部
      *
-     * @param buffer          the buffer to decode from
-     * @param mqttFixedHeader MqttFixedHeader of the same message
-     * @return the variable header
+     * @param buffer          输入缓冲
+     * @param mqttFixedHeader 对应的固定头部
+     * @return 解码结果，包含可变头部和消耗字节数
      */
     private static Result<?> decodeVariableHeader(AutoByteBuffer buffer, MqttFixedHeader mqttFixedHeader) throws Exception {
         switch (mqttFixedHeader.messageType()) {
@@ -319,13 +345,13 @@ public final class MqttDecoder extends ByteToMessageDecoder {
     }
 
     /**
-     * Decodes the payload.
+     * 解码负载数据
      *
-     * @param buffer                       the buffer to decode from
-     * @param messageType                  type of the message being decoded
-     * @param bytesRemainingInVariablePart bytes remaining
-     * @param variableHeader               variable header of the same message
-     * @return the payload
+     * @param buffer                       输入缓冲
+     * @param messageType                  消息类型
+     * @param bytesRemainingInVariablePart 剩余字节数
+     * @param variableHeader               可变头部
+     * @return 解码结果，包含负载和消耗字节数
      */
     private static Result<?> decodePayload(AutoByteBuffer buffer, MqttMessageType messageType, int bytesRemainingInVariablePart, Object variableHeader) throws Exception {
         switch (messageType) {
@@ -472,6 +498,9 @@ public final class MqttDecoder extends ByteToMessageDecoder {
         return new Result<Integer>(result, numberOfBytesConsumed);
     }
 
+    /**
+     * 解码结果封装，包含解码值和消耗的字节数
+     */
     private static final class Result<T> {
 
         private final T value;

@@ -21,18 +21,20 @@ import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpDecodeSerializer;
 
 /**
- * HttpRequestDecoder.java
+ * HTTP 请求解码器。
+ * <p>
+ * 将接收到的字节数据累积并解析为 {@link HttpRequest} 对象。
+ * 支持半包场景，数据不完整时等待更多数据。
+ * </p>
  *
- * @description:http请求解码类
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpRequestDecoder extends ByteToMessageDecoder {
 
-
-    AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-    HttpRequest httpRequest;
+    /** 接收数据缓冲区 */
+    private final AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
+    /** 当前正在解析的请求对象 */
+    private HttpRequest httpRequest;
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {

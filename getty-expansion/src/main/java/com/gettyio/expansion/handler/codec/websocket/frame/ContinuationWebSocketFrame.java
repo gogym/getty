@@ -18,9 +18,14 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
 
-
 /**
- * Web Socket frame containing binary data.
+ * WebSocket 续传帧。
+ * <p>
+ * 用于分片消息的后续帧（Opcode = 0x0）。
+ * 第一个分片帧指定消息类型（文本/二进制），后续分片使用续传帧。
+ * </p>
+ *
+ * @author gogym
  */
 public class ContinuationWebSocketFrame extends WebSocketFrame {
 

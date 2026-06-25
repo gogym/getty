@@ -20,7 +20,10 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * Variable Header for the {@link MqttConnectMessage}
+ * MQTT CONNECT 消息的可变头部。
+ * <p>包含协议名称、版本、连接标志位（用户名/密码/遗嘱/Clean Session）和保活时间。</p>
+ *
+ * @see MqttConnectMessage
  */
 public final class MqttConnectVariableHeader {
 

@@ -17,7 +17,10 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#puback">MQTTV3.1/puback</a>
+ * MQTT PUBACK 消息。
+ * <p>服务端或客户端对 QoS 1 级别 PUBLISH 消息的确认。</p>
+ *
+ * @see MqttMessageIdVariableHeader
  */
 public final class MqttPubAckMessage extends MqttMessage {
 

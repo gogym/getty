@@ -23,12 +23,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * HttpRequest.java
+ * HTTP 请求消息。
+ * <p>
+ * 封装 HTTP 请求的方法、URI、查询参数和 multipart 表单字段。
+ * 继承 {@link HttpMessage} 的头部和消息体功能。
+ * </p>
  *
- * @description:http请求
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpRequest extends HttpMessage {
 

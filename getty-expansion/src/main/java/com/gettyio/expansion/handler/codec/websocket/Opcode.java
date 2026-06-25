@@ -20,40 +20,61 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Opcode.java
+ * WebSocket 帧操作码（Opcode）。
+ * <p>
+ * 定义 RFC 6455 中的标准帧类型：
+ * <ul>
+ *   <li>{@link #CONTINUATION} (0x0) - 续传帧</li>
+ *   <li>{@link #TEXT} (0x1) - 文本帧</li>
+ *   <li>{@link #BINARY} (0x2) - 二进制帧</li>
+ *   <li>{@link #CLOSE} (0x8) - 关闭帧</li>
+ *   <li>{@link #PING} (0x9) - Ping 帧</li>
+ *   <li>{@link #PONG} (0xA) - Pong 帧</li>
+ * </ul>
+ * </p>
  *
- * @description:消息类型
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public enum Opcode {
 
-    /**
-     * 附加数据帧、文本数据帧、二进制数据帧、连接关闭、ping、pong
-     */
-    CONTINUATION((byte) 0), TEXT((byte) 1), BINARY((byte) 2), CLOSE((byte) 8), PING((byte) 9), PONG((byte) 10);
+    /** 续传帧（分片消息的后续帧） */
+    CONTINUATION((byte) 0),
+    /** 文本数据帧 */
+    TEXT((byte) 1),
+    /** 二进制数据帧 */
+    BINARY((byte) 2),
+    /** 连接关闭帧 */
+    CLOSE((byte) 8),
+    /** Ping 心跳帧 */
+    PING((byte) 9),
+    /** Pong 心跳响应帧 */
+    PONG((byte) 10);
 
-    private static final Map<Byte, Opcode> map = new HashMap<>();
+    private static final Map<Byte, Opcode> LOOKUP = new HashMap<>();
 
     static {
-        for (Opcode opcode : values()) {
-            map.put(opcode.getCode(), opcode);
+        for (Opcode op : values()) {
+            LOOKUP.put(op.code, op);
         }
     }
 
+    /**
+     * 根据操作码字节值查找对应的枚举值。
+     *
+     * @param code 4 位操作码
+     * @return 对应的 Opcode，未找到时返回 null
+     */
     public static Opcode valueOf(byte code) {
-        return map.get(code);
+        return LOOKUP.get(code);
     }
 
     private final byte code;
 
-    private Opcode(byte code) {
+    Opcode(byte code) {
         this.code = code;
     }
 
     public byte getCode() {
         return code;
     }
-
 }

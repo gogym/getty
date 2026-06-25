@@ -21,26 +21,54 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
-
 /**
- * HeartBeatTimeOutHandler.java
+ * 心跳超时处理器。
+ * <p>
+ * 配合 {@link IdleStateHandler} 使用，当检测到连续多次读空闲事件时，
+ * 判定对端无响应并关闭连接。收到有效数据时重置计数器。
+ * </p>
  *
- * @description:心跳检测
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
+ * @see IdleStateHandler
  */
 public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(HeartBeatTimeOutHandler.class);
-    private int loss_connect_time = 0;
+
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(HeartBeatTimeOutHandler.class);
+
+    /** 默认最大允许空闲次数 */
+    private static final int DEFAULT_MAX_IDLE_COUNT = 3;
+
+    /** 连续空闲计数 */
+    private volatile int lossConnectCount = 0;
+
+    /** 最大允许空闲次数，超过则关闭连接 */
+    private final int maxIdleCount;
+
+    /**
+     * 使用默认最大空闲次数（3次）创建心跳超时处理器。
+     */
+    public HeartBeatTimeOutHandler() {
+        this(DEFAULT_MAX_IDLE_COUNT);
+    }
+
+    /**
+     * 使用指定最大空闲次数创建心跳超时处理器。
+     *
+     * @param maxIdleCount 最大允许连续空闲次数，超过则关闭连接
+     */
+    public HeartBeatTimeOutHandler(int maxIdleCount) {
+        if (maxIdleCount <= 0) {
+            throw new IllegalArgumentException("maxIdleCount must be positive: " + maxIdleCount);
+        }
+        this.maxIdleCount = maxIdleCount;
+    }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, IdleState evt) throws Exception {
         if (evt == IdleState.READER_IDLE) {
-            loss_connect_time++;
-            if (loss_connect_time > 2) {
-                // 超过3次检测没有心跳就关闭这个连接
-                logger.info("[closed inactive channel:" + ctx.channel().getRemoteAddress().getHostString() + "]");
+            lossConnectCount++;
+            if (lossConnectCount >= maxIdleCount) {
+                LOGGER.info("[closed inactive channel: {}]", ctx.channel().getRemoteAddress().getHostString());
                 ctx.channel().close();
             }
         }
@@ -49,8 +77,7 @@ public class HeartBeatTimeOutHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        loss_connect_time = 0;
+        lossConnectCount = 0;
         super.channelRead(ctx, in);
     }
-
 }

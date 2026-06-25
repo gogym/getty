@@ -21,8 +21,10 @@ import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#fixed-header">
- *     MQTTV3.1/fixed-header</a>
+ * MQTT 固定头部。
+ * <p>包含消息类型、DUP标志、QoS级别、Retain标志和剩余长度。</p>
+ *
+ * @see <a href="http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023">MQTT v3.1.1 - Fixed Header</a>
  */
 public final class MqttFixedHeader {
 

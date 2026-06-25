@@ -17,7 +17,11 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 /**
- * See <a href="http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">MQTTV3.1/connect</a>
+ * MQTT CONNECT 消息。
+ * <p>客户端发送到服务端的连接请求消息，包含协议版本、连接标志、客户端ID等。</p>
+ *
+ * @see MqttConnectVariableHeader
+ * @see MqttConnectPayload
  */
 public final class MqttConnectMessage extends MqttMessage {
 

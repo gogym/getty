@@ -16,14 +16,16 @@
 package com.gettyio.expansion.handler.ipfilter;
 
 /**
- * IpFilterRuleType.java
+ * IP 过滤规则类型。
+ * <p>
+ * 配合 {@link IpFilterRule} 使用，决定匹配的地址是被接受还是被拒绝。
+ * </p>
  *
- * @description:Used in {@link IpFilterRule} to decide if a matching IP Address should be allowed or denied to connect.
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
- enum IpFilterRuleType {
+enum IpFilterRuleType {
+    /** 接受匹配地址 */
     ACCEPT,
+    /** 拒绝匹配地址 */
     REJECT
 }

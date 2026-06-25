@@ -20,8 +20,8 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * Contains a topic name and Qos Level.
- * This is part of the {@link MqttSubscribePayload}
+ * MQTT 主题订阅。
+ * <p>包含主题过滤器和对应的 QoS 级别，是 {@link MqttSubscribePayload} 的组成部分。</p>
  */
 public final class MqttTopicSubscription {
 

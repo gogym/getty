@@ -15,53 +15,49 @@
  */
 package com.gettyio.expansion.handler.codec.string;
 
+import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
-import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
-
 
 /**
- * FixedLengthFrameDecoder.java
+ * 定长帧解码器。
+ * <p>
+ * 将连续的字节流按固定长度分割为独立的帧。支持半包累积：
+ * 当收到的数据不足以组成一个完整帧时，会缓存到下一次数据到达后继续拼接。
+ * </p>
  *
- * @description:字符串定长消息解码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
-public class FixedLengthFrameDecoder extends ChannelInboundHandlerAdapter {
+public class FixedLengthFrameDecoder extends ByteToMessageDecoder {
 
     private final int frameLength;
 
+    /** 半包累积缓冲区 */
+    private final AutoByteBuffer cumulation = AutoByteBuffer.newByteBuffer();
+
+    /**
+     * 创建定长帧解码器。
+     *
+     * @param frameLength 每帧的固定长度（必须为正整数）
+     * @throws IllegalArgumentException 如果 frameLength 不是正整数
+     */
     public FixedLengthFrameDecoder(int frameLength) {
         if (frameLength <= 0) {
             throw new IllegalArgumentException("frameLength must be a positive integer: " + frameLength);
-        } else {
-            this.frameLength = frameLength;
         }
+        this.frameLength = frameLength;
     }
-
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        decode(ctx, in);
-    }
-
-    private void decode(ChannelHandlerContext ctx, Object in) throws Exception {
         byte[] bytes = (byte[]) in;
-        int index = 0;
-        while (index < bytes.length) {
-            byte[] byte2;
-            if ((bytes.length - index) > frameLength) {
-                byte2 = new byte[frameLength];
-                System.arraycopy(bytes, index, byte2, 0, frameLength);
-            } else {
-                byte2 = new byte[bytes.length - index];
-                System.arraycopy(bytes, index, byte2, 0, bytes.length - index);
-            }
-            //传递到下一个解码器
-            super.channelRead(ctx, byte2);
-            index += frameLength;
+        cumulation.writeBytes(bytes);
+
+        while (cumulation.readableBytes() >= frameLength) {
+            byte[] frame = new byte[frameLength];
+            cumulation.readBytes(frame);
+            cumulation.discardReadBytes();
+            super.channelRead(ctx, frame);
         }
-
     }
-
 }

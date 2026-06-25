@@ -15,19 +15,28 @@
  */
 package com.gettyio.expansion.handler.traffic;
 
+/**
+ * 流量统计回调接口。
+ * <p>
+ * 配合 {@link ChannelTrafficShapingHandler} 使用，在定时周期内被调用，
+ * 报告累计读写字节数和当前周期内的吞吐量。
+ * </p>
+ *
+ * @author gogym
+ */
 public interface TrafficShapingHandler {
 
     /**
-     * 回调
-     * @param totalRead
-     * @param totalWrite
-     * @param intervalTotalRead
-     * @param intervalTotalWrite
-     * @param totalReadCount
-     * @param totalWriteCount
+     * 流量统计回调。
+     *
+     * @param totalRead          累计读取字节数
+     * @param totalWrite         累计写出字节数
+     * @param intervalTotalRead  当前周期内读取字节数
+     * @param intervalTotalWrite 当前周期内写出字节数
+     * @param totalReadCount     累计读取次数
+     * @param totalWriteCount    累计写出次数
      */
     void callback(long totalRead, long totalWrite,
                   long intervalTotalRead, long intervalTotalWrite,
-                  long totalReadCount,long totalWriteCount);
-
+                  long totalReadCount, long totalWriteCount);
 }

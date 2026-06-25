@@ -18,10 +18,13 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
 
-
-
 /**
- * Web Socket frame containing binary data.
+ * WebSocket Pong 心跳响应帧。
+ * <p>
+ * 作为 Ping 帧的响应（Opcode = 0xA），负载内容与 Ping 帧相同。
+ * </p>
+ *
+ * @author gogym
  */
 public class PongWebSocketFrame extends WebSocketFrame {
 

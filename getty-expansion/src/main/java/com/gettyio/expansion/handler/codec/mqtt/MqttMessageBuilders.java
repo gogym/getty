@@ -17,13 +17,20 @@ package com.gettyio.expansion.handler.codec.mqtt;
 
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.util.CharsetUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * MQTT 消息构建器工厂。
+ * <p>提供 Builder 模式的静态工厂方法，用于便捷地创建各种 MQTT 消息。</p>
+ * <p>支持的构建器：{@code connect}、{@code connAck}、{@code publish}、{@code subscribe}、{@code unsubscribe}</p>
+ */
 public final class MqttMessageBuilders {
 
+    /**
+     * PUBLISH 消息构建器
+     */
     public static final class PublishBuilder {
         private String topic;
         private boolean retained;
@@ -66,6 +73,9 @@ public final class MqttMessageBuilders {
         }
     }
 
+    /**
+     * CONNECT 消息构建器
+     */
     public static final class ConnectBuilder {
 
         private MqttVersion version = MqttVersion.MQTT_3_1_1;
@@ -120,15 +130,6 @@ public final class MqttMessageBuilders {
             return this;
         }
 
-        /**
-         * @deprecated use {@link ConnectBuilder#willMessage(byte[])} instead
-         */
-        @Deprecated
-        public ConnectBuilder willMessage(String willMessage) {
-            willMessage(willMessage == null ? null : willMessage.getBytes(CharsetUtil.UTF_8));
-            return this;
-        }
-
         public ConnectBuilder willMessage(byte[] willMessage) {
             this.willMessage = willMessage;
             return this;
@@ -152,15 +153,6 @@ public final class MqttMessageBuilders {
         public ConnectBuilder username(String username) {
             this.hasUser = username != null;
             this.username = username;
-            return this;
-        }
-
-        /**
-         * @deprecated use {@link ConnectBuilder#password(byte[])} instead
-         */
-        @Deprecated
-        public ConnectBuilder password(String password) {
-            password(password == null ? null : password.getBytes(CharsetUtil.UTF_8));
             return this;
         }
 
@@ -190,6 +182,9 @@ public final class MqttMessageBuilders {
         }
     }
 
+    /**
+     * SUBSCRIBE 消息构建器
+     */
     public static final class SubscribeBuilder {
 
         private List<MqttTopicSubscription> subscriptions;
@@ -220,6 +215,9 @@ public final class MqttMessageBuilders {
         }
     }
 
+    /**
+     * UNSUBSCRIBE 消息构建器
+     */
     public static final class UnsubscribeBuilder {
 
         private List<String> topicFilters;
@@ -250,6 +248,9 @@ public final class MqttMessageBuilders {
         }
     }
 
+    /**
+     * CONNACK 消息构建器
+     */
     public static final class ConnAckBuilder {
 
         private MqttConnectReturnCode returnCode;
@@ -277,22 +278,27 @@ public final class MqttMessageBuilders {
         }
     }
 
+    /** 创建 CONNECT 消息构建器 */
     public static ConnectBuilder connect() {
         return new ConnectBuilder();
     }
 
+    /** 创建 CONNACK 消息构建器 */
     public static ConnAckBuilder connAck() {
         return new ConnAckBuilder();
     }
 
+    /** 创建 PUBLISH 消息构建器 */
     public static PublishBuilder publish() {
         return new PublishBuilder();
     }
 
+    /** 创建 SUBSCRIBE 消息构建器 */
     public static SubscribeBuilder subscribe() {
         return new SubscribeBuilder();
     }
 
+    /** 创建 UNSUBSCRIBE 消息构建器 */
     public static UnsubscribeBuilder unsubscribe() {
         return new UnsubscribeBuilder();
     }

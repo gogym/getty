@@ -21,12 +21,12 @@ import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpEncodeSerializer;
 
 /**
- * HttpResponseEncoder.java
+ * HTTP 响应编码器。
+ * <p>
+ * 将 {@link HttpResponse} 对象编码为 HTTP 协议字节流。
+ * </p>
  *
- * @description:http返回编码
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpResponseEncoder extends MessageToByteEncoder {
 

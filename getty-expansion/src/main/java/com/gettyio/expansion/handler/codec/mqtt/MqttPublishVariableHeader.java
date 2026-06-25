@@ -20,7 +20,10 @@ package com.gettyio.expansion.handler.codec.mqtt;
 import com.gettyio.core.util.StringUtil;
 
 /**
- * Variable Header of the {@link MqttPublishMessage}
+ * MQTT PUBLISH 消息的可变头部。
+ * <p>包含主题名称和报文ID（QoS > 0 时存在）。</p>
+ *
+ * @see MqttPublishMessage
  */
 public final class MqttPublishVariableHeader {
 
@@ -37,13 +40,10 @@ public final class MqttPublishVariableHeader {
     }
 
     /**
-     * @deprecated Use {@link #packetId()} instead.
+     * 获取报文ID
+     *
+     * @return 报文ID，QoS 0 时为 -1
      */
-    @Deprecated
-    public int messageId() {
-        return packetId;
-    }
-
     public int packetId() {
         return packetId;
     }

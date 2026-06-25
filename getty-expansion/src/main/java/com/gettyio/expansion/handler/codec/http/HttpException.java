@@ -18,12 +18,12 @@ package com.gettyio.expansion.handler.codec.http;
 import com.gettyio.expansion.handler.codec.http.response.HttpResponseStatus;
 
 /**
- * HttpException.java
+ * HTTP 异常。
+ * <p>
+ * 携带 HTTP 状态码的异常，用于在 HTTP 处理流程中传递错误信息。
+ * </p>
  *
- * @description:http异常类
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class HttpException extends Exception {
     private final HttpResponseStatus status;

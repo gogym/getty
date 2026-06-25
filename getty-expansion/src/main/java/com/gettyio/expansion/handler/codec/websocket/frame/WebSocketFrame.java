@@ -16,104 +16,70 @@
 package com.gettyio.expansion.handler.codec.websocket.frame;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.expansion.handler.codec.websocket.frame.PingWebSocketFrame;
 import com.gettyio.core.util.ObjectUtil;
 
-import java.math.BigDecimal;
-
 /**
- * WebSocketMessage.java
+ * WebSocket 数据帧。
+ * <p>
+ * 表示一个符合 RFC 6455 规范的 WebSocket 帧，包含帧头部解析和负载数据提取。
+ * 支持文本、二进制、关闭、Ping、Pong 等所有标准帧类型。
+ * 子类通过设置 opcode 实现具体帧类型。
+ * </p>
  *
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class WebSocketFrame {
-    /**
-     * 1000 0000
-     */
+    /** FIN 标志位：表示帧是否为消息的最后一个分片 (1000 0000) */
     public static final byte FIN = (byte) 0x80;
-    /**
-     * 0111 0000
-     */
+    /** RSV1 保留位掩码 (0111 0000) */
     public static final byte RSV1 = 0x70;
-    /**
-     * 0011 0000
-     */
+    /** RSV2 保留位掩码 (0011 0000) */
     public static final byte RSV2 = 0x30;
-    /**
-     * 0001 0000
-     */
+    /** RSV3 保留位掩码 (0001 0000) */
     public static final byte RSV3 = 0x10;
-    /**
-     * 0000 1111
-     */
+    /** 操作码掩码 (0000 1111) */
     public static final byte OPCODE = 0x0F;
-    /**
-     * 1000 0000
-     */
+    /** 掩码标志位掩码 (1000 0000) */
     public static final byte MASK = (byte) 0x80;
-    /**
-     * 0111 1111
-     */
+    /** 7 位负载长度掩码 (0111 1111) */
     public static final byte PAYLOAD_LEN = 0x7F;
+    /** 负载长度需要 16 位扩展字段的标志值 */
     public static final byte HAS_EXTEND_DATA = 126;
+    /** 负载长度需要 64 位扩展字段的标志值 */
     public static final byte HAS_EXTEND_DATA_CONTINUE = 127;
 
-    /**
-     * 1bit
-     */
+    /** FIN 标志位，1 表示消息的最后一个分片 */
     private byte fin;
+    /** RSV1 保留位 */
     private byte rsv1 = 0;
+    /** RSV2 保留位 */
     private byte rsv2 = 0;
+    /** RSV3 保留位 */
     private byte rsv3 = 0;
-    /**
-     * 4bit
-     */
+    /** 操作码（4 位），0=continuation, 1=text, 2=binary, 8=close, 9=ping, 10=pong */
     private byte opcode = 1;
-    /**
-     * 1bit
-     */
+    /** 掩码标志位（1 位） */
     private byte mask;
-    /**
-     * 7bit解决半包时，只读取到消息帧一个字节的情况
-     */
+    /** 7 位负载长度字段 */
     private byte payloadLen = 1;
-    /**
-     * 16bit
-     */
+    /** 16 位扩展长度（当 payloadLen == 126 时使用） */
     private short payloadLenExtended = 0;
-    /**
-     * 64bit
-     */
+    /** 64 位扩展长度（当 payloadLen == 127 时使用） */
     private long payloadLenExtendedContinued = 0L;
-    /**
-     * 32bit
-     */
+    /** 32 位掩码密钥（当 mask=1 时使用） */
     private byte[] maskingKey = null;
 
-    /**
-     * 已经读取的消息头字节数量
-     */
+    /** 已读取的帧头部字节数（用于半包处理） */
     private int readCount = 0;
-    /**
-     * 是否读取完毕，默认否
-     */
+    /** 是否读取完毕 */
     private boolean readFinish = false;
 
-    /**
-     * 数据帧的头部信息
-     */
+    /** 帧头部临时缓冲区（最大 8 字节，用于扩展长度和掩码密钥） */
     private final byte[] headers = new byte[8];
-    /**
-     * 表示数据长度的字节数量
-     */
+    /** 扩展长度字段的字节数（0、2 或 8） */
     private int dataLengthByte = 0;
 
-    /**
-     * 已经解析的数据
-     */
+    /** 已解析的负载数据 */
     private final AutoByteBuffer payloadData = AutoByteBuffer.newByteBuffer();
 
     public WebSocketFrame() {
@@ -189,26 +155,35 @@ public class WebSocketFrame {
         return rsv3;
     }
 
+    /**
+     * 获取实际负载数据长度。
+     * <p>
+     * 根据 7 位 payloadLen 字段的值确定实际长度：
+     * <ul>
+     *   <li>&lt; 126：直接使用 payloadLen</li>
+     *   <li>== 126：使用 16 位扩展长度（无符号 short）</li>
+     *   <li>== 127：使用 64 位扩展长度</li>
+     * </ul>
+     * </p>
+     */
     public long getPayloadDataLen() {
-
         if (this.payloadLen == HAS_EXTEND_DATA_CONTINUE) {
-            return this.getPayloadLenExtendedContinued();
+            return this.payloadLenExtendedContinued;
         }
         if (this.payloadLen == HAS_EXTEND_DATA) {
-            if (this.getPayloadLenExtended() < 0) {
-                return 65535 + 1 + this.getPayloadLenExtended();
-            } else {
-                return new BigDecimal(this.getPayloadLenExtended()).intValue();
-            }
+            // 无符号 short 转 int：避免负数问题
+            return this.payloadLenExtended & 0xFFFF;
         }
         return this.payloadLen;
     }
 
     /**
-     * 方法名：setPayloadLen
-     *
-     * @param len 长度
-     *            设置数据长度
+     * 设置负载长度，自动选择合适的编码方式。
+     * <ul>
+     *   <li>&lt; 126：直接使用 7 位字段</li>
+     *   <li>126 ~ 65535：使用 16 位扩展字段</li>
+     *   <li>&gt; 65535：使用 64 位扩展字段</li>
+     * </ul>
      */
     public void setPayloadLen(long len) {
         if (len < HAS_EXTEND_DATA) {
@@ -233,22 +208,18 @@ public class WebSocketFrame {
     }
 
     /**
-     * 方法名：computeCount
-     *
-     * @param buffer
-     * @param count
-     * @return int
-     * 计算获取数据的长度
+     * 计算从缓冲区可读取的字节数（不超过 count）。
      */
-    public int computeCount(AutoByteBuffer buffer, int count) {
+    private static int computeCount(AutoByteBuffer buffer, int count) {
         return Math.min(buffer.readableBytes(), count);
     }
 
     /**
-     * 解析消息
-     *
-     * @param buffer
-     * @throws Exception
+     * 解析帧数据，包括帧头部和负载数据。
+     * <p>
+     * 支持半包场景，可多次调用直到 {@link #isReadFinish()} 返回 true。
+     * 解析完成后，如果帧使用了掩码，会自动解密。
+     * </p>
      */
     public void parseMessage(AutoByteBuffer buffer) throws Exception {
         parseMessageHeader(buffer);
@@ -268,10 +239,13 @@ public class WebSocketFrame {
     }
 
     /**
-     * 解析消息头部信息
-     *
-     * @param buffer 数据
+     * 解析帧头部字段。
+     * <p>
+     * 利用 switch fall-through 实现状态机：根据已读取字节数跳到对应阶段，
+     * 支持半包场景下多次调用。
+     * </p>
      */
+    @SuppressWarnings("fallthrough")
     private void parseMessageHeader(AutoByteBuffer buffer) throws Exception {
         int bt, b2;
         switch (this.readCount) {
@@ -309,9 +283,9 @@ public class WebSocketFrame {
                     return;
                 }
             case 2:
-                //读取过2个字节
+                // fall through: 解析扩展长度字段
             case 3:
-                // read next 16 bit
+                // fall through: 继续解析 16 位扩展长度
                 if (this.getPayloadLen() == HAS_EXTEND_DATA) {
                     // 数据字节长度为2个字节
                     this.dataLengthByte = 2;
@@ -338,7 +312,7 @@ public class WebSocketFrame {
             case 7:
             case 8:
             case 9:
-                // read next 32 bit
+                // fall through: 解析 64 位扩展长度
                 if (this.getPayloadLen() == HAS_EXTEND_DATA_CONTINUE) {
                     // 数据字节长度为2个字节
                     this.dataLengthByte = 8;
@@ -359,6 +333,7 @@ public class WebSocketFrame {
                 }
             case 10:
             default:
+                // 解析 4 字节掩码密钥
                 if (this.isMask() && maskingKey == null) {
                     // 2个字节 减去（总共读取的字节数-2个字节）
                     int count = this.computeCount(buffer, (4 - (this.readCount - 2 - this.dataLengthByte)));
@@ -380,10 +355,7 @@ public class WebSocketFrame {
 
 
     /**
-     * 解析parsePayloadData
-     *
-     * @param buffer
-     * @throws Exception
+     * 读取负载数据到缓冲区。
      */
     private void parsePayloadData(AutoByteBuffer buffer) {
         if (buffer.hasRemaining()) {

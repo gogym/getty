@@ -18,10 +18,13 @@ package com.gettyio.expansion.handler.codec.websocket.frame;
 
 import com.gettyio.expansion.handler.codec.websocket.Opcode;
 
-
-
 /**
- * Web Socket frame containing binary data.
+ * WebSocket Ping 心跳帧。
+ * <p>
+ * 用于连接保活检测（Opcode = 0x9），收到后应回复 Pong 帧。
+ * </p>
+ *
+ * @author gogym
  */
 public class PingWebSocketFrame extends WebSocketFrame {
 
