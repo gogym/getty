@@ -20,20 +20,24 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 /**
- * JdkLogger 实现
+ * 基于 JDK {@code java.util.logging} 的日志实现。
+ * <p>
+ * 级别映射：TRACE→FINEST, DEBUG→FINE, INFO→INFO, WARN→WARNING, ERROR→SEVERE。
+ * 参数化消息使用内部 {@link MessageFormatter} 进行 {@code {}} 占位符替换。
+ * </p>
  *
- * @author gogym
- * @version 1.0.0
- * @className JdkLogger.java
- * @description
- * @date 2020/12/31
+ * <p><b>性能说明：</b>每次日志输出前均检查 {@code isLoggable()}，
+ * 避免禁用级别时执行格式化和栈帧分析。</p>
  */
 class JdkLogger extends AbstractInternalLogger {
 
     private static final long serialVersionUID = -1767272577989225979L;
 
-    static final String SELF = JdkLogger.class.getName();
-    static final String SUPER = AbstractInternalLogger.class.getName();
+    /** 本类的全限定名，用于栈帧分析时过滤自身调用 */
+    private static final String SELF = JdkLogger.class.getName();
+
+    /** 父类的全限定名，用于栈帧分析时过滤 */
+    private static final String SUPER = AbstractInternalLogger.class.getName();
 
     final transient Logger logger;
 
@@ -42,292 +46,271 @@ class JdkLogger extends AbstractInternalLogger {
         this.logger = logger;
     }
 
+    // ---- TRACE (FINEST) ----
 
     @Override
     public boolean isTraceEnabled() {
         return logger.isLoggable(Level.FINEST);
     }
 
-
     @Override
     public void trace(String msg) {
         if (logger.isLoggable(Level.FINEST)) {
-            log(SELF, Level.FINEST, msg, null);
+            log(Level.FINEST, msg, null);
         }
     }
-
 
     @Override
     public void trace(String format, Object arg) {
         if (logger.isLoggable(Level.FINEST)) {
             FormattingTuple ft = MessageFormatter.format(format, arg);
-            log(SELF, Level.FINEST, ft.getMessage(), ft.getThrowable());
+            log(Level.FINEST, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void trace(String format, Object argA, Object argB) {
         if (logger.isLoggable(Level.FINEST)) {
             FormattingTuple ft = MessageFormatter.format(format, argA, argB);
-            log(SELF, Level.FINEST, ft.getMessage(), ft.getThrowable());
+            log(Level.FINEST, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
-    public void trace(String format, Object... argArray) {
+    public void trace(String format, Object... arguments) {
         if (logger.isLoggable(Level.FINEST)) {
-            FormattingTuple ft = MessageFormatter.arrayFormat(format, argArray);
-            log(SELF, Level.FINEST, ft.getMessage(), ft.getThrowable());
+            FormattingTuple ft = MessageFormatter.arrayFormat(format, arguments);
+            log(Level.FINEST, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void trace(String msg, Throwable t) {
         if (logger.isLoggable(Level.FINEST)) {
-            log(SELF, Level.FINEST, msg, t);
+            log(Level.FINEST, msg, t);
         }
     }
 
+    // ---- DEBUG (FINE) ----
 
     @Override
     public boolean isDebugEnabled() {
         return logger.isLoggable(Level.FINE);
     }
 
-
     @Override
     public void debug(String msg) {
         if (logger.isLoggable(Level.FINE)) {
-            log(SELF, Level.FINE, msg, null);
+            log(Level.FINE, msg, null);
         }
     }
-
 
     @Override
     public void debug(String format, Object arg) {
         if (logger.isLoggable(Level.FINE)) {
             FormattingTuple ft = MessageFormatter.format(format, arg);
-            log(SELF, Level.FINE, ft.getMessage(), ft.getThrowable());
+            log(Level.FINE, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void debug(String format, Object argA, Object argB) {
         if (logger.isLoggable(Level.FINE)) {
             FormattingTuple ft = MessageFormatter.format(format, argA, argB);
-            log(SELF, Level.FINE, ft.getMessage(), ft.getThrowable());
+            log(Level.FINE, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
-    public void debug(String format, Object... argArray) {
+    public void debug(String format, Object... arguments) {
         if (logger.isLoggable(Level.FINE)) {
-            FormattingTuple ft = MessageFormatter.arrayFormat(format, argArray);
-            log(SELF, Level.FINE, ft.getMessage(), ft.getThrowable());
+            FormattingTuple ft = MessageFormatter.arrayFormat(format, arguments);
+            log(Level.FINE, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void debug(String msg, Throwable t) {
         if (logger.isLoggable(Level.FINE)) {
-            log(SELF, Level.FINE, msg, t);
+            log(Level.FINE, msg, t);
         }
     }
 
+    // ---- INFO ----
 
     @Override
     public boolean isInfoEnabled() {
         return logger.isLoggable(Level.INFO);
     }
 
-
     @Override
     public void info(String msg) {
         if (logger.isLoggable(Level.INFO)) {
-            log(SELF, Level.INFO, msg, null);
+            log(Level.INFO, msg, null);
         }
     }
-
 
     @Override
     public void info(String format, Object arg) {
         if (logger.isLoggable(Level.INFO)) {
             FormattingTuple ft = MessageFormatter.format(format, arg);
-            log(SELF, Level.INFO, ft.getMessage(), ft.getThrowable());
+            log(Level.INFO, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void info(String format, Object argA, Object argB) {
         if (logger.isLoggable(Level.INFO)) {
             FormattingTuple ft = MessageFormatter.format(format, argA, argB);
-            log(SELF, Level.INFO, ft.getMessage(), ft.getThrowable());
+            log(Level.INFO, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
-    public void info(String format, Object... argArray) {
+    public void info(String format, Object... arguments) {
         if (logger.isLoggable(Level.INFO)) {
-            FormattingTuple ft = MessageFormatter.arrayFormat(format, argArray);
-            log(SELF, Level.INFO, ft.getMessage(), ft.getThrowable());
+            FormattingTuple ft = MessageFormatter.arrayFormat(format, arguments);
+            log(Level.INFO, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void info(String msg, Throwable t) {
         if (logger.isLoggable(Level.INFO)) {
-            log(SELF, Level.INFO, msg, t);
+            log(Level.INFO, msg, t);
         }
     }
 
+    // ---- WARN (WARNING) ----
 
     @Override
     public boolean isWarnEnabled() {
         return logger.isLoggable(Level.WARNING);
     }
 
-
     @Override
     public void warn(String msg) {
         if (logger.isLoggable(Level.WARNING)) {
-            log(SELF, Level.WARNING, msg, null);
+            log(Level.WARNING, msg, null);
         }
     }
-
 
     @Override
     public void warn(String format, Object arg) {
         if (logger.isLoggable(Level.WARNING)) {
             FormattingTuple ft = MessageFormatter.format(format, arg);
-            log(SELF, Level.WARNING, ft.getMessage(), ft.getThrowable());
+            log(Level.WARNING, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void warn(String format, Object argA, Object argB) {
         if (logger.isLoggable(Level.WARNING)) {
             FormattingTuple ft = MessageFormatter.format(format, argA, argB);
-            log(SELF, Level.WARNING, ft.getMessage(), ft.getThrowable());
+            log(Level.WARNING, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
-    public void warn(String format, Object... argArray) {
+    public void warn(String format, Object... arguments) {
         if (logger.isLoggable(Level.WARNING)) {
-            FormattingTuple ft = MessageFormatter.arrayFormat(format, argArray);
-            log(SELF, Level.WARNING, ft.getMessage(), ft.getThrowable());
+            FormattingTuple ft = MessageFormatter.arrayFormat(format, arguments);
+            log(Level.WARNING, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void warn(String msg, Throwable t) {
         if (logger.isLoggable(Level.WARNING)) {
-            log(SELF, Level.WARNING, msg, t);
+            log(Level.WARNING, msg, t);
         }
     }
 
+    // ---- ERROR (SEVERE) ----
 
     @Override
     public boolean isErrorEnabled() {
         return logger.isLoggable(Level.SEVERE);
     }
 
-
     @Override
     public void error(String msg) {
         if (logger.isLoggable(Level.SEVERE)) {
-            log(SELF, Level.SEVERE, msg, null);
+            log(Level.SEVERE, msg, null);
         }
     }
-
 
     @Override
     public void error(String format, Object arg) {
         if (logger.isLoggable(Level.SEVERE)) {
             FormattingTuple ft = MessageFormatter.format(format, arg);
-            log(SELF, Level.SEVERE, ft.getMessage(), ft.getThrowable());
+            log(Level.SEVERE, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void error(String format, Object argA, Object argB) {
         if (logger.isLoggable(Level.SEVERE)) {
             FormattingTuple ft = MessageFormatter.format(format, argA, argB);
-            log(SELF, Level.SEVERE, ft.getMessage(), ft.getThrowable());
+            log(Level.SEVERE, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void error(String format, Object... arguments) {
         if (logger.isLoggable(Level.SEVERE)) {
             FormattingTuple ft = MessageFormatter.arrayFormat(format, arguments);
-            log(SELF, Level.SEVERE, ft.getMessage(), ft.getThrowable());
+            log(Level.SEVERE, ft.getMessage(), ft.getThrowable());
         }
     }
-
 
     @Override
     public void error(String msg, Throwable t) {
         if (logger.isLoggable(Level.SEVERE)) {
-            log(SELF, Level.SEVERE, msg, t);
+            log(Level.SEVERE, msg, t);
         }
     }
 
+    // ---- 内部方法 ----
 
-    private void log(String callerFQCN, Level level, String msg, Throwable t) {
-        //millis和thread由构造函数填充
+    /**
+     * 创建 {@link LogRecord} 并填充调用者栈帧信息后提交给 JDK Logger。
+     *
+     * @param level 日志级别
+     * @param msg   日志消息
+     * @param t     关联的异常（可为 null）
+     */
+    private void log(Level level, String msg, Throwable t) {
         LogRecord record = new LogRecord(level, msg);
         record.setLoggerName(name());
         record.setThrown(t);
-        fillCallerData(callerFQCN, record);
+        fillCallerData(record);
         logger.log(record);
     }
 
-
     /**
-     * 如有可能填调用者者信息
-     *
-     * @param record
+     * 分析调用栈，填充真实的调用者类名和方法名。
+     * <p>跳过本类（{@link JdkLogger}）和父类（{@link AbstractInternalLogger}）的栈帧，
+     * 定位到实际业务代码的调用位置。</p>
      */
-    private static void fillCallerData(String callerFQCN, LogRecord record) {
-        StackTraceElement[] steArray = new Throwable().getStackTrace();
+    private static void fillCallerData(LogRecord record) {
+        StackTraceElement[] stack = new Throwable().getStackTrace();
 
+        // 查找日志框架自身的栈帧位置
         int selfIndex = -1;
-        for (int i = 0; i < steArray.length; i++) {
-            final String className = steArray[i].getClassName();
-            if (className.equals(callerFQCN) || className.equals(SUPER)) {
+        for (int i = 0; i < stack.length; i++) {
+            String className = stack[i].getClassName();
+            if (className.equals(SELF) || className.equals(SUPER)) {
                 selfIndex = i;
-                break;
             }
         }
 
-        int found = -1;
-        for (int i = selfIndex + 1; i < steArray.length; i++) {
-            final String className = steArray[i].getClassName();
-            if (!(className.equals(callerFQCN) || className.equals(SUPER))) {
-                found = i;
-                break;
-            }
-        }
-
-        if (found != -1) {
-            StackTraceElement ste = steArray[found];
-            record.setSourceClassName(ste.getClassName());
-            record.setSourceMethodName(ste.getMethodName());
+        // 取日志框架之后的第一个外部栈帧
+        int callerIndex = selfIndex + 1;
+        if (callerIndex < stack.length) {
+            StackTraceElement caller = stack[callerIndex];
+            record.setSourceClassName(caller.getClassName());
+            record.setSourceMethodName(caller.getMethodName());
         }
     }
 }

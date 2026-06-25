@@ -15,53 +15,43 @@
  */
 package com.gettyio.core.logging;
 
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.helpers.NOPLoggerFactory;
-import org.slf4j.spi.LocationAwareLogger;
-
 /**
- * Slf4JLogger 工厂
+ * SLF4J 日志工厂。
+ * <p>
+ * 根据底层 SLF4J 实现的能力自动选择适配器：
+ * <ul>
+ *   <li>支持 {@link org.slf4j.spi.LocationAwareLogger} 时使用 {@link LocationAwareSlf4JLogger}，
+ *       可保留精确的调用者位置信息</li>
+ *   <li>否则使用 {@link Slf4JLogger} 进行简单委托</li>
+ * </ul>
+ * </p>
  *
- * @author gogym
- * @version 1.0.0
- * @className Slf4JLoggerFactory.java
- * @description
- * @date 2020/12/31
+ * <p>如果 SLF4J 绑定为 NOP（无操作），构造时会抛出异常以触发回退到 JDK Logger。</p>
  */
 public class Slf4JLoggerFactory extends InternalLoggerFactory {
 
+    /** 全局单例 */
     @SuppressWarnings("deprecation")
-    public static final InternalLoggerFactory INSTANCE = new Slf4JLoggerFactory();
+    public static final InternalLoggerFactory INSTANCE = new Slf4JLoggerFactory(true);
 
     /**
-     * 用 {@link #INSTANCE} 获取实例.
+     * 创建工厂实例。
+     *
+     * @param failIfNOP 为 true 时，若 SLF4J 绑定为 NOP 则抛出异常
      */
-    private Slf4JLoggerFactory() {
-    }
-
     Slf4JLoggerFactory(boolean failIfNOP) {
-        //总是用true来调用
         assert failIfNOP;
-        if (LoggerFactory.getILoggerFactory() instanceof NOPLoggerFactory) {
+        if (org.slf4j.LoggerFactory.getILoggerFactory() instanceof org.slf4j.helpers.NOPLoggerFactory) {
             throw new NoClassDefFoundError("NOPLoggerFactory not supported");
         }
     }
 
     @Override
     public InternalLogger newInstance(String name) {
-        return wrapLogger(LoggerFactory.getLogger(name));
-    }
-
-    /**
-     * 包的私有测试
-     *
-     * @param logger
-     * @return
-     */
-    static InternalLogger wrapLogger(Logger logger) {
-        return logger instanceof LocationAwareLogger ?
-                new LocationAwareSlf4JLogger((LocationAwareLogger) logger) : new Slf4JLogger(logger);
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(name);
+        if (logger instanceof org.slf4j.spi.LocationAwareLogger) {
+            return new LocationAwareSlf4JLogger((org.slf4j.spi.LocationAwareLogger) logger);
+        }
+        return new Slf4JLogger(logger);
     }
 }

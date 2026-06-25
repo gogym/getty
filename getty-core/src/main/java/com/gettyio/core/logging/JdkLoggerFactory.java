@@ -15,24 +15,20 @@
  */
 package com.gettyio.core.logging;
 
-
-import java.util.logging.Logger;
-
 /**
- * JdkLogger工厂
- *
- * @author gogym
- * @version 1.0.0
- * @className JdkLoggerFactory.java
- * @description
- * @date 2020/12/31
+ * JDK 内置日志（{@code java.util.logging}）工厂。
+ * <p>
+ * 当 SLF4J 不可用时作为回退方案使用。也可通过
+ * {@link InternalLoggerFactory#setDefaultFactory} 手动指定。
+ * </p>
  */
 public class JdkLoggerFactory extends InternalLoggerFactory {
 
+    /** 全局单例 */
     public static final InternalLoggerFactory INSTANCE = new JdkLoggerFactory();
 
     @Override
     public InternalLogger newInstance(String name) {
-        return new JdkLogger(Logger.getLogger(name));
+        return new JdkLogger(java.util.logging.Logger.getLogger(name));
     }
 }

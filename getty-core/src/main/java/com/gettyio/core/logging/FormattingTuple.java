@@ -16,13 +16,11 @@
 package com.gettyio.core.logging;
 
 /**
- * 保存格式化完成后的结果
- *
- * @author gogym
- * @version 1.0.0
- * @className FormattingTuple.java
- * @description
- * @date 2020/12/30
+ * 消息格式化结果容器。
+ * <p>
+ * 保存 {@link MessageFormatter} 格式化后的消息字符串和可选的关联异常。
+ * 不可变设计，线程安全。
+ * </p>
  */
 final class FormattingTuple {
 
@@ -34,11 +32,13 @@ final class FormattingTuple {
         this.throwable = throwable;
     }
 
-    public String getMessage() {
+    /** 格式化后的消息字符串 */
+    String getMessage() {
         return message;
     }
 
-    public Throwable getThrowable() {
+    /** 关联的异常（可能为 null） */
+    Throwable getThrowable() {
         return throwable;
     }
 }

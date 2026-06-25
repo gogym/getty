@@ -15,281 +15,194 @@
  */
 package com.gettyio.core.logging;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-
 /**
- * 根据非常简单的替换规则来格式化消息,替换可以是1个、2个或更多的参数
- * {}对被称为格式化锚。它是用来指定的消息中需要替换参数的位置
+ * SLF4J 风格的 {@code {}} 占位符消息格式化器。
+ * <p>
+ * 支持 1~N 个参数替换，支持嵌套数组的深度格式化，支持 {@code \\{}} 转义。
+ * 仅由 {@link JdkLogger} 使用（SLF4J 实现使用自身的格式化器）。
+ * </p>
  *
- * @author gogym
- * @version 1.0.0
- * @className MessageFormatter.java
- * @description
- * @date 2020/12/31
+ * <p><b>性能说明：</b></p>
+ * <ul>
+ *   <li>数值类型直接拆箱为基本类型输出，避免 String.valueOf() 的中间对象</li>
+ *   <li>原始类型数组使用 {@link Arrays#toString}，利用 JDK 内部优化</li>
+ *   <li>对象数组使用 {@link HashSet} 检测循环引用</li>
+ * </ul>
  */
 final class MessageFormatter {
-    private static final String DELIM_STR = "{}";
-    private static final char ESCAPE_CHAR = '\\';
 
+    private static final String DELIM = "{}";
+    private static final char ESCAPE = '\\';
 
     private MessageFormatter() {
     }
 
     /**
-     * 执行单个参数替换
-     *
-     * @param messagePattern 将被解析和格式化的消息模式
-     * @param arg            要代替的参数
-     * @return 格式化的消息
+     * 单参数替换。
      */
-    static FormattingTuple format(String messagePattern, Object arg) {
-        return arrayFormat(messagePattern, new Object[]{arg});
+    static FormattingTuple format(String pattern, Object arg) {
+        return arrayFormat(pattern, new Object[]{arg});
     }
 
     /**
-     * 执行两个参数替换
-     *
-     * @param messagePattern 将被解析和格式化的消息模式
-     * @param argA           要代替的参数
-     * @param argB           要代替的参数
-     * @return 格式化的消息
+     * 双参数替换。
      */
-    static FormattingTuple format(final String messagePattern, Object argA, Object argB) {
-        return arrayFormat(messagePattern, new Object[]{argA, argB});
+    static FormattingTuple format(String pattern, Object argA, Object argB) {
+        return arrayFormat(pattern, new Object[]{argA, argB});
     }
 
     /**
-     * 执行若干个参数替换
+     * 多参数替换。
+     * <p>
+     * 如果参数数组的最后一个元素是 {@link Throwable}，则将其提取为关联异常而非替换参数。
+     * </p>
      *
-     * @param messagePattern 将被解析和格式化的消息模式
-     * @param argArray       参数数组
-     * @return 格式化的消息
+     * @param pattern  包含 {@code {}} 占位符的消息模板
+     * @param argArray 参数数组（可为 null）
+     * @return 格式化结果
      */
-    static FormattingTuple arrayFormat(final String messagePattern, final Object[] argArray) {
+    static FormattingTuple arrayFormat(String pattern, Object[] argArray) {
         if (argArray == null || argArray.length == 0) {
-            return new FormattingTuple(messagePattern, null);
+            return new FormattingTuple(pattern, null);
         }
 
-        int lastArrIdx = argArray.length - 1;
-        Object lastEntry = argArray[lastArrIdx];
+        int lastIdx = argArray.length - 1;
+        Object lastEntry = argArray[lastIdx];
         Throwable throwable = lastEntry instanceof Throwable ? (Throwable) lastEntry : null;
 
-        if (messagePattern == null) {
+        if (pattern == null) {
             return new FormattingTuple(null, throwable);
         }
 
-        int j = messagePattern.indexOf(DELIM_STR);
+        int j = pattern.indexOf(DELIM);
         if (j == -1) {
-            //简单字符串
-            return new FormattingTuple(messagePattern, throwable);
+            return new FormattingTuple(pattern, throwable);
         }
 
-        StringBuilder sbuf = new StringBuilder(messagePattern.length() + 50);
+        StringBuilder sb = new StringBuilder(pattern.length() + 50);
         int i = 0;
-        int L = 0;
+        int argIdx = 0;
+
         do {
-            boolean notEscaped = j == 0 || messagePattern.charAt(j - 1) != ESCAPE_CHAR;
+            boolean notEscaped = j == 0 || pattern.charAt(j - 1) != ESCAPE;
+
             if (notEscaped) {
-                sbuf.append(messagePattern, i, j);
+                sb.append(pattern, i, j);
             } else {
-                sbuf.append(messagePattern, i, j - 1);
-                // 检查转义字符是否被转义: "abc x:\\{}"
-                notEscaped = j >= 2 && messagePattern.charAt(j - 2) == ESCAPE_CHAR;
+                sb.append(pattern, i, j - 1);
+                // 检查转义字符本身是否被转义: "abc x:\\{}"
+                notEscaped = j >= 2 && pattern.charAt(j - 2) == ESCAPE;
             }
 
             i = j + 2;
+
             if (notEscaped) {
-                deeplyAppendParameter(sbuf, argArray[L], null);
-                L++;
-                if (L > lastArrIdx) {
+                appendParameter(sb, argArray[argIdx], null);
+                argIdx++;
+                if (argIdx > lastIdx) {
                     break;
                 }
             } else {
-                sbuf.append(DELIM_STR);
+                sb.append(DELIM);
             }
-            j = messagePattern.indexOf(DELIM_STR, i);
+
+            j = pattern.indexOf(DELIM, i);
         } while (j != -1);
 
-        // 追加最后一对{}后面的字符
-        sbuf.append(messagePattern, i, messagePattern.length());
-        return new FormattingTuple(sbuf.toString(), L <= lastArrIdx ? throwable : null);
+        sb.append(pattern, i, pattern.length());
+        return new FormattingTuple(sb.toString(), argIdx <= lastIdx ? throwable : null);
     }
+
+    // ---- 参数追加 ----
 
     /**
-     * 对数组值进行特殊处理
-     * @param sbuf
-     * @param o
-     * @param seenSet
+     * 深度追加参数到 StringBuilder。
+     * <p>
+     * 针对不同类型优化输出：
+     * <ul>
+     *   <li>数值类型：直接拆箱避免 String.valueOf() 开销</li>
+     *   <li>原始数组：使用 {@link Arrays#toString} 的 JDK 优化实现</li>
+     *   <li>对象数组：检测循环引用</li>
+     *   <li>其他对象：调用 toString()，异常时安全降级</li>
+     * </ul>
+     * </p>
      */
-    private static void deeplyAppendParameter(StringBuilder sbuf, Object o, Set<Object[]> seenSet) {
-        if (o == null) {
-            sbuf.append("null");
+    private static void appendParameter(StringBuilder sb, Object obj, Set<Object[]> seenSet) {
+        if (obj == null) {
+            sb.append("null");
             return;
         }
-        Class<?> objClass = o.getClass();
-        if (!objClass.isArray()) {
-            if (Number.class.isAssignableFrom(objClass)) {
-                //防止某些数字类型的字符串实例化
-                if (objClass == Long.class) {
-                    sbuf.append(((Long) o).longValue());
-                } else if (objClass == Integer.class || objClass == Short.class || objClass == Byte.class) {
-                    sbuf.append(((Number) o).intValue());
-                } else if (objClass == Double.class) {
-                    sbuf.append(((Double) o).doubleValue());
-                } else if (objClass == Float.class) {
-                    sbuf.append(((Float) o).floatValue());
-                } else {
-                    safeObjectAppend(sbuf, o);
-                }
-            } else {
-                safeObjectAppend(sbuf, o);
-            }
+
+        Class<?> clazz = obj.getClass();
+
+        if (!clazz.isArray()) {
+            appendNonArray(sb, obj, clazz);
         } else {
-            // 检查基本数组类型，因为它们不能被转换为Object[]
-            sbuf.append('[');
-            if (objClass == boolean[].class) {
-                booleanArrayAppend(sbuf, (boolean[]) o);
-            } else if (objClass == byte[].class) {
-                byteArrayAppend(sbuf, (byte[]) o);
-            } else if (objClass == char[].class) {
-                charArrayAppend(sbuf, (char[]) o);
-            } else if (objClass == short[].class) {
-                shortArrayAppend(sbuf, (short[]) o);
-            } else if (objClass == int[].class) {
-                intArrayAppend(sbuf, (int[]) o);
-            } else if (objClass == long[].class) {
-                longArrayAppend(sbuf, (long[]) o);
-            } else if (objClass == float[].class) {
-                floatArrayAppend(sbuf, (float[]) o);
-            } else if (objClass == double[].class) {
-                doubleArrayAppend(sbuf, (double[]) o);
-            } else {
-                objectArrayAppend(sbuf, (Object[]) o, seenSet);
-            }
-            sbuf.append(']');
+            appendArray(sb, obj, clazz, seenSet);
         }
     }
 
-    private static void safeObjectAppend(StringBuilder sbuf, Object o) {
+    /** 追加非数组对象，对数值类型做拆箱优化 */
+    private static void appendNonArray(StringBuilder sb, Object obj, Class<?> clazz) {
+        if (clazz == Long.class) {
+            sb.append(((Long) obj).longValue());
+        } else if (clazz == Integer.class || clazz == Short.class || clazz == Byte.class) {
+            sb.append(((Number) obj).intValue());
+        } else if (clazz == Double.class) {
+            sb.append(((Double) obj).doubleValue());
+        } else if (clazz == Float.class) {
+            sb.append(((Float) obj).floatValue());
+        } else {
+            safeAppend(sb, obj);
+        }
+    }
+
+    /** 追加数组对象 */
+    private static void appendArray(StringBuilder sb, Object obj, Class<?> clazz, Set<Object[]> seenSet) {
+        if (clazz == boolean[].class) { sb.append(Arrays.toString((boolean[]) obj)); }
+        else if (clazz == byte[].class) { sb.append(Arrays.toString((byte[]) obj)); }
+        else if (clazz == char[].class) { sb.append(Arrays.toString((char[]) obj)); }
+        else if (clazz == short[].class) { sb.append(Arrays.toString((short[]) obj)); }
+        else if (clazz == int[].class) { sb.append(Arrays.toString((int[]) obj)); }
+        else if (clazz == long[].class) { sb.append(Arrays.toString((long[]) obj)); }
+        else if (clazz == float[].class) { sb.append(Arrays.toString((float[]) obj)); }
+        else if (clazz == double[].class) { sb.append(Arrays.toString((double[]) obj)); }
+        else { appendObjectArray(sb, (Object[]) obj, seenSet); }
+    }
+
+    /** 安全调用 toString()，异常时降级输出 */
+    private static void safeAppend(StringBuilder sb, Object obj) {
         try {
-            String oAsString = o.toString();
-            sbuf.append(oAsString);
+            sb.append(obj.toString());
         } catch (Throwable t) {
-            System.err.println("SLF4J: Failed toString() invocation on an object of type [" + o.getClass().getName() + ']');
-            t.printStackTrace();
-            sbuf.append("[FAILED toString()]");
+            sb.append("[FAILED toString()]");
         }
     }
 
-    private static void objectArrayAppend(StringBuilder sbuf, Object[] a, Set<Object[]> seenSet) {
-        if (a.length == 0) {
+    /** 追加对象数组，使用 HashSet 检测循环引用 */
+    private static void appendObjectArray(StringBuilder sb, Object[] array, Set<Object[]> seenSet) {
+        if (array.length == 0) {
+            sb.append("[]");
             return;
         }
         if (seenSet == null) {
-            seenSet = new HashSet<Object[]>(a.length);
+            seenSet = new HashSet<>(array.length);
         }
-        if (seenSet.add(a)) {
-            deeplyAppendParameter(sbuf, a[0], seenSet);
-            for (int i = 1; i < a.length; i++) {
-                sbuf.append(", ");
-                deeplyAppendParameter(sbuf, a[i], seenSet);
+        if (seenSet.add(array)) {
+            sb.append('[');
+            appendParameter(sb, array[0], seenSet);
+            for (int i = 1; i < array.length; i++) {
+                sb.append(", ");
+                appendParameter(sb, array[i], seenSet);
             }
-            //允许重复
-            seenSet.remove(a);
+            sb.append(']');
+            seenSet.remove(array);
         } else {
-            sbuf.append("...");
+            sb.append("[...]");
         }
     }
-
-    private static void booleanArrayAppend(StringBuilder sbuf, boolean[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void byteArrayAppend(StringBuilder sbuf, byte[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void charArrayAppend(StringBuilder sbuf, char[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void shortArrayAppend(StringBuilder sbuf, short[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void intArrayAppend(StringBuilder sbuf, int[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void longArrayAppend(StringBuilder sbuf, long[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void floatArrayAppend(StringBuilder sbuf, float[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-    private static void doubleArrayAppend(StringBuilder sbuf, double[] a) {
-        if (a.length == 0) {
-            return;
-        }
-        sbuf.append(a[0]);
-        for (int i = 1; i < a.length; i++) {
-            sbuf.append(", ");
-            sbuf.append(a[i]);
-        }
-    }
-
-
 }

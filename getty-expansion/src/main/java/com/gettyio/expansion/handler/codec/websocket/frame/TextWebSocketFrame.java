@@ -40,7 +40,7 @@ public class TextWebSocketFrame extends WebSocketFrame {
             byte[] bytes = text.getBytes(CharsetUtil.UTF_8);
             setPayloadData(bytes);
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("encode text frame failed", e);
         }
     }
 

@@ -163,7 +163,7 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
                 // 释放缓冲区防止内存泄漏
                 this.readByteBuffer = null;
                 readBuf.release();
-                try { invokePipeline(ChannelState.CHANNEL_EXCEPTION, null); } catch (Exception ex) { logger.error(ex); }
+                try { invokePipeline(ChannelState.CHANNEL_EXCEPTION, null); } catch (Exception ex) { logger.error("invoke CHANNEL_EXCEPTION failed", ex); }
                 close();
                 return;
             }

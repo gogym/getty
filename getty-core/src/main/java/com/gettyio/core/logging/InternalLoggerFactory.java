@@ -16,86 +16,94 @@
 package com.gettyio.core.logging;
 
 /**
- * 创建一个或更改默认工厂实现。允许选择什么日志记录框架,默认的工厂是SLF4J,如果SLF4J
- * 不可用,则使用JdkLoggerFactory
+ * 日志工厂抽象基类。
+ * <p>
+ * 采用工厂模式创建 {@link InternalLogger} 实例。默认优先使用 SLF4J，
+ * 若 SLF4J 不可用则自动回退到 JDK 内置的 {@code java.util.logging}。
+ * </p>
  *
- * @author gogym
- * @version 1.0.0
- * @className InternalLoggerFactory.java
- * @description
- * @date 2020/12/31
+ * <p><b>线程安全：</b>{@link #getDefaultFactory()} 使用双重检查锁（DCL），
+ * 确保多线程环境下只初始化一次。</p>
+ *
+ * <p><b>使用示例：</b></p>
+ * <pre>{@code
+ * private static final InternalLogger logger = InternalLoggerFactory.getInstance(MyClass.class);
+ * }</pre>
  */
 public abstract class InternalLoggerFactory {
 
-    /**
-     * 默认工厂
-     */
+    /** 默认工厂实例（volatile 保证 DCL 可见性） */
     private static volatile InternalLoggerFactory defaultFactory;
 
-    @SuppressWarnings("UnusedCatchParameter")
-    private static InternalLoggerFactory newDefaultFactory(String name) {
-        InternalLoggerFactory f;
-        try {
-            f = new Slf4JLoggerFactory(true);
-            f.newInstance(name).debug("Using SLF4J as the default logging framework");
-        } catch (Throwable ignore1) {
-            f = JdkLoggerFactory.INSTANCE;
-            f.newInstance(name).debug("Using java.util.logging as the default logging framework");
-
+    /**
+     * 获取默认工厂实例。
+     * <p>优先尝试 SLF4J，失败时回退到 JDK Logger。</p>
+     */
+    public static InternalLoggerFactory getDefaultFactory() {
+        InternalLoggerFactory f = defaultFactory;
+        if (f == null) {
+            synchronized (InternalLoggerFactory.class) {
+                f = defaultFactory;
+                if (f == null) {
+                    f = newDefaultFactory();
+                    defaultFactory = f;
+                }
+            }
         }
         return f;
     }
 
     /**
-     * 返回默认工厂
+     * 替换默认工厂实例。
      *
-     * @return InternalLoggerFactory
+     * @param factory 新的工厂实例，不能为 null
      */
-    public static InternalLoggerFactory getDefaultFactory() {
-        if (defaultFactory == null) {
-            defaultFactory = newDefaultFactory(InternalLoggerFactory.class.getName());
+    public static void setDefaultFactory(InternalLoggerFactory factory) {
+        if (factory == null) {
+            throw new NullPointerException("factory");
         }
-        return defaultFactory;
+        defaultFactory = factory;
     }
 
     /**
-     * 设置默认工厂
+     * 使用指定类的名称创建日志记录器。
      *
-     * @param defaultFactory
-     */
-    public static void setDefaultFactory(InternalLoggerFactory defaultFactory) {
-        if (defaultFactory == null) {
-            throw new NullPointerException("defaultFactory");
-        }
-        InternalLoggerFactory.defaultFactory = defaultFactory;
-    }
-
-    /**
-     * 使用指定类的名称创建新的记录器实例
-     *
-     * @param clazz c
-     * @return InternalLogger
+     * @param clazz 日志记录器关联的类
+     * @return 日志记录器实例
      */
     public static InternalLogger getInstance(Class<?> clazz) {
         return getInstance(clazz.getName());
     }
 
     /**
-     * 使用指定的名称创建新的记录器实例
+     * 使用指定名称创建日志记录器。
      *
-     * @param name n
-     * @return InternalLogger
+     * @param name 日志记录器名称
+     * @return 日志记录器实例
      */
     public static InternalLogger getInstance(String name) {
         return getDefaultFactory().newInstance(name);
     }
 
     /**
-     * 使用指定的名称创建新的记录器实例
-     *
-     * @param name n
-     * @return InternalLogger
+     * 子类实现：创建指定名称的日志记录器实例。
      */
     protected abstract InternalLogger newInstance(String name);
 
+    /**
+     * 创建默认工厂：优先 SLF4J，失败时回退到 JDK Logger。
+     */
+    private static InternalLoggerFactory newDefaultFactory() {
+        InternalLoggerFactory f;
+        try {
+            f = new Slf4JLoggerFactory(true);
+            f.newInstance(InternalLoggerFactory.class.getName())
+                    .debug("Using SLF4J as the default logging framework");
+        } catch (Throwable ignore) {
+            f = JdkLoggerFactory.INSTANCE;
+            f.newInstance(InternalLoggerFactory.class.getName())
+                    .debug("Using java.util.logging as the default logging framework");
+        }
+        return f;
+    }
 }

@@ -60,7 +60,7 @@ abstract class AbstractRemoteAddressFilter<T extends SocketAddress> extends Chan
                 abstractSocketChannel.close();
             }
         } catch (IOException e) {
-            logger.error(e);
+            logger.error("filter remote address failed", e);
         }
     }
 
