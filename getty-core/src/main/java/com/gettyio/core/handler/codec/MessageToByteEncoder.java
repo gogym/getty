@@ -15,15 +15,16 @@
  */
 package com.gettyio.core.handler.codec;
 
-import com.gettyio.core.pipeline.out.ChannelOutboundHandlerAdapter;
+import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 
 /**
- * MessageToByteEncoder.java
+ * 消息到字节的编码器基类。
+ * <p>
+ * 作为出站处理器的语义标记基类，子类继承后在管道中承担"将高层消息对象编码为字节流"
+ * 的职责。具体的编码逻辑（如序列化、帧封装）由子类实现。
+ * </p>
  *
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p><b>典型子类：</b>字符串编码器、Protobuf 编码器、MQTT 编码器、HTTP 响应编码器等。</p>
  */
-public abstract class MessageToByteEncoder extends ChannelOutboundHandlerAdapter {
+public abstract class MessageToByteEncoder extends ChannelHandlerAdapter {
 }

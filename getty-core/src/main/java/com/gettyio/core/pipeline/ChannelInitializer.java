@@ -15,26 +15,32 @@
  */
 package com.gettyio.core.pipeline;
 
-
 import com.gettyio.core.channel.AbstractSocketChannel;
 
-
 /**
- * ChannelInitializer.java
+ * 管道初始化器接口。
+ * <p>
+ * 在新连接建立时由框架调用，用于向通道的管道中添加处理器。
+ * 用户应实现此接口并在服务端/客户端启动时传入，以配置管道的处理器链。
+ * </p>
  *
- * @description:责任链初始化
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p>典型用法：</p>
+ * <pre>{@code
+ * serverStarter.channelInitializer(channel -> {
+ *     channel.getChannelPipeline()
+ *         .addLast(new MyDecoder())
+ *         .addLast(new MyEncoder())
+ *         .addLast(new MyBusinessHandler());
+ * });
+ * }</pre>
  */
 public interface ChannelInitializer {
 
-
     /**
-     * 初始化责任链
+     * 初始化通道管道。在新连接建立后由框架调用。
      *
-     * @param abstractSocketChannel
-     * @throws Exception
+     * @param channel 新建立的通道
+     * @throws Exception 初始化过程中发生错误时抛出
      */
-    void initChannel(AbstractSocketChannel abstractSocketChannel) throws Exception;
+    void initChannel(AbstractSocketChannel channel) throws Exception;
 }

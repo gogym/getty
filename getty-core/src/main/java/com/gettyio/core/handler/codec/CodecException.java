@@ -16,12 +16,13 @@
 package com.gettyio.core.handler.codec;
 
 /**
- * CodecException.java
+ * 编解码器通用异常基类。
+ * <p>
+ * 所有编解码过程中产生的异常均应继承此类。作为 {@link RuntimeException} 的子类，
+ * 调用方无需显式捕获，便于在管道处理器链中向上传播。
+ * </p>
  *
- * @description:
- * @author:gogym
- * @date:2020/6/9
- * @copyright: Copyright by gettyio.com
+ * @see DecoderException
  */
 public class CodecException extends RuntimeException {
 
@@ -30,15 +31,15 @@ public class CodecException extends RuntimeException {
     public CodecException() {
     }
 
-    public CodecException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     public CodecException(String message) {
         super(message);
     }
 
     public CodecException(Throwable cause) {
         super(cause);
+    }
+
+    public CodecException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

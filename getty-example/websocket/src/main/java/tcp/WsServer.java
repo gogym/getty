@@ -4,7 +4,6 @@ package tcp;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -43,7 +42,7 @@ public class WsServer {
                     //设置服务器模式
                     sSLConfig.setClientMode(false);
                     //设置单向验证或双向验证
-                    sSLConfig.setClientAuth(ClientAuth.NONE);
+                    sSLConfig.setClientAuthRequired(false);
                     //初始化ssl服务
                     defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 

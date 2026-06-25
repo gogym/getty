@@ -213,10 +213,6 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
 
     // ==================== 地址与通道信息 ====================
 
-    public SocketChannel getSocketChannel() {
-        return channel;
-    }
-
     @Override
     public InetSocketAddress getLocalAddress() throws IOException {
         assertChannel();

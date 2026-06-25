@@ -16,12 +16,11 @@
 package com.gettyio.core.handler.codec;
 
 /**
- * DecoderException.java
- *
- * @description:
- * @author:gogym
- * @date:2020/6/9
- * @copyright: Copyright by gettyio.com
+ * 解码器异常。
+ * <p>
+ * 当解码过程中遇到非法数据或协议格式错误时抛出。
+ * 继承自 {@link CodecException}，属于运行时异常，调用方无需显式捕获。
+ * </p>
  */
 public class DecoderException extends CodecException {
 
@@ -30,15 +29,15 @@ public class DecoderException extends CodecException {
     public DecoderException() {
     }
 
-    public DecoderException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     public DecoderException(String message) {
         super(message);
     }
 
     public DecoderException(Throwable cause) {
         super(cause);
+    }
+
+    public DecoderException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

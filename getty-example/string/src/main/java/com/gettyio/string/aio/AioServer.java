@@ -7,7 +7,6 @@ import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.expansion.handler.codec.string.StringDecoder;
 import com.gettyio.expansion.handler.codec.string.StringEncoder;
-import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -53,7 +52,7 @@ public class AioServer {
                     //设置服务器模式
                     sSLConfig.setClientMode(false);
                     //设置单向验证或双向验证
-                    sSLConfig.setClientAuth(ClientAuth.NONE);
+                    sSLConfig.setClientAuthRequired(false);
                     //初始化ssl服务
                     //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 

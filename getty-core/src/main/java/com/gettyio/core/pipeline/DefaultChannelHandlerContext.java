@@ -15,47 +15,43 @@
  */
 package com.gettyio.core.pipeline;
 
-import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
- * DefaultChannelHandlerContext默认实现
+ * {@link ChannelHandlerContext} 的默认实现。
+ * <p>
+ * 每个处理器加入管道时都会创建一个对应的上下文实例，
+ * 上下文持有处理器引用和通道引用，并作为双向链表节点参与事件传播。
+ * </p>
  */
-class DefaultChannelHandlerContext extends AbstractChannelHandlerContext implements ChannelHandler {
+class DefaultChannelHandlerContext extends AbstractChannelHandlerContext {
 
+    /** 绑定的处理器 */
     private final ChannelHandler handler;
 
-    private final AbstractSocketChannel abstractSocketChannel;
+    /** 底层通道引用 */
+    private final AbstractSocketChannel channel;
 
-    DefaultChannelHandlerContext(AbstractSocketChannel abstractSocketChannel, ChannelHandler handler) {
+    /**
+     * 构造处理器上下文。
+     *
+     * @param channel 底层通道
+     * @param handler 绑定的处理器
+     */
+    DefaultChannelHandlerContext(AbstractSocketChannel channel, ChannelHandler handler) {
+        this.channel = channel;
         this.handler = handler;
-        this.abstractSocketChannel = abstractSocketChannel;
-        setChannelHandlerContext(this);
+        // 将处理器的上下文引用设置为自身（通过 handler 的 setChannelHandlerContext 方法）
+        handler.setChannelHandlerContext(this);
     }
 
     @Override
     public AbstractSocketChannel channel() {
-        return abstractSocketChannel;
+        return channel;
     }
 
     @Override
     public ChannelHandler handler() {
         return handler;
     }
-
-    @Override
-    public void setChannelHandlerContext(ChannelHandlerContext ctx) {
-        this.handler.setChannelHandlerContext(this);
-    }
-
-    @Override
-    public ChannelHandlerContext channelHandlerContext() {
-        return this;
-    }
-
-    @Override
-    public void channelProcess(ChannelHandlerContext ctx, ChannelState channelState, Object in) throws Exception {
-        ctx.fireChannelProcess(channelState, in);
-    }
-
 }

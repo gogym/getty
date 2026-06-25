@@ -15,21 +15,17 @@
  */
 package com.gettyio.core.pipeline.all;
 
-import com.gettyio.core.pipeline.ChannelBoundHandler;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 
-
 /**
- * ChannelAllBoundHandlerAdapter.java
+ * 双向（入站+出站）处理器抽象基类。
+ * <p>
+ * 需要同时处理入站事件（读取、连接建立、关闭、异常）和出站事件（写入）的处理器
+ * 应继承此类。功能上与 {@link ChannelHandlerAdapter} 完全等价，保留此类仅为了
+ * 在语义上区分"双向处理器"和"通用处理器"。
+ * </p>
  *
- * @description:需双向执行的责任链继承这个类
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p>典型用途：SSL 处理器（需同时加密出站和解密入站）、心跳处理器（需同时监听读写活动）。</p>
  */
-public abstract class ChannelAllBoundHandlerAdapter extends ChannelHandlerAdapter implements ChannelBoundHandler {
-
-
-
-
+public abstract class ChannelAllBoundHandlerAdapter extends ChannelHandlerAdapter {
 }

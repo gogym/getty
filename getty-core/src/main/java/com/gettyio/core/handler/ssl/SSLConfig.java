@@ -16,49 +16,49 @@
 package com.gettyio.core.handler.ssl;
 
 /**
- * SslConfig.java
+ * SSL/TLS 配置。
+ * <p>
+ * 封装 SSL 握手和加密通信所需的全部配置参数，包括密钥库、信任库、
+ * 协议版本、客户端/服务器模式以及客户端认证开关。
+ * </p>
  *
- * @description:ssl配置
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p><b>使用示例：</b></p>
+ * <pre>{@code
+ * SSLConfig config = new SSLConfig();
+ * config.setKeyFile("/path/to/keystore.jks");
+ * config.setKeyPassword("password");
+ * config.setKeystorePassword("password");
+ * config.setClientMode(false);
+ * config.setClientAuthRequired(true);
+ * }</pre>
  */
 public class SSLConfig {
 
-    /**
-     * 协议版本
-     */
+    /** SSL 协议版本，null 时使用默认值 TLSv1.2 */
     private String protocolVersion;
 
-    /**
-     * 配置引擎在握手时使用客户端（或服务器）模式
-     */
+    /** 是否以客户端模式运行（true=客户端，false=服务器） */
     private boolean clientMode;
-    /**
-     * keystore路径
-     */
+
+    /** 密钥库文件路径（JKS 格式） */
     private String keyFile;
-    /**
-     * keystore密码
-     */
+
+    /** 密钥库访问密码 */
     private String keystorePassword;
-    /**
-     * 创建管理jks密钥库的x509密钥管理器，用来管理密钥，需要key的密码，通常是keystore密码，这个密码也可以为null
-     */
+
+    /** 密钥条目密码（通常与密钥库密码相同） */
     private String keyPassword;
-    /**
-     * 签名证书路径，通常签名证书直接使用jks，也就是上面的keystore文件，并非cer文件
-     */
+
+    /** 信任库文件路径（JKS 格式），null 时信任所有证书 */
     private String trustFile;
-    /**
-     * 签名证书密码
-     */
+
+    /** 信任库访问密码 */
     private String trustPassword;
 
-    /**
-     * 客户端鉴权模式
-     */
-    private boolean clientAuth = ClientAuth.NONE;
+    /** 是否要求客户端证书认证（仅服务器模式有效） */
+    private boolean clientAuthRequired;
+
+    // ---- 访问方法 ----
 
     public String getProtocolVersion() {
         return protocolVersion;
@@ -66,6 +66,14 @@ public class SSLConfig {
 
     public void setProtocolVersion(String protocolVersion) {
         this.protocolVersion = protocolVersion;
+    }
+
+    public boolean isClientMode() {
+        return clientMode;
+    }
+
+    public void setClientMode(boolean clientMode) {
+        this.clientMode = clientMode;
     }
 
     public String getKeyFile() {
@@ -108,19 +116,11 @@ public class SSLConfig {
         this.trustPassword = trustPassword;
     }
 
-    public boolean isClientMode() {
-        return clientMode;
+    public boolean isClientAuthRequired() {
+        return clientAuthRequired;
     }
 
-    public void setClientMode(boolean clientMode) {
-        this.clientMode = clientMode;
-    }
-
-    public boolean isClientAuth() {
-        return clientAuth;
-    }
-
-    public void setClientAuth(boolean clientAuth) {
-        this.clientAuth = clientAuth;
+    public void setClientAuthRequired(boolean clientAuthRequired) {
+        this.clientAuthRequired = clientAuthRequired;
     }
 }

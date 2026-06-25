@@ -1,34 +1,38 @@
+/*
+ * Copyright 2019 The Getty Project
+ *
+ * The Getty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.gettyio.core.handler.ssl.facade;
 
-public enum BufferType
-{
-    /* Defines names for SSL related buffers. */
-
-    /*
-    IN_PLAIN is called peerAppData in Java docs and represents the original
-    unencrypted data that the peer sent. This buffer is the destination
-    buffer for an unwrap operation.
-    */
+/**
+ * SSL 缓冲区类型标识。
+ * <p>
+ * 对应 SSLEngine 操作所需的四个缓冲区：
+ * <ul>
+ *   <li>{@link #IN_PLAIN} — 入站明文缓冲区（peerAppData），unwrap 的目标</li>
+ *   <li>{@link #IN_CIPHER} — 入站密文缓冲区（peerNetData），unwrap 的源</li>
+ *   <li>{@link #OUT_PLAIN} — 出站立文缓冲区（myAppData），wrap 的源</li>
+ *   <li>{@link #OUT_CIPHER} — 出站密文缓冲区（myNetData），wrap 的目标</li>
+ * </ul>
+ */
+enum BufferType {
+    /** 入站明文（解密后的应用数据） */
     IN_PLAIN,
-
-    /*
-    IN_CIPHER is called peerNetData in Java docs and represents the
-    encrypted data that the peer sent. This buffer is the source buffer for
-    an unwrap operation
-    */
+    /** 入站密文（对端发送的加密数据） */
     IN_CIPHER,
-
-    /*
-    OUT_PLAIN is called myAppData in Java docs and represents the plain
-    data that the host app wishes to transmit. This buffer is the source
-    buffer for a wrap operation.
-    */
+    /** 出站立文（待加密的应用数据） */
     OUT_PLAIN,
-
-    /*
-     OUT_CIPHER is called myNetData in Java docs and represents the
-     encrypted data that the hosts transmits. This buffer is the destination
-     buffer for a wrap operation.
-     */
+    /** 出站密文（加密后待发送的数据） */
     OUT_CIPHER
 }

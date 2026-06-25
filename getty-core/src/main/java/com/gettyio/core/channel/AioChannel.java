@@ -324,10 +324,6 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
         }
     }
 
-    public AsynchronousSocketChannel getSocketChannel() {
-        return channel;
-    }
-
     // ==================== SSL ====================
 
     @Override

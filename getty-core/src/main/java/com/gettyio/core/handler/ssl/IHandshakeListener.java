@@ -16,18 +16,24 @@
 package com.gettyio.core.handler.ssl;
 
 /**
- * 握手监听
+ * SSL 握手结果监听器。
+ * <p>
+ * 用于接收 SSL 握手完成或失败的通知。通过
+ * {@link com.gettyio.core.channel.AbstractSocketChannel#setSslHandshakeListener}
+ * 注册到通道上。
+ * </p>
  */
 public interface IHandshakeListener {
+
     /**
-     * 握手成功
+     * SSL 握手成功时回调。
      */
     void onComplete();
 
     /**
-     * 握手失败
+     * SSL 握手失败时回调。
      *
-     * @param e
+     * @param e 握手失败的原因
      */
     void onFail(SSLException e);
 }

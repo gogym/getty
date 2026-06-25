@@ -15,77 +15,78 @@
  */
 package com.gettyio.core.pipeline;
 
-
 import com.gettyio.core.channel.ChannelState;
 
 /**
- * 抽象ChannelHandlerContext
- * 用于流转责任链的执行者
+ * 处理器上下文抽象基类。
+ * <p>
+ * 实现双向链表结构，并根据事件类型决定传播方向：
+ * <ul>
+ *   <li><b>入站事件</b>（NEW_CHANNEL / CHANNEL_CLOSED / CHANNEL_READ / CHANNEL_EVENT / CHANNEL_EXCEPTION）：
+ *       沿 next 方向向尾传播</li>
+ *   <li><b>出站事件</b>（CHANNEL_WRITE）：沿 prev 方向向头传播，
+ *       到达头节点时自动调用 {@code channel().writeToChannel(obj)} 写入底层通道</li>
+ * </ul>
+ * </p>
+ *
+ * <p><b>性能优化说明：</b>写路径在 {@link #fireChannelProcess} 中直接检查 {@code prev == null}
+ * 来判断是否到达头节点，避免了原先每次写操作都要调用 {@code pipeline.isFirst(this)}
+ * 进行链表遍历的开销。这是管道写路径的核心热路径优化。</p>
  */
 abstract class AbstractChannelHandlerContext implements ChannelHandlerContext {
 
-    /**
-     * 下一个
-     */
+    /** 链表后继节点（入站方向下一个处理器） */
     volatile AbstractChannelHandlerContext next;
-    /**
-     * 上一个
-     */
+
+    /** 链表前驱节点（出站方向上一个处理器） */
     volatile AbstractChannelHandlerContext prev;
 
-
     /**
-     * 根据当前通道状态处理事件
+     * 将事件传播到下一个处理器。
+     * <p>
+     * 根据事件类型选择传播方向：
+     * <ul>
+     *   <li>CHANNEL_WRITE：向前（prev）传播，到达 head 哨兵时直接写入通道</li>
+     *   <li>其他入站事件：向后（next）传播</li>
+     * </ul>
+     * </p>
      *
-     * 本方法作为通道事件处理函数，根据不同的通道状态执行相应的处理逻辑
-     * 当通道状态为新建、关闭、读取、事件、异常时，如果存在下一个处理器，则调用下一个处理器处理事件
-     * 当通道状态为写入时，如果存在前一个处理器，则调用前一个处理器处理事件
-     *
-     * @param channelState 通道的当前状态
-     * @param in 通道事件的数据
-     * @throws Exception 如果处理过程中发生错误，则抛出异常
+     * @param channelState 通道状态
+     * @param in           事件数据
+     * @throws Exception 传播过程中发生错误时抛出
      */
     @Override
     public void fireChannelProcess(ChannelState channelState, Object in) throws Exception {
-        // 根据通道状态进行事件处理
-        switch (channelState) {
-            // 当通道状态为新建、关闭、读取、事件、异常时，调用下一个处理器处理事件
-            case NEW_CHANNEL:
-            case CHANNEL_CLOSED:
-            case CHANNEL_READ:
-            case CHANNEL_EVENT:
-            case CHANNEL_EXCEPTION:
-                // 如果存在下一个处理器，则调用下一个处理器处理事件
-                if (next != null) {
-                    next.invokeChannelProcess(channelState, in);
-                }
-                break;
-            // 当通道状态为写入时，调用前一个处理器处理事件
-            case CHANNEL_WRITE:
-                // 如果存在前一个处理器，则调用前一个处理器处理事件
-                if (prev != null) {
-                    prev.invokeChannelProcess(channelState, in);
-                }
-                break;
+        if (channelState == ChannelState.CHANNEL_WRITE) {
+            // 写路径：向前（prev）传播
+            AbstractChannelHandlerContext p = prev;
+            if (p == null) {
+                // 已到达头哨兵，直接写入底层通道（核心性能优化：内联 isFirst 检查，
+                // 避免每次写操作都遍历链表调用 pipeline.isFirst()）
+                channel().writeToChannel(in);
+            } else {
+                p.invokeChannelProcess(channelState, in);
+            }
+        } else {
+            // 入站路径：向后（next）传播
+            AbstractChannelHandlerContext n = next;
+            if (n != null) {
+                n.invokeChannelProcess(channelState, in);
+            }
         }
     }
 
-
     /**
-     * 调用通道处理方法
+     * 调用绑定的处理器处理方法。
+     * <p>
+     * 标记为 final 以允许 JIT 内联优化，这是管道事件分发的热路径。
+     * </p>
      *
-     * 此方法封装了handler的channelProcess方法调用，提供了一个统一的入口
-     * 用于处理不同的通道状态和输入数据。它简化了对处理程序的直接调用，
-     * 并允许我们在未来更容易地进行修改和扩展。
-     *
-     * @param channelState 通道的状态对象，指示当前通道的状态
-     * @param in 输入参数，可以是任何类型的对象，用于通道处理
-     * @throws Exception 如果处理过程中发生错误，将抛出异常
+     * @param channelState 通道状态
+     * @param in           事件数据
+     * @throws Exception 处理过程中发生错误时抛出
      */
     private void invokeChannelProcess(ChannelState channelState, Object in) throws Exception {
         handler().channelProcess(this, channelState, in);
     }
-
-
-
 }

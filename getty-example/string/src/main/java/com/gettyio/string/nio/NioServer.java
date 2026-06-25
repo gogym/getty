@@ -8,7 +8,6 @@ import com.gettyio.core.channel.starter.NioServerStarter;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.expansion.handler.codec.string.StringDecoder;
 import com.gettyio.expansion.handler.codec.string.StringEncoder;
-import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -56,7 +55,7 @@ public class NioServer {
                     //设置服务器模式
                     sSLConfig.setClientMode(false);
                     //设置单向验证或双向验证
-                    sSLConfig.setClientAuth(ClientAuth.REQUIRE);
+                    sSLConfig.setClientAuthRequired(true);
                     //初始化ssl服务
                     defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 

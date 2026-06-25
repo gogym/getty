@@ -15,57 +15,50 @@
  */
 package com.gettyio.core.pipeline;
 
-
 /**
- * ChannelPipeline
- * 责任链
+ * 管道接口，处理器链的管理器。
+ * <p>
+ * 管道内部维护一个双向链表结构的处理器链：
+ * <ul>
+ *   <li><b>head</b>：哨兵头节点，不参与业务处理，是入站事件的起点</li>
+ *   <li><b>tail</b>：哨兵尾节点，不参与业务处理，是出站事件的起点</li>
+ * </ul>
+ * 事件传播方向：
+ * <ul>
+ *   <li>入站事件（读、连接、关闭、异常、心跳）：head → ... → tail（next 方向）</li>
+ *   <li>出站事件（写）：tail → ... → head（prev 方向），到达第一个处理器时写入底层通道</li>
+ * </ul>
+ * </p>
  */
 public interface ChannelPipeline {
 
     /**
-     * 添加一个处理器到第一位
+     * 在管道头部（紧随 head 哨兵之后）插入处理器。
      *
-     * @param handler
-     * @return
+     * @param handler 要添加的处理器
+     * @return 当前管道，支持链式调用
      */
     ChannelPipeline addFirst(ChannelHandler handler);
 
     /**
-     * 添加一个处理器到尾部
+     * 在管道尾部（紧随 tail 哨兵之前）追加处理器。
      *
-     * @param handler
-     * @return
+     * @param handler 要添加的处理器
+     * @return 当前管道，支持链式调用
      */
     ChannelPipeline addLast(ChannelHandler handler);
 
     /**
-     * 获取头部
+     * 获取头哨兵节点。
      *
-     * @return
+     * @return 头节点上下文
      */
     ChannelHandlerContext head();
 
     /**
-     * 获取尾部
+     * 获取尾哨兵节点。
      *
-     * @return
+     * @return 尾节点上下文
      */
     ChannelHandlerContext tail();
-
-    /**
-     * 判断是否是第一位处理器
-     *
-     * @param handler
-     * @return
-     */
-    boolean isFirst(ChannelHandler handler);
-
-    /**
-     * 判断是否是最后一位处理器
-     *
-     * @param handler
-     * @return
-     */
-    boolean isLast(ChannelHandler handler);
-
 }

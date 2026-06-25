@@ -18,14 +18,15 @@ package com.gettyio.core.pipeline.in;
 import com.gettyio.core.pipeline.ChannelHandlerAdapter;
 
 /**
- * ChannelInboundHandlerAdapter.java
+ * 入站处理器抽象基类。
+ * <p>
+ * 需要处理入站事件（连接建立、数据读取、连接关闭、异常）的处理器应继承此类。
+ * 继承 {@link ChannelHandlerAdapter}，对所有事件提供默认的透传行为，
+ * 子类只需覆盖感兴趣的方法。
+ * </p>
  *
- * @description:入栈处理器父类，需要读取处理继承这个类
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p>对于简单的消息接收场景，推荐使用 {@link SimpleChannelInboundHandler}，
+ * 它提供了泛型化的消息处理方法。</p>
  */
-public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter implements ChannelInboundHandler {
-
-
+public abstract class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter {
 }

@@ -16,7 +16,11 @@
 package com.gettyio.core.pipeline;
 
 /**
- * @author gogym
+ * 默认空处理器。
+ * <p>
+ * 用作管道 head 和 tail 哨兵节点的处理器。继承 {@link ChannelHandlerAdapter}，
+ * 对所有事件均执行默认的透传行为，不参与任何业务处理。
+ * </p>
  */
 public class DefaultChannelHandler extends ChannelHandlerAdapter {
 }

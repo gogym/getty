@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.handler.ssl;
 
-import com.gettyio.core.handler.ssl.facade.*;
+import com.gettyio.core.handler.ssl.facade.SSLFacade;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
@@ -23,7 +23,6 @@ import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
 
 import javax.net.ssl.*;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.KeyStore;
 import java.security.SecureRandom;
@@ -31,80 +30,150 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
 /**
- * SslHandler.java
+ * SSL/TLS 编解码处理器。
+ * <p>
+ * 作为管道中的双向处理器，负责：
+ * <ul>
+ *   <li>出站方向：将应用数据通过 SSLEngine 加密后发送到网络</li>
+ *   <li>入站方向：将网络密文通过 SSLEngine 解密为应用数据</li>
+ *   <li>握手阶段：自动处理 TLS 握手的来回交互，握手完成后切换到数据传输模式</li>
+ * </ul>
+ * </p>
  *
- * @description:SSL 编解码器
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p><b>注意：</b>此处理器必须置于管道链的第一个位置（最靠近网络层），
+ * 以确保所有出站数据先加密、所有入站数据先解密。</p>
  */
 public class SSLHandler extends ChannelAllBoundHandlerAdapter {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(SSLHandler.class);
 
-    /**
-     * 默认protocolVersion
-     */
-    private final String PROTOCOL = "TLSv1.2";
-    /**
-     * SSL上下文
-     */
-    private SSLContext sslContext;
-    /**
-     * 配置文件
-     */
+    /** 默认 TLS 协议版本 */
+    private static final String DEFAULT_PROTOCOL = "TLSv1.2";
+
+    /** SSL 配置 */
     private final SSLConfig config;
 
-    private ISSLFacade ssl;
+    /** SSL facade，封装了 SSLEngine 的所有操作 */
+    private SSLFacade ssl;
 
-    public SSLHandler(SSLConfig sslConfig) {
-        this.config = sslConfig;
+    public SSLHandler(SSLConfig config) {
+        this.config = config;
     }
 
+    /**
+     * 处理器绑定到通道时初始化 SSL 引擎。
+     * <p>将自身注册到通道的 SSL 处理器引用，并立即初始化 SSLContext。</p>
+     */
     @Override
     public void setChannelHandlerContext(ChannelHandlerContext ctx) {
         super.setChannelHandlerContext(ctx);
         ctx.channel().setSslHandler(this);
-        init(this.config);
+        initSSL();
     }
 
     /**
-     * 初始化
-     *
-     * @param config
+     * 发起 SSL 握手。
+     * <p>握手过程中的数据交互由 {@link #channelRead} 和 {@link #channelWrite} 自动处理。</p>
      */
-    private void init(SSLConfig config) {
+    public void beginHandshake() {
+        try {
+            ssl.beginHandshake();
+        } catch (Exception e) {
+            logger.error("SSL handshake initiation failed", e);
+        }
+    }
+
+    /**
+     * 查询握手是否已完成。
+     */
+    public boolean isHandshakeCompleted() {
+        return ssl.isHandshakeCompleted();
+    }
+
+    // ---- 出站：加密应用数据 ----
+
+    @Override
+    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
+        byte[] bytes = (byte[]) obj;
+        if (!ssl.isHandshakeCompleted()) {
+            // 握手阶段：解密对端握手数据，将握手响应写回通道
+            processHandshake(bytes);
+        } else {
+            // 数据传输阶段：加密应用数据
+            ssl.encrypt(ByteBuffer.wrap(bytes));
+        }
+    }
+
+    // ---- 入站：解密网络数据 ----
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
+        byte[] bytes = (byte[]) obj;
+        if (!ssl.isHandshakeCompleted()) {
+            // 握手阶段：解密对端握手数据，将握手响应写回通道
+            processHandshake(bytes);
+        } else {
+            // 数据传输阶段：解密网络数据，明文通过 SSLListener.onPlainData 向上传播
+            ssl.decrypt(ByteBuffer.wrap(bytes));
+        }
+    }
+
+    // ---- 握手数据处理（读写共用） ----
+
+    /**
+     * 处理握手阶段的 TLS 数据包。
+     * <p>解密收到的握手消息，并将产生的握手响应数据写回通道。</p>
+     *
+     * @param tlsData TLS 协议数据
+     */
+    private void processHandshake(byte[] tlsData) {
+        ByteBuffer buffer = ByteBuffer.wrap(tlsData);
+        try {
+            ssl.decrypt(buffer);
+            // 解密后 buffer 中可能包含握手响应数据
+            if (buffer.hasRemaining()) {
+                byte[] response = new byte[buffer.remaining()];
+                buffer.get(response);
+                channelHandlerContext().channel().writeToChannel(response);
+            }
+        } catch (Exception e) {
+            logger.error("SSL handshake data processing failed", e);
+            ssl.close();
+        }
+    }
+
+    // ---- SSL 初始化 ----
+
+    /**
+     * 根据配置初始化 SSLContext 和 SSLFacade。
+     */
+    private void initSSL() {
         try {
             KeyManager[] keyManagers = null;
             if (config.getKeyFile() != null) {
-                // 密钥库KeyStore
                 KeyStore ks = KeyStore.getInstance("JKS");
-                // 加载服务端的KeyStore，用于检查密钥库完整性的密码
                 ks.load(new FileInputStream(config.getKeyFile()), config.getKeystorePassword().toCharArray());
-                // 初始化密钥管理器
                 KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
                 kmf.init(ks, config.getKeyPassword().toCharArray());
                 keyManagers = kmf.getKeyManagers();
             }
 
-            //初始化签名证书管理器
             TrustManager[] trustManagers;
             if (config.getTrustFile() != null) {
-                // 密钥库KeyStore
                 KeyStore ts = KeyStore.getInstance("JKS");
-                // 加载信任库
                 ts.load(new FileInputStream(config.getTrustFile()), config.getTrustPassword().toCharArray());
                 TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
                 tmf.init(ts);
                 trustManagers = tmf.getTrustManagers();
             } else {
+                // 未指定信任库时，信任所有证书（仅用于开发/测试环境）
                 trustManagers = new TrustManager[]{new X509TrustManager() {
                     @Override
-                    public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
                     }
 
                     @Override
-                    public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
                     }
 
                     @Override
@@ -114,143 +183,71 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
                 }};
             }
 
-            //初始化上下文
-            sslContext = SSLContext.getInstance(config.getProtocolVersion() != null ? config.getProtocolVersion() : PROTOCOL);
+            String protocol = config.getProtocolVersion() != null ? config.getProtocolVersion() : DEFAULT_PROTOCOL;
+            SSLContext sslContext = SSLContext.getInstance(protocol);
             sslContext.init(keyManagers, trustManagers, new SecureRandom());
-            createSSLFacade(new handshakeCompletedListener(), new SSLListener(), new sessionClosedListener());
+
+            ssl = new SSLFacade(sslContext, config.isClientMode(), config.isClientAuthRequired());
+            ssl.setHandshakeCompletedCallback(this::onHandshakeCompleted);
+            ssl.setSessionClosedCallback(this::onSessionClosed);
+            ssl.setDataListener(new SSLFacade.SSLDataListener() {
+                @Override
+                public void onWrappedData(ByteBuffer wrappedBytes) {
+                    emitToChannel(wrappedBytes);
+                }
+
+                @Override
+                public void onPlainData(ByteBuffer plainBytes) {
+                    emitToUpstream(plainBytes);
+                }
+            });
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("SSL context initialization failed", e);
         }
     }
 
-    private void createSSLFacade(IHandshakeCompletedListener handshakeCompletedListener, ISSLListener SSLListener, ISessionClosedListener sessionClosedListener) {
-        ssl = new SSLFacade(sslContext, config.isClientMode(), config.isClientAuth(), new DefaultTaskHandler(),channelHandlerContext().channel().getByteBufferPool());
-        ssl.setHandshakeCompletedListener(handshakeCompletedListener);
-        ssl.setSSLListener(SSLListener);
-        ssl.setCloseListener(sessionClosedListener);
+    // ---- 回调方法 ----
+
+    /** SSL 握手成功：通知通道并触发用户注册的握手监听器 */
+    private void onHandshakeCompleted() {
+        logger.info("SSL handshake completed");
+        channelHandlerContext().channel().setHandShake(true);
+        IHandshakeListener listener = channelHandlerContext().channel().getSslHandshakeListener();
+        if (listener != null) {
+            listener.onComplete();
+        }
     }
 
-    /**
-     * 开始握手
-     */
-    public void beginHandshake() {
+    /** SSL 会话关闭（握手失败）：通知通道并触发用户注册的握手监听器 */
+    private void onSessionClosed() {
+        logger.warn("SSL session closed (handshake failure)");
+        channelHandlerContext().channel().setHandShake(false);
+        channelHandlerContext().channel().close();
+        IHandshakeListener listener = channelHandlerContext().channel().getSslHandshakeListener();
+        if (listener != null) {
+            listener.onFail(new SSLException("SSL handshake failure"));
+        }
+    }
+
+    /** 将加密数据写入底层通道 */
+    private void emitToChannel(ByteBuffer wrappedBytes) {
         try {
-            ssl.beginHandshake();
-        } catch (IOException e) {
-            logger.error("beginHandshake error", e);
+            byte[] b = new byte[wrappedBytes.remaining()];
+            wrappedBytes.get(b);
+            channelHandlerContext().channel().writeToChannel(b);
+        } catch (Exception e) {
+            logger.error("Failed to write SSL wrapped data to channel", e);
         }
     }
 
-
-    public boolean isHandshakeCompleted() {
-        return ssl.isHandshakeCompleted();
-    }
-
-
-    @Override
-    public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] bytes = (byte[]) obj;
-        if (!ssl.isHandshakeCompleted() && obj != null) {
-            //握手
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            try {
-                ssl.decrypt(byteBuffer);
-                byte[] b = new byte[byteBuffer.remaining()];
-                byteBuffer.get(bytes, 0, b.length);
-                ctx.channel().writeToChannel(b);
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-                ssl.close();
-            }
-        } else if (bytes != null) {
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            //SSL doUnWard
-            ssl.encrypt(byteBuffer);
-        }
-    }
-
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] bytes = (byte[]) obj;
-        if (!ssl.isHandshakeCompleted() && obj != null) {
-            //握手
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            try {
-                ssl.decrypt(byteBuffer);
-                byte[] b = new byte[byteBuffer.remaining()];
-                byteBuffer.get(bytes, 0, b.length);
-                ctx.channel().writeToChannel(b);
-            } catch (Exception e) {
-                ssl.close();
-            }
-        } else if (bytes != null) {
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            //SSL doUnWard
-            ssl.decrypt(byteBuffer);
-        }
-    }
-
-
-    /**
-     * 握手成功回调
-     */
-    class handshakeCompletedListener implements IHandshakeCompletedListener {
-        @Override
-        public void onComplete() {
-            logger.info("ssl handshake completed");
-            channelHandlerContext().channel().setHandShake(true);
-            IHandshakeListener iHandshakeCompletedListener = channelHandlerContext().channel().getSslHandshakeListener();
-            if (iHandshakeCompletedListener != null) {
-                iHandshakeCompletedListener.onComplete();
-            }
-        }
-    }
-
-    /**
-     * 握手关闭回调
-     */
-    class sessionClosedListener implements ISessionClosedListener {
-        @Override
-        public void onSessionClosed() {
-            logger.info("ssl handshake failure");
-            channelHandlerContext().channel().setHandShake(false);
-            //当握手失败时，关闭当前客户端连接
-            channelHandlerContext().channel().close();
-            IHandshakeListener iHandshakeCompletedListener = channelHandlerContext().channel().getSslHandshakeListener();
-            if (iHandshakeCompletedListener != null) {
-                iHandshakeCompletedListener.onFail(new SSLException("ssl handshake failure"));
-            }
-        }
-    }
-
-    /**
-     * SSL回调
-     */
-    class SSLListener implements ISSLListener {
-
-        @Override
-        public void onWrappedData(ByteBuffer wrappedBytes) {
-            try {
-                byte[] b = new byte[wrappedBytes.remaining()];
-                wrappedBytes.get(b, 0, b.length);
-                channelHandlerContext().channel().writeToChannel(b);
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            }
-        }
-
-        @Override
-        public void onPlainData(ByteBuffer plainBytes) {
-            //消息解码
+    /** 将解密后的明文数据传播到管道链上游 */
+    private void emitToUpstream(ByteBuffer plainBytes) {
+        try {
             byte[] b = new byte[plainBytes.remaining()];
-            plainBytes.get(b, 0, b.length);
-            try {
-                SSLHandler.super.channelRead(channelHandlerContext(), b);
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-            }
+            plainBytes.get(b);
+            super.channelRead(channelHandlerContext(), b);
+        } catch (Exception e) {
+            logger.error("Failed to propagate decrypted data upstream", e);
         }
     }
-
-
 }

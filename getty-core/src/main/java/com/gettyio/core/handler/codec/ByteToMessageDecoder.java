@@ -18,13 +18,13 @@ package com.gettyio.core.handler.codec;
 import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 
 /**
- * ObjectToMessageDecoder.java
+ * 字节到消息的解码器基类。
+ * <p>
+ * 作为入站处理器的语义标记基类，子类继承后在管道中承担"将原始字节流解码为高层消息对象"
+ * 的职责。具体的解码逻辑（如帧分割、协议解析）由子类实现。
+ * </p>
  *
- * @description:
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * <p><b>典型子类：</b>字符串解码器、Protobuf 解码器、MQTT 解码器、HTTP 请求解码器等。</p>
  */
 public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter {
-
 }

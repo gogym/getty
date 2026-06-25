@@ -9,7 +9,6 @@ import com.gettyio.expansion.handler.codec.protobuf.ProtobufDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufEncoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import com.gettyio.expansion.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import com.gettyio.core.handler.ssl.ClientAuth;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.protobuf.packet.MessageClass;
@@ -38,7 +37,7 @@ public class ImServer {
                 //设置服务器模式
                 sSLConfig.setClientMode(false);
                 //设置单向验证或双向验证
-                sSLConfig.setClientAuth(ClientAuth.REQUIRE);
+                sSLConfig.setClientAuthRequired(true);
                 //初始化ssl服务
                 defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
