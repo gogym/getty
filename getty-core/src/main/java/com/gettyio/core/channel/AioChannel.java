@@ -98,7 +98,7 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
         }
 
         // 初始化数据输出组件
-        this.bufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
+        this.bufferWriter = new BufferWriter(this, config.getBufferWriterQueueSize());
 
         // 触发新连接事件
         try {
@@ -141,23 +141,13 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             return;
         }
 
-        // 切换到读模式
+        // 切换到读模式：writerIndex 从 ByteBuffer.position 同步，readerIndex = 0
         readBuf.flipToFlush();
 
-        if (readBuf.hasRemaining()) {
-            byte[] bytes;
-            // 堆内存零拷贝：直接使用底层数组，避免每次读取都分配新数组
-            ByteBuffer buf = readBuf.getBuffer();
-            if (buf.hasArray()) {
-                bytes = buf.array();
-            } else {
-                // 直接内存回退：必须拷贝
-                bytes = new byte[readBuf.remaining()];
-                readBuf.get(bytes);
-            }
-
+        if (readBuf.isReadable()) {
             try {
-                invokePipeline(ChannelState.CHANNEL_READ, bytes);
+                // 零拷贝：直接传递 RetainableByteBuffer，不提取 byte[]
+                invokePipeline(ChannelState.CHANNEL_READ, readBuf);
             } catch (Exception e) {
                 logger.error("pipeline read handler error", e);
                 // 释放缓冲区防止内存泄漏
@@ -204,7 +194,7 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     @Override
     public void writeToChannel(Object obj) {
         try {
-            bufferWriter.writeAndFlush((byte[]) obj);
+            bufferWriter.writeAndFlush((RetainableByteBuffer) obj);
         } catch (Exception e) {
             logger.error("writeToChannel failed", e);
         }

@@ -15,6 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.string;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
@@ -32,7 +33,10 @@ public class StringDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        String str = new String((byte[]) in, CharsetUtil.UTF_8);
+        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
+        String str = new String(bytes, CharsetUtil.UTF_8);
         super.channelRead(ctx, str);
     }
 }

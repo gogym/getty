@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.DecoderException;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
@@ -51,7 +52,10 @@ public final class MqttEncoder extends MessageToByteEncoder {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         AutoByteBuffer autoByteBuffer = doEncode((MqttMessage) obj);
-        super.channelWrite(ctx, autoByteBuffer.array());
+        byte[] bytes = autoByteBuffer.readableBytesArray();
+        RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+        buf.writeBytes(bytes);
+        super.channelWrite(ctx, buf);
     }
 
     /**

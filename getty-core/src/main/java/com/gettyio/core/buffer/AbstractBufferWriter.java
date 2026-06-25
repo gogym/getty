@@ -27,19 +27,17 @@ import java.io.IOException;
 public abstract class AbstractBufferWriter {
 
     /**
-     * 当前是否已关闭
+     * 当前是否已关闭（volatile 保证多线程可见性）
      */
-    boolean closed;
+    volatile boolean closed;
 
     /**
-     * 写入字节数组
+     * 零拷贝写入：将 RetainableByteBuffer 直接入队并刷新。
      *
-     * @param b   数据
-     * @param off 起始偏移
-     * @param len 写入长度
-     * @throws IOException 写入异常
+     * @param byteBuf 待写出的缓冲区
+     * @throws IOException 写入或刷新异常
      */
-    public abstract void write(byte[] b, int off, int len) throws IOException;
+    public abstract void writeAndFlush(RetainableByteBuffer byteBuf) throws IOException;
 
     /**
      * 刷新缓冲区
@@ -54,14 +52,6 @@ public abstract class AbstractBufferWriter {
      * @throws IOException 关闭异常
      */
     public abstract void close() throws IOException;
-
-    /**
-     * 写入并刷新
-     *
-     * @param b 数据
-     * @throws IOException 写入或刷新异常
-     */
-    public abstract void writeAndFlush(byte[] b) throws IOException;
 
     /**
      * 是否已经关闭

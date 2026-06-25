@@ -18,19 +18,44 @@ package com.gettyio.core.buffer.pool;
 import java.nio.ByteBuffer;
 
 /**
- * ByteBuffer 包装类，提供缓冲区状态切换和数据读写的便捷方法。
+ * 可引用计数的字节缓冲区。
  * <p>
- * 该类是 {@link PooledByteBuffer} 的基类，封装了底层 ByteBuffer，
- * 提供 flipToFill/flipToFlush 模式切换以及 put/get 数据操作。
- * 子类（PooledByteBuffer）负责实现引用计数和池化归还逻辑。
+ * 封装底层 {@link ByteBuffer}，提供以下核心能力：
+ * <ul>
+ *   <li><b>双指针模型</b>：独立的 {@code readerIndex} / {@code writerIndex}，
+ *       支持顺序读写而不依赖 ByteBuffer 的 position/limit</li>
+ *   <li><b>便捷读写 API</b>：readByte、readShort、readInt、writeByte、writeShort 等</li>
+ *   <li><b>零拷贝切片</b>：{@link #slice()} 返回共享底层数据的子缓冲区</li>
+ *   <li><b>引用计数</b>：子类（{@link PooledByteBuffer}）通过 retain/release 管理生命周期</li>
+ *   <li><b>I/O 兼容</b>：{@link #flipToFill()} / {@link #flipToFlush()} 保持与通道层的兼容</li>
+ * </ul>
  * </p>
+ *
+ * <p>双指针模型说明：
+ * <pre>
+ *   +-------------------+------------------+------------------+
+ *   | 0 <= readerIndex  | readerIndex <=   | writerIndex <=   |
+ *   |                   | writerIndex      | capacity         |
+ *   +-------------------+------------------+------------------+
+ *   |   已读（discard）  |   可读数据        |   可写空间        |
+ *   +-------------------+------------------+------------------+
+ * </pre>
+ * </p>
+ *
+ * @author Getty Project
+ * @see PooledByteBuffer
+ * @see ByteBufferPool
  */
 public class RetainableByteBuffer {
 
-    /**
-     * 底层 ByteBuffer 实例
-     */
+    /** 底层 ByteBuffer 实例 */
     private final ByteBuffer buffer;
+
+    /** 读指针位置 */
+    private int readerIndex;
+
+    /** 写指针位置 */
+    private int writerIndex;
 
     /**
      * 构造 RetainableByteBuffer。
@@ -40,7 +65,22 @@ public class RetainableByteBuffer {
      */
     RetainableByteBuffer(ByteBuffer buffer, java.util.function.Consumer<RetainableByteBuffer> releaser) {
         this.buffer = buffer;
+        this.readerIndex = 0;
+        this.writerIndex = 0;
     }
+
+    /**
+     * 使用指定 ByteBuffer 构造实例（切片场景使用）。
+     *
+     * @param buffer 底层 ByteBuffer（通常是 slice/duplicate）
+     */
+    RetainableByteBuffer(ByteBuffer buffer) {
+        this.buffer = buffer;
+        this.readerIndex = buffer.position();
+        this.writerIndex = buffer.limit();
+    }
+
+    // ======================== 底层 ByteBuffer 访问 ========================
 
     /**
      * 获取底层的 ByteBuffer 对象。
@@ -51,71 +91,711 @@ public class RetainableByteBuffer {
         return buffer;
     }
 
+    // ======================== 双指针模型 ========================
+
+    /**
+     * 获取读指针位置。
+     *
+     * @return 当前 readerIndex
+     */
+    public int readerIndex() {
+        return readerIndex;
+    }
+
+    /**
+     * 设置读指针位置。
+     *
+     * @param readerIndex 新位置，不超过 writerIndex
+     * @return this
+     */
+    public RetainableByteBuffer readerIndex(int readerIndex) {
+        if (readerIndex < 0 || readerIndex > writerIndex) {
+            throw new IndexOutOfBoundsException(
+                    "readerIndex: " + readerIndex + " (expected: 0 <= readerIndex <= writerIndex(" + writerIndex + "))");
+        }
+        this.readerIndex = readerIndex;
+        return this;
+    }
+
+    /**
+     * 获取写指针位置。
+     *
+     * @return 当前 writerIndex
+     */
+    public int writerIndex() {
+        return writerIndex;
+    }
+
+    /**
+     * 设置写指针位置。
+     *
+     * @param writerIndex 新位置，范围 [readerIndex, capacity]
+     * @return this
+     */
+    public RetainableByteBuffer writerIndex(int writerIndex) {
+        if (writerIndex < readerIndex || writerIndex > buffer.capacity()) {
+            throw new IndexOutOfBoundsException(
+                    "writerIndex: " + writerIndex + " (expected: readerIndex(" + readerIndex + ") <= writerIndex <= capacity(" + buffer.capacity() + "))");
+        }
+        this.writerIndex = writerIndex;
+        return this;
+    }
+
+    /**
+     * 可读字节数（writerIndex - readerIndex）。
+     *
+     * @return 可读字节数
+     */
+    public int readableBytes() {
+        return writerIndex - readerIndex;
+    }
+
+    /**
+     * 可写入字节数（capacity - writerIndex）。
+     *
+     * @return 可写字节数
+     */
+    public int writableBytes() {
+        return buffer.capacity() - writerIndex;
+    }
+
+    /**
+     * 缓冲区总容量。
+     *
+     * @return 容量
+     */
+    public int capacity() {
+        return buffer.capacity();
+    }
+
+    /**
+     * 是否有可读数据。
+     *
+     * @return true 如果 readableBytes() > 0
+     */
+    public boolean isReadable() {
+        return writerIndex > readerIndex;
+    }
+
+    /**
+     * 重置读写指针到 0。
+     *
+     * @return this
+     */
+    public RetainableByteBuffer clear() {
+        readerIndex = 0;
+        writerIndex = 0;
+        return this;
+    }
+
+    // ======================== 读操作 ========================
+
+    /**
+     * 读取一个字节（有符号），readerIndex + 1。
+     *
+     * @return 字节值
+     */
+    public byte readByte() {
+        checkReadableBytes(1);
+        return buffer.get(readerIndex++);
+    }
+
+    /**
+     * 读取一个无符号字节，readerIndex + 1。
+     *
+     * @return 无符号字节值 (0~255)
+     */
+    public short readUnsignedByte() {
+        return (short) (readByte() & 0xFF);
+    }
+
+    /**
+     * 读取 2 字节 short（大端序），readerIndex + 2。
+     *
+     * @return short 值
+     */
+    public short readShort() {
+        checkReadableBytes(2);
+        short v = buffer.getShort(readerIndex);
+        readerIndex += 2;
+        return v;
+    }
+
+    /**
+     * 读取无符号 2 字节 short（大端序），readerIndex + 2。
+     *
+     * @return 无符号 short 值 (0~65535)
+     */
+    public int readUnsignedShort() {
+        return readShort() & 0xFFFF;
+    }
+
+    /**
+     * 读取 4 字节 int（大端序），readerIndex + 4。
+     *
+     * @return int 值
+     */
+    public int readInt() {
+        checkReadableBytes(4);
+        int v = buffer.getInt(readerIndex);
+        readerIndex += 4;
+        return v;
+    }
+
+    /**
+     * 读取 8 字节 long（大端序），readerIndex + 8。
+     *
+     * @return long 值
+     */
+    public long readLong() {
+        checkReadableBytes(8);
+        long v = buffer.getLong(readerIndex);
+        readerIndex += 8;
+        return v;
+    }
+
+    /**
+     * 读取数据到字节数组，readerIndex += bytes.length。
+     *
+     * @param bytes 目标数组
+     * @return this
+     */
+    public RetainableByteBuffer readBytes(byte[] bytes) {
+        return readBytes(bytes, 0, bytes.length);
+    }
+
+    /**
+     * 读取数据到字节数组的指定区域。
+     *
+     * @param bytes  目标数组
+     * @param offset 目标数组起始偏移
+     * @param length 读取长度
+     * @return this
+     */
+    public RetainableByteBuffer readBytes(byte[] bytes, int offset, int length) {
+        checkReadableBytes(length);
+        if (buffer.hasArray()) {
+            // 堆内存快速路径：直接 System.arraycopy，零逐字节开销
+            System.arraycopy(buffer.array(), buffer.arrayOffset() + readerIndex, bytes, offset, length);
+        } else {
+            // 直接内存路径：批量 get
+            int oldPos = buffer.position();
+            int oldLim = buffer.limit();
+            buffer.position(readerIndex);
+            buffer.limit(readerIndex + length);
+            buffer.get(bytes, offset, length);
+            buffer.position(oldPos);
+            buffer.limit(oldLim);
+        }
+        readerIndex += length;
+        return this;
+    }
+
+    /**
+     * 跳过指定字节数，readerIndex += length。
+     *
+     * @param length 跳过的字节数
+     * @return this
+     */
+    public RetainableByteBuffer skipBytes(int length) {
+        if (length > readableBytes()) {
+            throw new IndexOutOfBoundsException(
+                    "skipBytes: " + length + " > readableBytes: " + readableBytes());
+        }
+        readerIndex += length;
+        return this;
+    }
+
+    // ======================== 写操作 ========================
+
+    /**
+     * 写入一个字节，writerIndex + 1。
+     *
+     * @param value 字节值
+     * @return this
+     */
+    public RetainableByteBuffer writeByte(int value) {
+        buffer.put(writerIndex, (byte) value);
+        writerIndex += 1;
+        return this;
+    }
+
+    /**
+     * 写入 2 字节 short（大端序），writerIndex + 2。
+     *
+     * @param value short 值
+     * @return this
+     */
+    public RetainableByteBuffer writeShort(int value) {
+        buffer.putShort(writerIndex, (short) value);
+        writerIndex += 2;
+        return this;
+    }
+
+    /**
+     * 写入 4 字节 int（大端序），writerIndex + 4。
+     *
+     * @param value int 值
+     * @return this
+     */
+    public RetainableByteBuffer writeInt(int value) {
+        buffer.putInt(writerIndex, value);
+        writerIndex += 4;
+        return this;
+    }
+
+    /**
+     * 写入 8 字节 long（大端序），writerIndex + 8。
+     *
+     * @param value long 值
+     * @return this
+     */
+    public RetainableByteBuffer writeLong(long value) {
+        buffer.putLong(writerIndex, value);
+        writerIndex += 8;
+        return this;
+    }
+
+    /**
+     * 写入字节数组，writerIndex += bytes.length。
+     *
+     * @param bytes 数据
+     * @return this
+     */
+    public RetainableByteBuffer writeBytes(byte[] bytes) {
+        return writeBytes(bytes, 0, bytes.length);
+    }
+
+    /**
+     * 写入字节数组的指定区域。
+     *
+     * @param bytes  源数组
+     * @param offset 源数组起始偏移
+     * @param length 写入长度
+     * @return this
+     */
+    public RetainableByteBuffer writeBytes(byte[] bytes, int offset, int length) {
+        if (length > writableBytes()) {
+            throw new IndexOutOfBoundsException(
+                    "writeBytes: " + length + " > writableBytes: " + writableBytes());
+        }
+        if (buffer.hasArray()) {
+            // 堆内存快速路径：直接 System.arraycopy
+            System.arraycopy(bytes, offset, buffer.array(), buffer.arrayOffset() + writerIndex, length);
+        } else {
+            // 直接内存路径：批量 put
+            int oldPos = buffer.position();
+            int oldLim = buffer.limit();
+            buffer.position(writerIndex);
+            buffer.limit(writerIndex + length);
+            buffer.put(bytes, offset, length);
+            buffer.position(oldPos);
+            buffer.limit(oldLim);
+        }
+        writerIndex += length;
+        return this;
+    }
+
+    /**
+     * 写入另一个 RetainableByteBuffer 的可读数据。
+     *
+     * @param src 源缓冲区
+     * @return this
+     */
+    public RetainableByteBuffer writeBytes(RetainableByteBuffer src) {
+        int length = src.readableBytes();
+        if (buffer.hasArray() && src.buffer.hasArray()) {
+            // 双方都是堆内存：最快路径，单次 arraycopy
+            System.arraycopy(src.buffer.array(), src.buffer.arrayOffset() + src.readerIndex,
+                    buffer.array(), buffer.arrayOffset() + writerIndex, length);
+        } else if (buffer.hasArray()) {
+            // 目标是堆内存，源是直接内存
+            int oldPos = src.buffer.position();
+            int oldLim = src.buffer.limit();
+            src.buffer.position(src.readerIndex);
+            src.buffer.limit(src.readerIndex + length);
+            src.buffer.get(buffer.array(), buffer.arrayOffset() + writerIndex, length);
+            src.buffer.position(oldPos);
+            src.buffer.limit(oldLim);
+        } else if (src.buffer.hasArray()) {
+            // 目标是直接内存，源是堆内存
+            int oldPos = buffer.position();
+            int oldLim = buffer.limit();
+            buffer.position(writerIndex);
+            buffer.limit(writerIndex + length);
+            buffer.put(src.buffer.array(), src.buffer.arrayOffset() + src.readerIndex, length);
+            buffer.position(oldPos);
+            buffer.limit(oldLim);
+        } else {
+            // 双方都是直接内存：通过临时数组中转
+            byte[] tmp = new byte[length];
+            int oldSrcPos = src.buffer.position();
+            int oldSrcLim = src.buffer.limit();
+            src.buffer.position(src.readerIndex);
+            src.buffer.limit(src.readerIndex + length);
+            src.buffer.get(tmp, 0, length);
+            src.buffer.position(oldSrcPos);
+            src.buffer.limit(oldSrcLim);
+
+            int oldPos = buffer.position();
+            int oldLim = buffer.limit();
+            buffer.position(writerIndex);
+            buffer.limit(writerIndex + length);
+            buffer.put(tmp, 0, length);
+            buffer.position(oldPos);
+            buffer.limit(oldLim);
+        }
+        src.readerIndex += length;
+        this.writerIndex += length;
+        return this;
+    }
+
+    /**
+     * 写入 ByteBuffer 的剩余数据，writerIndex += src.remaining()。
+     * <p>
+     * 堆内存场景下使用 System.arraycopy 实现高效批量拷贝。
+     * </p>
+     *
+     * @param src 源 ByteBuffer（position 到 limit 之间的数据）
+     * @return this
+     */
+    public RetainableByteBuffer writeBytes(ByteBuffer src) {
+        int length = src.remaining();
+        if (length > writableBytes()) {
+            throw new IndexOutOfBoundsException(
+                    "writeBytes: " + length + " > writableBytes: " + writableBytes());
+        }
+        if (buffer.hasArray() && src.hasArray()) {
+            // 双方都是堆内存：最快路径
+            System.arraycopy(src.array(), src.arrayOffset() + src.position(),
+                    buffer.array(), buffer.arrayOffset() + writerIndex, length);
+            src.position(src.position() + length);
+        } else if (buffer.hasArray()) {
+            // 目标是堆内存，源是直接内存
+            src.get(buffer.array(), buffer.arrayOffset() + writerIndex, length);
+        } else {
+            // 目标是直接内存
+            int oldPos = buffer.position();
+            int oldLim = buffer.limit();
+            buffer.position(writerIndex);
+            buffer.limit(writerIndex + length);
+            buffer.put(src);
+            buffer.position(oldPos);
+            buffer.limit(oldLim);
+        }
+        writerIndex += length;
+        return this;
+    }
+
+    // ======================== 绝对位置读写（不影响指针） ========================
+
+    /**
+     * 获取指定位置的字节（不影响 readerIndex）。
+     *
+     * @param index 位置
+     * @return 字节值
+     */
+    public byte getByte(int index) {
+        return buffer.get(index);
+    }
+
+    /**
+     * 获取指定位置的无符号字节（不影响 readerIndex）。
+     *
+     * @param index 位置
+     * @return 无符号字节值 (0~255)
+     */
+    public short getUnsignedByte(int index) {
+        return (short) (buffer.get(index) & 0xFF);
+    }
+
+    /**
+     * 获取指定位置的 short（不影响 readerIndex）。
+     *
+     * @param index 位置
+     * @return short 值
+     */
+    public short getShort(int index) {
+        return buffer.getShort(index);
+    }
+
+    /**
+     * 获取指定位置的 int（不影响 readerIndex）。
+     *
+     * @param index 位置
+     * @return int 值
+     */
+    public int getInt(int index) {
+        return buffer.getInt(index);
+    }
+
+    /**
+     * 设置指定位置的字节（不影响 writerIndex）。
+     *
+     * @param index 位置
+     * @param value 字节值
+     * @return this
+     */
+    public RetainableByteBuffer setByte(int index, int value) {
+        buffer.put(index, (byte) value);
+        return this;
+    }
+
+    /**
+     * 设置指定位置的 short（不影响 writerIndex）。
+     *
+     * @param index 位置
+     * @param value short 值
+     * @return this
+     */
+    public RetainableByteBuffer setShort(int index, int value) {
+        buffer.putShort(index, (short) value);
+        return this;
+    }
+
+    /**
+     * 设置指定位置的 int（不影响 writerIndex）。
+     *
+     * @param index 位置
+     * @param value int 值
+     * @return this
+     */
+    public RetainableByteBuffer setInt(int index, int value) {
+        buffer.putInt(index, value);
+        return this;
+    }
+
+    // ======================== 零拷贝切片 ========================
+
+    /**
+     * 创建零拷贝切片，共享底层数据。
+     * <p>
+     * 返回一个新的 RetainableByteBuffer，其数据范围是 [readerIndex, writerIndex)，
+     * 与父缓冲区共享底层 ByteBuffer 的数据。修改任一方数据对另一方可见。
+     * </p>
+     * <p>
+     * <b>注意</b>：切片的生命周期不得超过父缓冲区。父缓冲区 release() 后，切片不可再使用。
+     * 如果需要独立生命周期，应使用 {@link #copy()} 创建深拷贝。
+     * </p>
+     *
+     * @return 共享底层数据的子缓冲区
+     */
+    public RetainableByteBuffer slice() {
+        int len = readableBytes();
+        // 设置 ByteBuffer 的 position/limit 以创建精确的 slice
+        int oldPos = buffer.position();
+        int oldLim = buffer.limit();
+        buffer.position(readerIndex);
+        buffer.limit(readerIndex + len);
+        ByteBuffer sliced = buffer.slice(); // 共享底层数据，独立 position/limit/capacity
+        buffer.position(oldPos);
+        buffer.limit(oldLim);
+        return new RetainableByteBuffer(sliced);
+    }
+
+    /**
+     * 创建深拷贝，独立底层数据。
+     * <p>
+     * 分配新的 ByteBuffer 并复制 [readerIndex, writerIndex) 范围的数据。
+     * 新缓冲区拥有完全独立的生命周期，可安全地在父缓冲区释放后继续使用。
+     * </p>
+     *
+     * @return 数据独立的子缓冲区
+     */
+    public RetainableByteBuffer copy() {
+        int len = readableBytes();
+        ByteBuffer copy = ByteBuffer.allocate(len);
+        if (buffer.hasArray()) {
+            System.arraycopy(buffer.array(), buffer.arrayOffset() + readerIndex, copy.array(), copy.arrayOffset(), len);
+        } else {
+            int oldPos = buffer.position();
+            int oldLim = buffer.limit();
+            buffer.position(readerIndex);
+            buffer.limit(readerIndex + len);
+            copy.put(buffer);
+            buffer.position(oldPos);
+            buffer.limit(oldLim);
+            copy.flip();
+        }
+        return new RetainableByteBuffer(copy);
+    }
+
+    // ======================== 堆内存访问 ========================
+
+    /**
+     * 底层是否为堆内存 ByteBuffer（有 backing array）。
+     *
+     * @return true 如果是堆内存
+     */
+    public boolean hasArray() {
+        return buffer.hasArray();
+    }
+
+    /**
+     * 获取底层堆内存数组。仅当 {@link #hasArray()} 返回 true 时可用。
+     *
+     * @return 底层 byte[]
+     */
+    public byte[] array() {
+        return buffer.array();
+    }
+
+    /**
+     * 底层数组偏移量。
+     *
+     * @return 数组偏移
+     */
+    public int arrayOffset() {
+        return buffer.arrayOffset();
+    }
+
+    // ======================== I/O 兼容方法 ========================
+
     /**
      * 返回缓冲区中剩余的字节数。
      *
-     * @return 剩余字节数
+     * @return 剩余字节数（等同于 {@link #readableBytes()}）
+     * @deprecated 使用 {@link #readableBytes()} 替代
      */
+    @Deprecated
     public int remaining() {
-        return buffer.remaining();
+        return readableBytes();
     }
 
     /**
      * 检查缓冲区是否还有剩余数据。
      *
-     * @return 如果还有数据未处理，则返回 true；否则返回 false
+     * @return true 如果 readableBytes() > 0
+     * @deprecated 使用 {@link #isReadable()} 替代
      */
+    @Deprecated
     public boolean hasRemaining() {
-        return buffer.remaining() > 0;
+        return isReadable();
     }
 
     /**
      * 往缓冲区追加数据。
      *
      * @param bytes 要写入的字节数组
+     * @deprecated 使用 {@link #writeBytes(byte[])} 替代
      */
+    @Deprecated
     public void put(byte[] bytes) {
-        BufferUtil.append(buffer, bytes);
+        writeBytes(bytes);
     }
 
     /**
      * 从缓冲区读取数据到字节数组。
      *
      * @param bytes 目标字节数组
+     * @deprecated 使用 {@link #readBytes(byte[])} 替代
      */
+    @Deprecated
     public void get(byte[] bytes) {
-        BufferUtil.writeTo(buffer, bytes);
+        readBytes(bytes);
     }
 
     /**
-     * 将缓冲区切换到填充模式。
+     * 将缓冲区切换到填充模式（I/O 写入准备）。
+     * <p>
+     * 将 writerIndex 同步到 ByteBuffer.position，capacity 同步到 ByteBuffer.limit，
+     * 使通道可以调用 {@code channel.read(buffer)} 追加数据。
+     * I/O 完成后必须调用 {@link #flipToFlush()} 恢复。
+     * </p>
      *
-     * @return 切换前的 position，用于后续 flipToFlush 恢复
+     * @return 切换后的 ByteBuffer，可直接传给 channel.read()
      */
     public ByteBuffer flipToFill() {
-        BufferUtil.flipToFill(buffer);
+        // 同步 writerIndex 到 ByteBuffer
+        buffer.position(writerIndex);
+        buffer.limit(buffer.capacity());
         return buffer;
     }
 
     /**
-     * 将缓冲区切换到刷新模式。
+     * 将缓冲区切换到刷新模式（I/O 读取完成）。
+     * <p>
+     * 从 ByteBuffer.position 更新 writerIndex，并重置 readerIndex 为 0，
+     * 使后续 handler 可以从头读取数据。
+     * </p>
      */
     public void flipToFlush() {
-        BufferUtil.flipToFlush(buffer);
+        // 从 I/O 同步回双指针
+        writerIndex = buffer.position();
+        readerIndex = 0;
+        // 恢复 ByteBuffer 为读模式
+        buffer.flip();
+    }
+
+    // ======================== 零拷贝视图 ========================
+
+    /**
+     * 创建可读数据的 ByteBuffer 视图，不拷贝数据。
+     * <p>
+     * 堆内存场景下直接包装底层数组（零拷贝），可直接传给 SSLEngine 等组件。
+     * 调用方不得修改返回的 ByteBuffer 的 position/limit，且生命周期不得超过本缓冲区。
+     * </p>
+     *
+     * @return 共享底层数据的 ByteBuffer 视图
+     */
+    public ByteBuffer asByteBuffer() {
+        if (buffer.hasArray()) {
+            // 零拷贝：直接包装底层数组的可见区域
+            return ByteBuffer.wrap(buffer.array(), buffer.arrayOffset() + readerIndex, readableBytes());
+        }
+        // 直接内存：创建 slice 视图
+        int oldPos = buffer.position();
+        int oldLim = buffer.limit();
+        buffer.position(readerIndex);
+        buffer.limit(writerIndex);
+        ByteBuffer sliced = buffer.slice();
+        buffer.position(oldPos);
+        buffer.limit(oldLim);
+        return sliced;
+    }
+
+    // ======================== 引用计数（子类重写） ========================
+
+    /**
+     * 增加引用计数。
+     * <p>
+     * 基类实现为空操作。子类 {@link PooledByteBuffer} 重写此方法实现真正的引用计数递增。
+     * </p>
+     */
+    public void retain() {
+        // 基类空实现，子类重写
     }
 
     /**
-     * 释放缓冲区。子类（PooledByteBuffer）重写此方法实现池化归还。
+     * 释放缓冲区。
+     * <p>
+     * 基类实现为空操作（返回 false）。子类 {@link PooledByteBuffer} 重写此方法，
+     * 递减引用计数并在归零时归还给池。
+     * </p>
      *
-     * @return true 如果缓冲区已释放
+     * @return true 如果缓冲区已释放（引用计数归零）
      */
     public boolean release() {
         return false;
     }
 
+    // ======================== 内部工具 ========================
+
+    /**
+     * 检查可读字节数是否满足需求。
+     *
+     * @param minReadableBytes 最少需要的可读字节数
+     */
+    private void checkReadableBytes(int minReadableBytes) {
+        if (readableBytes() < minReadableBytes) {
+            throw new IndexOutOfBoundsException(
+                    "readableBytes: " + readableBytes() + " < expected: " + minReadableBytes);
+        }
+    }
+
     @Override
     public String toString() {
-        return String.format("%s@%x{%s}",
-                getClass().getSimpleName(), hashCode(), BufferUtil.toDetailString(buffer));
+        return String.format("RetainableByteBuffer@%x{reader=%d, writer=%d, capacity=%d}",
+                System.identityHashCode(this), readerIndex, writerIndex, buffer.capacity());
     }
 }

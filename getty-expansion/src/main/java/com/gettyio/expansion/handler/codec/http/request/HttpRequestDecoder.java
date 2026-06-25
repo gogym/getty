@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.http.request;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpDecodeSerializer;
@@ -38,8 +39,10 @@ public class HttpRequestDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-
-        autoByteBuffer.writeBytes((byte[]) in);
+        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
+        autoByteBuffer.writeBytes(bytes);
 
         if (httpRequest == null) {
             httpRequest = new HttpRequest();

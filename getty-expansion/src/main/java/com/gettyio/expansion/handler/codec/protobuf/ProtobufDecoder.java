@@ -15,6 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.protobuf;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -73,7 +74,9 @@ public class ProtobufDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        byte[] bytes = (byte[]) in;
+        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
         if (bytes.length == 0) {
             return;
         }

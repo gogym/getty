@@ -251,22 +251,23 @@ public class PoolArena {
     // ======================== 分配（Allocate） ========================
 
     /**
-     * 线程本地分配上下文，用于追踪最近一次分配的 Chunk/Offset 信息。
-     * 由于 PoolThreadCache 的 allocate 是单线程调用，所以这里是安全的。
+     * 最近一次分配的 PoolChunk（由 allocate 设置，由 PoolThreadCache 读取）。
+     * 必须在 allocate() 之后立即调用 getLastAllocChunk() 获取。
+     * 由于 chunkLock 提供内存屏障，无需 volatile。
      */
-    private final ThreadLocal<AllocationContext> allocContext = new ThreadLocal<AllocationContext>() {
-        @Override
-        protected AllocationContext initialValue() {
-            return new AllocationContext();
-        }
-    };
+    private PoolChunk lastAllocChunk;
+
+    /**
+     * 最近一次分配的内存偏移量。
+     */
+    private int lastAllocOffset;
 
     /**
      * 获取最近一次分配对应的 PoolChunk。
      * 必须在 allocate() 之后立即调用。
      */
     public PoolChunk getLastAllocChunk() {
-        return allocContext.get().chunk;
+        return lastAllocChunk;
     }
 
     /**
@@ -274,15 +275,7 @@ public class PoolArena {
      * 必须在 allocate() 之后立即调用。
      */
     public int getLastAllocOffset() {
-        return allocContext.get().offset;
-    }
-
-    /**
-     * 分配上下文，记录单次分配的元数据。
-     */
-    static class AllocationContext {
-        PoolChunk chunk;
-        int offset;
+        return lastAllocOffset;
     }
 
     /**
@@ -309,10 +302,9 @@ public class PoolArena {
         // 规范化容量
         int normCapacity = normalizeCapacity(capacity);
 
-        // 重置分配上下文
-        AllocationContext ctx = allocContext.get();
-        ctx.chunk = null;
-        ctx.offset = 0;
+        // 重置分配记录
+        lastAllocChunk = null;
+        lastAllocOffset = 0;
 
         // 巨型分配：直接分配，不经过池
         if (normCapacity < 0 || normCapacity > chunkSize / 2) {
@@ -326,8 +318,8 @@ public class PoolArena {
                 PoolChunk chunk = chunks.get(i);
                 ByteBuffer buf = chunk.allocate(normCapacity);
                 if (buf != null) {
-                    ctx.chunk = chunk;
-                    ctx.offset = chunk.lastAllocOffset();
+                    lastAllocChunk = chunk;
+                    lastAllocOffset = chunk.lastAllocOffset();
                     return buf;
                 }
             }
@@ -338,8 +330,8 @@ public class PoolArena {
 
             ByteBuffer buf = newChunk.allocate(normCapacity);
             if (buf != null) {
-                ctx.chunk = newChunk;
-                ctx.offset = newChunk.lastAllocOffset();
+                lastAllocChunk = newChunk;
+                lastAllocOffset = newChunk.lastAllocOffset();
                 return buf;
             }
         } finally {
@@ -353,29 +345,13 @@ public class PoolArena {
     /**
      * 将请求容量规范化到最近的 size class。
      * <p>
-     * 规范化规则：
-     * <ul>
-     *   <li>capacity <= 0: 返回 16（最小分配）</li>
-     *   <li>capacity <= 496: 向上取整到 16 的倍数（Tiny）</li>
-     *   <li>capacity <= pageSize: 向上取整到 2 的幂（Small）</li>
-     *   <li>capacity > pageSize: 向上取整到 2 的幂（Normal）</li>
-     * </ul>
+     * 委托给 {@link PoolThreadCache#normalizeCapacity(int)} 以消除重复逻辑。
      *
      * @param capacity 请求容量
-     * @return 规范化后的容量；如果超出可池化范围返回 -1
+     * @return 规范化后的容量
      */
     int normalizeCapacity(int capacity) {
-        if (capacity <= 0) {
-            return TINY_ALIGNMENT;
-        }
-
-        if (capacity < 512) {
-            // Tiny: 向上取整到 16 的倍数
-            return (capacity + TINY_ALIGNMENT - 1) & ~(TINY_ALIGNMENT - 1);
-        }
-
-        // Small 和 Normal: 向上取整到 2 的幂
-        return PoolChunk.nextPowerOfTwo(capacity);
+        return PoolThreadCache.normalizeCapacity(capacity);
     }
 
     /**

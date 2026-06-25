@@ -24,7 +24,6 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
@@ -81,31 +80,37 @@ public class NioEventLoop implements EventLoop {
         workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
-                while (!shutdown) {
-                    try {
-                        selector.select(0);
-                    } catch (IOException e) {
-                        LOGGER.error("select() error", e);
-                    }
-
-                    Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                    while (it.hasNext()) {
-                        SelectionKey sk = it.next();
-                        it.remove();
-
-                        Object attachment = sk.attachment();
-                        if (!(attachment instanceof NioChannel)) {
-                            continue;
+                // 长生命周期读缓冲区：整个事件循环复用，避免每次 read 都 acquire/release
+                RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+                try {
+                    while (!shutdown) {
+                        try {
+                            selector.select(); // 使用内置超时，确保空轮询检测生效
+                        } catch (IOException e) {
+                            LOGGER.error("select() error", e);
                         }
 
-                        NioChannel nioChannel = (NioChannel) attachment;
+                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                        while (it.hasNext()) {
+                            SelectionKey sk = it.next();
+                            it.remove();
 
-                        if (sk.isConnectable()) {
-                            handleConnect(sk, nioChannel);
-                        } else if (sk.isReadable()) {
-                            handleRead(sk, nioChannel);
+                            Object attachment = sk.attachment();
+                            if (!(attachment instanceof NioChannel)) {
+                                continue;
+                            }
+
+                            NioChannel nioChannel = (NioChannel) attachment;
+
+                            if (sk.isConnectable()) {
+                                handleConnect(sk, nioChannel);
+                            } else if (sk.isReadable()) {
+                                handleRead(sk, nioChannel, readBuffer);
+                            }
                         }
                     }
+                } finally {
+                    readBuffer.release();
                 }
             }
         });
@@ -131,28 +136,26 @@ public class NioEventLoop implements EventLoop {
     /**
      * 处理读事件。从通道读取数据并输送到管道。
      * <p>
-     * 堆内存场景使用零拷贝方式（直接访问底层数组），避免每次读取分配新数组。
+     * 复用事件循环级别的读缓冲区，避免每次读操作的 acquire/release 开销。
+     * 管道处理是同步的，因此缓冲区可在下一次读循环安全复用。
      * </p>
      */
-    private void handleRead(SelectionKey sk, NioChannel nioChannel) {
+    private void handleRead(SelectionKey sk, NioChannel nioChannel, RetainableByteBuffer readBuffer) {
         java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
-        RetainableByteBuffer readBuffer = null;
         try {
-            readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+            // 复用缓冲区：重置指针后重新填充
+            readBuffer.clear();
             int recCount = channel.read(readBuffer.flipToFill());
             if (recCount == -1) {
                 // 对端关闭连接
-                readBuffer.release();
-                readBuffer = null;
                 nioChannel.close();
+                return;
+            }
+            if (recCount == 0) {
                 return;
             }
         } catch (Exception e) {
             LOGGER.error("channel read error", e);
-            if (readBuffer != null) {
-                readBuffer.release();
-                readBuffer = null;
-            }
             nioChannel.close();
             return;
         }
@@ -160,20 +163,10 @@ public class NioEventLoop implements EventLoop {
         // 切换到读模式
         readBuffer.flipToFlush();
 
-        if (readBuffer.hasRemaining()) {
-            // 堆内存零拷贝：直接使用底层数组，避免分配新数组
-            byte[] bytes;
-            ByteBuffer buf = readBuffer.getBuffer();
-            if (buf.hasArray()) {
-                bytes = buf.array();
-            } else {
-                bytes = new byte[readBuffer.remaining()];
-                readBuffer.getBuffer().get(bytes);
-            }
-            nioChannel.doRead(bytes);
+        if (readBuffer.isReadable()) {
+            // 零拷贝：直接传递 RetainableByteBuffer（管道同步消费，下一次 read 前数据已被处理）
+            nioChannel.doRead(readBuffer);
         }
-
-        readBuffer.release();
     }
 
     @Override

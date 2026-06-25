@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
@@ -53,10 +54,14 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
+        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
+
         if (handShake) {
             // 已握手：解析数据帧
             if (protocolVersion >= WebSocketConstants.SPLIT_VERSION6) {
-                byteBuffer.writeBytes((byte[]) in);
+                byteBuffer.writeBytes(bytes);
                 WebSocketFrame frame = decodeFrame(byteBuffer);
                 if (frame != null) {
                     ctx.fireChannelProcess(ChannelState.CHANNEL_READ, frame);
@@ -64,11 +69,11 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
                 }
             } else {
                 // 低版本协议透传给父类处理
-                super.channelRead(ctx, in);
+                super.channelRead(ctx, bytes);
             }
         } else {
             // 未握手：解析握手请求
-            byteBuffer.writeBytes((byte[]) in);
+            byteBuffer.writeBytes(bytes);
             WebSocketHandShake.parserRequest(byteBuffer, requestInfo);
             if (requestInfo.getReadStatus() != WebSocketHandShake.READ_CONTENT) {
                 // 数据不完整，等待更多数据
@@ -76,11 +81,13 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
             }
             // 发送握手响应
             byte[] response = WebSocketHandShake.generateHandshake(requestInfo, ctx.channel()).getBytes();
+            RetainableByteBuffer responseBuf = ctx.channel().getByteBufferPool().acquire(response.length);
+            responseBuf.writeBytes(response);
             if (ctx.channel().getSslHandler() == null) {
-                ctx.channel().writeToChannel(response);
+                ctx.channel().writeToChannel(responseBuf);
             } else {
                 // SSL 模式下，握手信息需经 SSL 编码后直接发送，避免经过其他 encoder
-                ctx.channel().getSslHandler().channelWrite(ctx, response);
+                ctx.channel().getSslHandler().channelWrite(ctx, responseBuf);
             }
             protocolVersion = requestInfo.getSecVersion();
             handShake = true;

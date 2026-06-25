@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
@@ -53,6 +54,7 @@ public class WebSocketEncoder extends MessageToByteEncoder {
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         Object handshakeAttr = ctx.channel().getChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE);
         if (handshakeAttr != null && (boolean) handshakeAttr) {
+            byte[] encoded;
             if (obj instanceof WebSocketFrame) {
                 WebSocketFrame frame = (WebSocketFrame) obj;
                 byte[] payload = frame.getPayloadData();
@@ -63,15 +65,18 @@ public class WebSocketEncoder extends MessageToByteEncoder {
                     buf.writeBytes(WebSocketConstants.BEGIN_MSG.getBytes(CharsetUtil.UTF_8));
                     buf.writeBytes(payload);
                     buf.writeBytes(WebSocketConstants.END_MSG.getBytes(CharsetUtil.UTF_8));
-                    obj = buf.array();
+                    encoded = buf.array();
                 } else {
-                    obj = encodeFrame(payload, frame.getOpcode());
+                    encoded = encodeFrame(payload, frame.getOpcode());
                 }
             } else {
                 // 非 WebSocketFrame 对象，默认构建二进制帧
                 byte[] payload = ObjectUtil.ObjToByteArray(obj);
-                obj = encodeFrame(payload, Opcode.BINARY.getCode());
+                encoded = encodeFrame(payload, Opcode.BINARY.getCode());
             }
+            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(encoded.length);
+            buf.writeBytes(encoded);
+            obj = buf;
         }
         super.channelWrite(ctx, obj);
     }

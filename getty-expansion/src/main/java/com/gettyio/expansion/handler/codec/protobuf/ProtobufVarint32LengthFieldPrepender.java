@@ -15,6 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.protobuf;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
@@ -32,25 +33,26 @@ public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] body = (byte[]) obj;
+        RetainableByteBuffer input = (RetainableByteBuffer) obj;
+        byte[] body = new byte[input.readableBytes()];
+        input.readBytes(body);
         int bodyLen = body.length;
         int headerLen = computeRawVarint32Size(bodyLen);
-        byte[] output = new byte[headerLen + bodyLen];
+        RetainableByteBuffer output = ctx.channel().getByteBufferPool().acquire(headerLen + bodyLen);
 
         // 写入 Varint32 长度前缀
-        int offset = 0;
         int value = bodyLen;
         while (true) {
             if ((value & ~0x7F) == 0) {
-                output[offset++] = (byte) value;
+                output.writeByte((byte) value);
                 break;
             } else {
-                output[offset++] = (byte) ((value & 0x7F) | 0x80);
+                output.writeByte((byte) ((value & 0x7F) | 0x80));
                 value >>>= 7;
             }
         }
         // 写入消息体
-        System.arraycopy(body, 0, output, headerLen, bodyLen);
+        output.writeBytes(body);
 
         super.channelWrite(ctx, output);
     }

@@ -83,4 +83,13 @@ public interface LinkedQueue<T> {
      * @return 队列容量
      */
     int getCapacity();
+
+    /**
+     * 排空队列中的所有元素并唤醒所有等待的线程。
+     * <p>
+     * 用于关闭场景：释放残留资源，并通过 signalAll 唤醒
+     * 因 put/take 而阻塞的线程，使其能够检测到关闭状态并退出。
+     * </p>
+     */
+    void drain();
 }

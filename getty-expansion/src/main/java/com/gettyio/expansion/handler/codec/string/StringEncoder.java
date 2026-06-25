@@ -15,6 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.string;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
@@ -34,7 +35,10 @@ public class StringEncoder extends MessageToByteEncoder {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof String) {
-            obj = ((String) obj).getBytes(CharsetUtil.UTF_8);
+            byte[] bytes = ((String) obj).getBytes(CharsetUtil.UTF_8);
+            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+            buf.writeBytes(bytes);
+            obj = buf;
         }
         super.channelWrite(ctx, obj);
     }

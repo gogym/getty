@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.string;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
@@ -50,7 +51,9 @@ public class FixedLengthFrameDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        byte[] bytes = (byte[]) in;
+        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
         cumulation.writeBytes(bytes);
 
         while (cumulation.readableBytes() >= frameLength) {

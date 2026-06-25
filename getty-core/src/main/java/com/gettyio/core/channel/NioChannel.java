@@ -79,7 +79,7 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
         this.nioEventLoop = nioEventLoop;
         this.byteBufferPool = byteBufferPool;
         this.channelInitializer = channelInitializer;
-        this.bufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
+        this.bufferWriter = new BufferWriter(this, config.getBufferWriterQueueSize());
 
         try {
             channelInitializer.initChannel(this);
@@ -122,12 +122,12 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
     /**
      * 处理从 EventLoop 读取到的数据。
      *
-     * @param bytes 读取到的字节数组
+     * @param readBuf 读取到的缓冲区
      */
-    public void doRead(byte[] bytes) {
+    public void doRead(RetainableByteBuffer readBuf) {
         initiateClose = false;
         try {
-            invokePipeline(ChannelState.CHANNEL_READ, bytes);
+            invokePipeline(ChannelState.CHANNEL_READ, readBuf);
         } catch (Exception e) {
             logger.error("pipeline read handler error", e);
             close();
@@ -159,7 +159,7 @@ public class NioChannel extends AbstractSocketChannel implements Function<Buffer
     @Override
     public void writeToChannel(Object obj) {
         try {
-            bufferWriter.writeAndFlush((byte[]) obj);
+            bufferWriter.writeAndFlush((RetainableByteBuffer) obj);
         } catch (Exception e) {
             logger.error("writeToChannel failed", e);
         }

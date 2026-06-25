@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.util.queue;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import java.lang.reflect.Array;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -56,6 +57,9 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
     /** 队列空时的等待条件 */
     private final Condition notEmpty = lock.newCondition();
 
+    /** 标记队列是否已释放（用于 close 场景拒绝新的入队） */
+    private boolean released;
+
     /**
      * 默认容量 1024
      */
@@ -80,24 +84,31 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
 
     /**
      * 入队操作。将元素加入队列尾部，队列满时阻塞。
+     * <p>
+     * 若队列已被 drain 释放，则立即抛出 InterruptedException。
+     * </p>
      *
      * @param t 要入队的元素（不允许 null）
      * @return 入队的元素
-     * @throws InterruptedException 等待时被中断
+     * @throws InterruptedException 等待时被中断或队列已释放
      */
     @Override
     public T put(T t) throws InterruptedException {
-        checkNull(t);
-        lock.lock();
+        if (t == null) {
+            throw new NullPointerException("Element must not be null");
+        }
+        lock.lockInterruptibly();
         try {
             while (count == items.length) {
+                if (released) {
+                    throw new InterruptedException("Queue has been drained/closed");
+                }
                 notFull.await();
             }
-            items[putIndex] = t;
-            if (++putIndex == items.length) {
-                putIndex = 0;
+            if (released) {
+                throw new InterruptedException("Queue has been drained/closed");
             }
-            count++;
+            enqueue(t);
             notEmpty.signal();
         } finally {
             lock.unlock();
@@ -107,13 +118,19 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
 
     /**
      * 非阻塞出队操作。队列为空时返回 {@code null}。
+     * <p>
+     * 使用 tryLock() 快速路径：无竞争时直接获取锁，避免 CAS 自旋开销。
+     * 获取锁失败时立即返回 null（不阻塞）。
+     * </p>
      *
-     * @return 队头元素，队列为空时返回 {@code null}
+     * @return 队头元素，队列为空或有竞争时返回 {@code null}
      * @throws InterruptedException 操作时被中断
      */
     @Override
     public T poll() throws InterruptedException {
-        lock.lock();
+        if (!lock.tryLock()) {
+            return null;
+        }
         try {
             return (count == 0) ? null : dequeue();
         } finally {
@@ -129,7 +146,7 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
      */
     @Override
     public T take() throws InterruptedException {
-        lock.lock();
+        lock.lockInterruptibly();
         try {
             while (count == 0) {
                 notEmpty.await();
@@ -138,6 +155,17 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * 内部入队操作（必须在持有锁时调用）
+     */
+    private void enqueue(T t) {
+        items[putIndex] = t;
+        if (++putIndex == items.length) {
+            putIndex = 0;
+        }
+        count++;
     }
 
     /**
@@ -154,15 +182,6 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         return t;
     }
 
-    /**
-     * 检查元素不为 null
-     */
-    private void checkNull(T t) {
-        if (t == null) {
-            throw new NullPointerException("Element must not be null");
-        }
-    }
-
     @Override
     public int getCapacity() {
         return capacity;
@@ -171,5 +190,38 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
     @Override
     public int getCount() {
         return count;
+    }
+
+    /**
+     * 排空队列中的所有元素并唤醒所有等待的线程。
+     * <p>
+     * 设置 released 标记使后续 put 操作立即失败。
+     * 如果队列元素类型为 {@link RetainableByteBuffer}，则自动调用 release() 释放资源。
+     * 同时通过 signalAll 唤醒因 put/take 而阻塞的线程。
+     * </p>
+     */
+    @Override
+    public void drain() {
+        lock.lock();
+        try {
+            released = true;
+            for (int i = 0; i < count; i++) {
+                T item = items[removeIndex];
+                items[removeIndex] = null;
+                if (item instanceof RetainableByteBuffer) {
+                    ((RetainableByteBuffer) item).release();
+                }
+                if (++removeIndex == items.length) {
+                    removeIndex = 0;
+                }
+            }
+            count = 0;
+            putIndex = 0;
+            removeIndex = 0;
+            notFull.signalAll();
+            notEmpty.signalAll();
+        } finally {
+            lock.unlock();
+        }
     }
 }

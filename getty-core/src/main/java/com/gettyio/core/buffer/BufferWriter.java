@@ -15,14 +15,12 @@
  */
 package com.gettyio.core.buffer;
 
-import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import java.util.function.Function;
 import com.gettyio.core.util.queue.LinkedBlockQueue;
 import com.gettyio.core.util.queue.LinkedQueue;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * 控制数据输出。
@@ -45,79 +43,55 @@ public final class BufferWriter extends AbstractBufferWriter {
     private final LinkedQueue<RetainableByteBuffer> queue;
 
     /**
-     * 缓冲区池
-     */
-    private final ByteBufferPool byteBufferPool;
-
-    /**
      * 构造方法
      *
-     * @param byteBufferPool        内存池
      * @param flushFunction         flush 回调
      * @param bufferWriterQueueSize 写队列大小
      */
-    public BufferWriter(ByteBufferPool byteBufferPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
-        this.byteBufferPool = byteBufferPool;
+    public BufferWriter(Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
         this.function = flushFunction;
         this.queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
     }
 
+    /**
+     * 零拷贝写入：将 RetainableByteBuffer 直接入队，不进行任何数组拷贝。
+     * <p>
+     * 调用方必须确保传入的 RetainableByteBuffer 生命周期由 BufferWriter 接管，
+     * 即入队后不再使用此缓冲区。通道层在写出完成后会自动调用 release()。
+     * </p>
+     *
+     * @param byteBuf 待写出的缓冲区
+     * @throws IOException 已关闭或入队中断时抛出
+     */
     @Override
-    public void write(byte[] b, int off, int len) throws IOException {
+    public void writeAndFlush(RetainableByteBuffer byteBuf) throws IOException {
         if (closed) {
+            byteBuf.release();
             throw new IOException("BufferWriter is closed");
         }
-        if (b == null) {
-            throw new NullPointerException("byte array is null");
+        if (byteBuf == null) {
+            throw new NullPointerException("byteBuf is null");
         }
-        if (len <= 0) {
+        if (!byteBuf.isReadable()) {
+            byteBuf.release();
             return;
         }
-        // 从池中获取精确大小的缓冲区
-        RetainableByteBuffer byteBuf = byteBufferPool.acquire(len);
-        // 直接通过 arraycopy 写入指定范围数据，避免经过 BufferUtil 多层调用
-        ByteBuffer buf = byteBuf.getBuffer();
-        int pos = buf.position();
-        int limit = buf.limit();
-        if (pos == limit) {
-            buf.position(0);
-            buf.limit(buf.capacity());
-        } else {
-            int capacity = buf.capacity();
-            if (limit == capacity) {
-                buf.compact();
-            } else {
-                buf.position(limit);
-                buf.limit(capacity);
-            }
-            pos = limit;
-        }
-        // 直接 arraycopy，比 ByteBuffer.put() 更高效（堆内存场景）
-        if (buf.hasArray()) {
-            System.arraycopy(b, off, buf.array(), buf.arrayOffset() + buf.position(), len);
-            buf.position(buf.position() + len);
-        } else {
-            buf.put(b, off, len);
-        }
-        // 切回 flush 模式
-        buf.limit(buf.position());
-        buf.position(pos);
-
+        // 同步 ByteBuffer 的 position/limit 到 readerIndex/writerIndex，确保通道可直接写出
+        byteBuf.getBuffer().position(byteBuf.readerIndex());
+        byteBuf.getBuffer().limit(byteBuf.writerIndex());
         try {
             queue.put(byteBuf);
         } catch (InterruptedException e) {
+            // put 被中断（包括 drain 唤醒）：缓冲区未入队，由调用方释放
             byteBuf.release();
             Thread.currentThread().interrupt();
             throw new IOException("Write interrupted", e);
         }
-    }
-
-    @Override
-    public void writeAndFlush(byte[] b) throws IOException {
-        if (b == null) {
-            throw new NullPointerException("byte array is null");
+        // 防止 put 阻塞期间 close() 已通过 drain 释放队列，确保不泄漏已入队的缓冲区
+        if (closed) {
+            byteBuf.release();
+            throw new IOException("BufferWriter is closed");
         }
-        write(b, 0, b.length);
         flush();
     }
 
@@ -132,10 +106,18 @@ public final class BufferWriter extends AbstractBufferWriter {
     @Override
     public void close() throws IOException {
         if (closed) {
-            throw new IOException("BufferWriter is closed");
+            return;
         }
-        flush();
+        // 1. 先标记为已关闭，拒绝新的写入
         closed = true;
+        // 2. 尽力刷新：让通道消费队列中的数据
+        try {
+            function.apply(this);
+        } catch (Exception e) {
+            // 通道可能已关闭，忽略刷新异常
+        }
+        // 3. 排空队列中残留的缓冲区，防止内存泄漏，同时唤醒可能阻塞的 put 线程
+        queue.drain();
     }
 
     @Override

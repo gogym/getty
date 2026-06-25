@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.handler.ssl;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.handler.ssl.facade.SSLFacade;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -94,13 +95,16 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] bytes = (byte[]) obj;
+        RetainableByteBuffer buf = (RetainableByteBuffer) obj;
+        // 零拷贝：直接获取底层 ByteBuffer 视图，不分配中间 byte[]
+        ByteBuffer bb = buf.asByteBuffer();
         if (!ssl.isHandshakeCompleted()) {
-            // 握手阶段：解密对端握手数据，将握手响应写回通道
+            // 握手阶段需要完整 byte[]（SSLEngine 会消费 position）
+            byte[] bytes = new byte[bb.remaining()];
+            bb.get(bytes);
             processHandshake(bytes);
         } else {
-            // 数据传输阶段：加密应用数据
-            ssl.encrypt(ByteBuffer.wrap(bytes));
+            ssl.encrypt(bb);
         }
     }
 
@@ -108,13 +112,15 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
-        byte[] bytes = (byte[]) obj;
+        RetainableByteBuffer buf = (RetainableByteBuffer) obj;
+        // 零拷贝：直接获取底层 ByteBuffer 视图，不分配中间 byte[]
+        ByteBuffer bb = buf.asByteBuffer();
         if (!ssl.isHandshakeCompleted()) {
-            // 握手阶段：解密对端握手数据，将握手响应写回通道
+            byte[] bytes = new byte[bb.remaining()];
+            bb.get(bytes);
             processHandshake(bytes);
         } else {
-            // 数据传输阶段：解密网络数据，明文通过 SSLListener.onPlainData 向上传播
-            ssl.decrypt(ByteBuffer.wrap(bytes));
+            ssl.decrypt(bb);
         }
     }
 
@@ -132,9 +138,9 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             ssl.decrypt(buffer);
             // 解密后 buffer 中可能包含握手响应数据
             if (buffer.hasRemaining()) {
-                byte[] response = new byte[buffer.remaining()];
-                buffer.get(response);
-                channelHandlerContext().channel().writeToChannel(response);
+                RetainableByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(buffer.remaining());
+                buf.writeBytes(buffer);
+                channelHandlerContext().channel().writeToChannel(buf);
             }
         } catch (Exception e) {
             logger.error("SSL handshake data processing failed", e);
@@ -232,20 +238,24 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     /** 将加密数据写入底层通道 */
     private void emitToChannel(ByteBuffer wrappedBytes) {
         try {
-            byte[] b = new byte[wrappedBytes.remaining()];
-            wrappedBytes.get(b);
-            channelHandlerContext().channel().writeToChannel(b);
+            RetainableByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(wrappedBytes.remaining());
+            // 单次拷贝：直接从 ByteBuffer 写入 RetainableByteBuffer
+            buf.writeBytes(wrappedBytes);
+            channelHandlerContext().channel().writeToChannel(buf);
         } catch (Exception e) {
             logger.error("Failed to write SSL wrapped data to channel", e);
         }
     }
 
-    /** 将解密后的明文数据传播到管道链上游 */
+    /** 将解密后的明文数据传播到管道链上游（使用 RetainableByteBuffer 零拷贝传递） */
     private void emitToUpstream(ByteBuffer plainBytes) {
         try {
-            byte[] b = new byte[plainBytes.remaining()];
-            plainBytes.get(b);
-            super.channelRead(channelHandlerContext(), b);
+            int len = plainBytes.remaining();
+            if (len == 0) return;
+            // 单次拷贝：直接从 ByteBuffer 写入池化缓冲区
+            RetainableByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(len);
+            buf.writeBytes(plainBytes);
+            super.channelRead(channelHandlerContext(), buf);
         } catch (Exception e) {
             logger.error("Failed to propagate decrypted data upstream", e);
         }

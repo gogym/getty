@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.util.queue;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import java.lang.reflect.Array;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -57,6 +58,9 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
     /** 标记队列是否曾经满过（用于 poll 时唤醒等待的生产者） */
     private boolean wasFull;
 
+    /** 标记队列是否已释放（用于 close 场景拒绝新的入队） */
+    private boolean released;
+
     /**
      * 默认容量 1024
      */
@@ -81,10 +85,13 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
 
     /**
      * 入队操作。将元素加入队列尾部，队列满时阻塞。
+     * <p>
+     * 若队列已被 drain 释放，则立即抛出 InterruptedException。
+     * </p>
      *
      * @param t 要入队的元素（不允许 null）
      * @return 入队的元素
-     * @throws InterruptedException 等待时被中断
+     * @throws InterruptedException 等待时被中断或队列已释放
      */
     @Override
     public T put(T t) throws InterruptedException {
@@ -92,8 +99,14 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
         lock.lock();
         try {
             while (count == items.length) {
+                if (released) {
+                    throw new InterruptedException("Queue has been drained/closed");
+                }
                 wasFull = true;
                 notFull.await();
+            }
+            if (released) {
+                throw new InterruptedException("Queue has been drained/closed");
             }
             items[putIndex] = t;
             if (++putIndex == items.length) {
@@ -180,5 +193,37 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
     @Override
     public int getCount() {
         return count;
+    }
+
+    /**
+     * 排空队列中的所有元素并唤醒等待的生产者线程。
+     * <p>
+     * 设置 released 标记使后续 put 操作立即失败。
+     * 如果队列元素类型为 {@link RetainableByteBuffer}，则自动调用 release() 释放资源。
+     * </p>
+     */
+    @Override
+    public void drain() {
+        lock.lock();
+        try {
+            released = true;
+            for (int i = 0; i < count; i++) {
+                T item = items[removeIndex];
+                items[removeIndex] = null;
+                if (item instanceof RetainableByteBuffer) {
+                    ((RetainableByteBuffer) item).release();
+                }
+                if (++removeIndex == items.length) {
+                    removeIndex = 0;
+                }
+            }
+            count = 0;
+            putIndex = 0;
+            removeIndex = 0;
+            wasFull = false;
+            notFull.signalAll();
+        } finally {
+            lock.unlock();
+        }
     }
 }
