@@ -1,6 +1,6 @@
 package test;
 
-import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
+import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.util.FastArrayList;
 import com.gettyio.core.util.FastCopyOnWriteArrayList;
@@ -126,8 +126,7 @@ public class Test {
 
     public static void testPool() throws Exception {
 
-        final ArrayRetainableByteBufferPool byteBufferPool = new ArrayRetainableByteBufferPool(0, -1, 10000,
-                10000000L, 0L, false);
+        final GettyByteBufferPool byteBufferPool = new GettyByteBufferPool(false);
         int num = 1;
         long ct = System.currentTimeMillis();
 

@@ -22,15 +22,21 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import java.nio.channels.CompletionHandler;
 
 /**
- * @description:读回调事件
- * @author:gogym
- * @date:2020/4/8
+ * AIO 异步读完成回调处理器。
+ * <p>
+ * 当异步读操作完成时，将结果转发给 {@link AioChannel#readFromChannel(boolean)}。
+ * 读取失败或连接断开时自动关闭通道。
+ * </p>
+ *
+ * @author gogym
  */
 public class ReadCompletionHandler implements CompletionHandler<Integer, AioChannel> {
+
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(ReadCompletionHandler.class);
 
     @Override
-    public void completed(final Integer result, final AioChannel aioChannel) {
+    public void completed(Integer result, AioChannel aioChannel) {
+        // result == -1 表示对端已关闭连接（EOF）
         aioChannel.readFromChannel(result == -1);
     }
 
@@ -39,8 +45,7 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, AioChan
         try {
             aioChannel.close();
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("close channel failed in ReadCompletionHandler", e);
         }
-
     }
 }

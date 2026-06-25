@@ -15,38 +15,28 @@
  */
 package com.gettyio.core.channel;
 
-
 /**
- * ChannelState.java
+ * 通道生命周期事件枚举。
  *
- * @description:通道状态
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public enum ChannelState {
-    /**
-     * 新的连接
-     */
+
+    /** 新连接建立 */
     NEW_CHANNEL,
-    /**
-     * 连接关闭。
-     */
+
+    /** 连接关闭 */
     CHANNEL_CLOSED,
-    /**
-     * 读取数据
-     */
+
+    /** 读取到数据 */
     CHANNEL_READ,
-    /**
-     * 写数据
-     */
+
+    /** 写出数据 */
     CHANNEL_WRITE,
-    /**
-     * IdleState
-     */
+
+    /** 空闲事件（心跳检测等） */
     CHANNEL_EVENT,
-    /**
-     * 操作异常。
-     */
+
+    /** 操作异常 */
     CHANNEL_EXCEPTION
 }

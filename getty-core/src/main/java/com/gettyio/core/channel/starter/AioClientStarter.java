@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
+import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ClientConfig;
@@ -32,57 +32,51 @@ import java.net.SocketOption;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
-import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
-
 /**
- * AioClientStarter.java
+ * AIO 客户端启动器。
+ * <p>
+ * 创建异步 Socket 通道，连接到服务端，并构建 AioChannel 管道。
+ * 支持 SSL 握手和连接回调。
+ * </p>
  *
- * @description:aio客户端
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class AioClientStarter extends AioStarter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioClientStarter.class);
 
-    /**
-     * 客户端服务配置
-     */
-    private ClientConfig config = new ClientConfig();
-    /**
-     * aio通道
-     */
+    /** 客户端配置 */
+    private final ClientConfig config;
+
+    /** 已建立的通道 */
     private AbstractSocketChannel aioChannel;
 
     /**
-     * 简单启动
+     * 简单构造。
      *
      * @param host 服务器地址
-     * @param port 服务器端口号
+     * @param port 服务器端口
      */
     public AioClientStarter(String host, int port) {
-        config.setHost(host);
-        config.setPort(port);
+        this.config = new ClientConfig();
+        this.config.setHost(host);
+        this.config.setPort(port);
     }
 
     /**
-     * 配置文件启动
+     * 指定配置构造。
      *
-     * @param config 配置
+     * @param config 客户端配置
      */
     public AioClientStarter(ClientConfig config) {
         this.config = config;
     }
 
     /**
-     * 设置责任链
-     *
-     * @param channelInitializer 责任链
-     * @return AioClientStarter
+     * 设置管道初始化器。
      */
     public AioClientStarter channelInitializer(ChannelInitializer channelInitializer) {
         this.channelInitializer = channelInitializer;
@@ -90,163 +84,167 @@ public class AioClientStarter extends AioStarter {
     }
 
     /**
-     * 启动客户端
+     * 启动客户端（阻塞等待连接结果）。
      *
-     * @throws Exception 异常
+     * @throws Exception 连接失败时抛出
      */
     public final void start() throws Exception {
         try {
             start0(null);
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
-            throw new Exception(e);
+            LOGGER.error("start failed", e);
+            throw e;
         }
     }
 
     /**
-     * 启动客户端,回调
+     * 启动客户端（回调模式）。
      *
-     * @param connectHandler
-     * @throws Exception
+     * @param connectHandler 连接回调
      */
     public final void start(ConnectHandler connectHandler) {
         try {
             start0(connectHandler);
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("start failed", e);
             connectHandler.onFailed(e);
         }
     }
 
-
     /**
-     * 内部启动
-     *
-     * @param connectHandler
+     * 内部启动逻辑。
      */
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(config);
-        //初始化内存池
-        byteBufferPool = new ArrayRetainableByteBufferPool(bufferPoolMaxBucketSize, config.isDirect());
+        byteBufferPool = new GettyByteBufferPool(config.isDirect());
 
-        this.asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
+        asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
-            public Thread newThread(Runnable target) {
-                return new Thread(target);
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "getty-aio-client");
+                t.setDaemon(true);
+                return t;
             }
         });
-        //调用内部启动
+
         startTcp(asynchronousChannelGroup, connectHandler);
     }
 
-
     /**
-     * 该方法为非阻塞连接。连接成功与否，会回调
-     *
-     * @param asynchronousChannelGroup 线程组
-     * @param connectHandler           回调
+     * 发起非阻塞连接。
      */
-    private void startTcp(AsynchronousChannelGroup asynchronousChannelGroup, final ConnectHandler connectHandler) throws Exception {
+    private void startTcp(AsynchronousChannelGroup group, final ConnectHandler connectHandler) throws Exception {
+        final AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(group);
 
-        final AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(asynchronousChannelGroup);
-        if (config.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
+        // 设置 Socket 选项
+        Map<java.net.SocketOption<Object>, Object> options = config.getSocketOptions();
+        if (options != null) {
+            for (Map.Entry<java.net.SocketOption<Object>, Object> entry : options.entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
-        /**
-         * 非阻塞连接
-         */
-        socketChannel.connect(new InetSocketAddress(config.getHost(), config.getPort()), socketChannel, new CompletionHandler<Void, AsynchronousSocketChannel>() {
-            @Override
-            public void completed(Void result, AsynchronousSocketChannel attachment) {
-                LOGGER.info("connect aio server success");
-                //连接成功则构造AIOSession对象
-                aioChannel = new AioChannel(socketChannel, config, new ReadCompletionHandler(), new WriteCompletionHandler(), byteBufferPool, channelInitializer);
-                //开始读
-                aioChannel.starRead();
 
-                if (connectHandler != null) {
-                    if (aioChannel.getSslHandler() != null) {
-                        aioChannel.setSslHandshakeListener(new IHandshakeListener() {
-                            @Override
-                            public void onComplete() {
-                                LOGGER.info("ssl Handshake Completed");
-                                new Thread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        connectHandler.onCompleted(aioChannel);
-                                    }
-                                }).start();
-                            }
+        // 异步连接
+        socketChannel.connect(
+                new InetSocketAddress(config.getHost(), config.getPort()),
+                socketChannel,
+                new CompletionHandler<Void, AsynchronousSocketChannel>() {
 
-                            @Override
-                            public void onFail(SSLException e) {
-                                new Thread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        connectHandler.onFailed(e);
-                                    }
-                                }).start();
-                            }
-                        });
-                    } else {
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                connectHandler.onCompleted(aioChannel);
-                            }
-                        }).start();
+                    @Override
+                    public void completed(Void result, AsynchronousSocketChannel ch) {
+                        LOGGER.info("connected to server");
+                        aioChannel = new AioChannel(ch, config,
+                                new ReadCompletionHandler(), new WriteCompletionHandler(),
+                                byteBufferPool, channelInitializer);
+                        aioChannel.starRead();
+
+                        if (connectHandler != null) {
+                            fireConnectCallback(connectHandler);
+                        }
                     }
-                }
-            }
 
-            @Override
-            public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-                LOGGER.error("connect server error", exc);
-                if (null != connectHandler) {
-                    connectHandler.onFailed(exc);
-                }
-            }
-        });
+                    @Override
+                    public void failed(Throwable exc, AsynchronousSocketChannel ch) {
+                        LOGGER.error("connect failed", exc);
+                        if (connectHandler != null) {
+                            connectHandler.onFailed(exc);
+                        }
+                    }
+                });
     }
 
+    /**
+     * 触发连接成功回调（处理 SSL 握手场景）。
+     */
+    private void fireConnectCallback(final ConnectHandler connectHandler) {
+        if (aioChannel.getSslHandler() != null) {
+            // SSL 场景：等待握手完成后回调
+            aioChannel.setSslHandshakeListener(new IHandshakeListener() {
+                @Override
+                public void onComplete() {
+                    LOGGER.info("SSL handshake completed");
+                    runCallbackAsync(connectHandler, null);
+                }
+
+                @Override
+                public void onFail(SSLException e) {
+                    runCallbackAsync(connectHandler, e);
+                }
+            });
+        } else {
+            // 非 SSL 场景：直接回调
+            runCallbackAsync(connectHandler, null);
+        }
+    }
 
     /**
-     * 停止客户端
+     * 在守护线程中执行用户回调，避免阻塞 I/O 线程。
+     */
+    private void runCallbackAsync(final ConnectHandler connectHandler, final Throwable error) {
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (error != null) {
+                    connectHandler.onFailed(error);
+                } else {
+                    connectHandler.onCompleted(aioChannel);
+                }
+            }
+        }, "getty-connect-callback");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /**
+     * 停止客户端。
      */
     public final void shutdown() {
         if (aioChannel != null) {
             aioChannel.close(true);
             aioChannel = null;
         }
-        //仅Client内部创建的ChannelGroup需要shutdown
         if (asynchronousChannelGroup != null) {
             asynchronousChannelGroup.shutdown();
             asynchronousChannelGroup = null;
         }
-        LOGGER.info("getty shutdown at " + new Date());
+        LOGGER.info("getty client shutdown");
     }
 
     /**
-     * 获取通道
+     * 获取已建立的通道。
      *
-     * @return
+     * @return AioChannel
+     * @throws RuntimeException SSL 握手未完成时抛出
+     * @throws NullPointerException 通道未建立时抛出
      */
     public AbstractSocketChannel getChannel() {
-        if (aioChannel != null) {
-            if (aioChannel.getSslHandler() != null) {
-                //如果开启了ssl,要先判断是否已经完成握手
-                if (aioChannel.getSslHandler().isHandshakeCompleted()) {
-                    return aioChannel;
-                }
-                aioChannel.close();
-                throw new RuntimeException("The SSL handshcke is not yet complete");
-            }
-            return aioChannel;
+        if (aioChannel == null) {
+            throw new NullPointerException("channel is null, not connected yet");
         }
-        throw new NullPointerException("aioChannel is null");
+        if (aioChannel.getSslHandler() != null && !aioChannel.getSslHandler().isHandshakeCompleted()) {
+            aioChannel.close();
+            throw new RuntimeException("SSL handshake not yet complete");
+        }
+        return aioChannel;
     }
-
-
 }

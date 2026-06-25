@@ -18,20 +18,12 @@ package com.gettyio.core.channel.starter;
 import java.nio.channels.AsynchronousChannelGroup;
 
 /**
- * AioStarter.java
+ * AIO Starter 基类。持有异步通道线程组。
  *
- * @description:
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public abstract class AioStarter extends Starter {
 
-    /**
-     * aio线程组
-     */
+    /** AIO 线程组，管理异步 I/O 操作的回调线程 */
     protected AsynchronousChannelGroup asynchronousChannelGroup;
-
-
-
 }

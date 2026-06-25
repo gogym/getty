@@ -20,71 +20,55 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * BaseConfig.java
+ * 通道配置基类。
+ * <p>
+ * 定义客户端和服务端共有的配置项，包括地址、缓冲区大小、流控参数和 Socket 选项等。
+ * </p>
  *
- * @description:配置项
- * @author:gogym
- * @date:2020/4/8
+ * @author gogym
  */
 public abstract class BaseConfig {
 
-    /**
-     * 服务器地址
-     */
+    /** 服务器地址 */
     private String host;
-    /**
-     * 服务器端口号
-     */
+
+    /** 服务器端口 */
     private int port;
-    /**
-     * 消息读取缓存大小，默认32
-     */
-    private int readBufferSize = 32;
-    /**
-     * 输出类队列大小,再大意义不大，因为实际写出速度还会受到机器配置以及带宽等的限制，设置这个数，已经能满足绝大部分场景需要
-     */
+
+    /** 读缓冲区大小（字节），默认 32KB */
+    private int readBufferSize = 32 * 1024;
+
+    /** 写队列容量，默认 1M */
     private int bufferWriterQueueSize = 1024 * 1024;
 
-    /**
-     * 是否使用直接内存
-     */
-    private boolean direct = false;
+    /** 是否使用直接内存（DirectByteBuffer），默认堆内存 */
+    private boolean direct;
 
-    /**
-     * 流控开关，默认不打开
-     */
-    private boolean flowControl = false;
-    /**
-     * 流控阈值(高水位线)，默认与输出队列一致，则表示不做限制
-     */
+    /** 流控开关，默认关闭 */
+    private boolean flowControl;
+
+    /** 流控高水位线（队列中待写数据量达到此值时暂停写入） */
     private int highWaterMark = bufferWriterQueueSize;
-    /**
-     * 释放流控阈值(低水位线)，默认高水位的一半
-     */
+
+    /** 流控低水位线（队列中待写数据量降至此值时恢复写入） */
     private int lowWaterMark = highWaterMark / 2;
 
     /**
-     * 设置Socket的TCP参数配置
-     * AIO服户端的可选为：
-     * 套接字发送缓冲区的大小。int
-     * 1. StandardSocketOptions.SO_SNDBUF
-     * 套接字接收缓冲区的大小。int
-     * 2. StandardSocketOptions.SO_RCVBUF
-     * 使连接保持活动状态。boolean
-     * 3. StandardSocketOptions.SO_KEEPALIVE
-     * 重用地址。boolean
-     * 4. StandardSocketOptions.SO_REUSEADDR
-     * 禁用Nagle算法。boolean
-     * 5. StandardSocketOptions.TCP_NODELAY
+     * Socket 选项配置。
      * <p>
-     * <p>
-     * AIO客户端的有效可选范围为：
-     * 2. StandardSocketOptions.SO_RCVBUF
-     * 4. StandardSocketOptions.SO_REUSEADDR
+     * 常用选项：
+     * <ul>
+     *   <li>{@code SO_SNDBUF} - 发送缓冲区大小</li>
+     *   <li>{@code SO_RCVBUF} - 接收缓冲区大小</li>
+     *   <li>{@code SO_KEEPALIVE} - 保持连接活跃</li>
+     *   <li>{@code SO_REUSEADDR} - 重用地址</li>
+     *   <li>{@code TCP_NODELAY} - 禁用 Nagle 算法</li>
+     * </ul>
+     * </p>
      */
     private Map<SocketOption<Object>, Object> socketOptions;
 
-    //------------------------------------------------------------------------------------------------
+    // ==================== Getters / Setters ====================
 
     public final String getHost() {
         return host;
@@ -122,11 +106,11 @@ public abstract class BaseConfig {
         return socketOptions;
     }
 
-    public void setOption(SocketOption socketOption, Object f) {
+    public void setOption(SocketOption socketOption, Object value) {
         if (socketOptions == null) {
-            socketOptions = new HashMap<>(64);
+            socketOptions = new HashMap<>(8);
         }
-        socketOptions.put(socketOption, f);
+        socketOptions.put(socketOption, value);
     }
 
     public boolean isFlowControl() {
@@ -153,7 +137,6 @@ public abstract class BaseConfig {
         this.lowWaterMark = lowWaterMark;
     }
 
-
     public boolean isDirect() {
         return direct;
     }
@@ -164,11 +147,11 @@ public abstract class BaseConfig {
 
     @Override
     public String toString() {
-        return "{" +
-                "host='" + (host == null ? "localhost" : host) + '\'' +
+        return "{host='" + (host == null ? "localhost" : host) + '\'' +
                 ", port=" + port +
                 ", readBufferSize=" + readBufferSize +
                 ", bufferWriterQueueSize=" + bufferWriterQueueSize +
+                ", direct=" + direct +
                 ", flowControl=" + flowControl +
                 ", highWaterMark=" + highWaterMark +
                 ", lowWaterMark=" + lowWaterMark +

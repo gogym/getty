@@ -22,87 +22,88 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.util.thread.ThreadPool;
 
+import java.io.IOException;
+import java.nio.channels.SocketChannel;
+
 /**
- * 类名：Starter
- * 版权：Copyright by www.getty.com
- * 描述：
- * 修改人：gogym
- * 时间：2020/4/8
+ * 所有 Starter（AIO / NIO 客户端和服务端）的公共基类。
+ * <p>
+ * 提供线程数计算、配置校验、内存池和管道初始化器等公共逻辑。
+ * </p>
+ *
+ * @author gogym
  */
 public abstract class Starter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(Starter.class);
 
     /**
-     * Boss线程数，获取cpu核心,核心小于4设置线程为3，大于4设置和cpu核心数一致
+     * Boss 线程数。CPU 核心 < 4 时设为 3，否则等于核心数。
      */
-    protected int bossThreadNum = Runtime.getRuntime().availableProcessors() < 4 ? 3 : Runtime.getRuntime().availableProcessors();
-    /**
-     * Boss共享给Worker的线程数，核心小于4设置线程为1，大于4右移两位
-     */
-    private final int bossShareToWorkerThreadNum = bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2;
-    /**
-     * Worker线程数
-     */
-    protected int workerThreadNum = bossThreadNum - bossShareToWorkerThreadNum;
-
+    protected int bossThreadNum = Math.max(3, Runtime.getRuntime().availableProcessors());
 
     /**
-     * boss线程池
+     * Worker 线程数。根据 CPU 核心数自动调整。
      */
+    protected int workerThreadNum = bossThreadNum - (bossThreadNum > 4 ? bossThreadNum >> 2 : bossThreadNum - 2);
+
+    /** Boss 线程池 */
     protected ThreadPool bossThreadPool;
 
-    /**
-     * 内存池构造器
-     */
+    /** 内存池 */
     protected ByteBufferPool byteBufferPool;
 
-
-    /**
-     * 内存池最大容量
-     */
-    protected int bufferPoolMaxBucketSize = 10000;
-
-
-    /**
-     * 责任链对象
-     */
+    /** 管道初始化器 */
     protected ChannelInitializer channelInitializer;
 
+    // ==================== 启动校验 ====================
+
     /**
-     * 启动时检查
-     *
-     * @param config
+     * 启动前参数校验（需要 host 的版本）。
      */
     protected void startCheck(BaseConfig config) {
         startCheck(config, false);
     }
 
-
+    /**
+     * 启动前参数校验。
+     *
+     * @param config       配置
+     * @param ignoreHost   是否忽略 host 校验（服务端可忽略）
+     */
     protected void startCheck(BaseConfig config, boolean ignoreHost) {
-
         if (config == null) {
-            throw new NullPointerException("config can't null");
+            throw new NullPointerException("config can't be null");
         }
-
-        if (!ignoreHost && (null == config.getHost() || "".equals(config.getHost()))) {
-            throw new NullPointerException("The host is null.");
+        if (!ignoreHost && (config.getHost() == null || config.getHost().isEmpty())) {
+            throw new NullPointerException("host can't be null");
         }
-        if (0 == config.getPort()) {
-            throw new NullPointerException("The port is null.");
+        if (config.getPort() == 0) {
+            throw new NullPointerException("port can't be 0");
         }
         if (channelInitializer == null) {
             throw new RuntimeException("channelInitializer can't be null");
         }
         if (config.isFlowControl()) {
             if (config.getLowWaterMark() >= config.getHighWaterMark()) {
-                throw new RuntimeException("lowWaterMark must be small than highWaterMark");
+                throw new RuntimeException("lowWaterMark must be smaller than highWaterMark");
             }
             if (config.getHighWaterMark() >= config.getBufferWriterQueueSize()) {
-                LOGGER.warn("HighWaterMark is meaningless if it is greater than BufferWriterQueueSize");
+                LOGGER.warn("highWaterMark is meaningless if greater than bufferWriterQueueSize");
             }
         }
     }
 
+    // ==================== 工具方法 ====================
 
+    /**
+     * 安全关闭 SocketChannel。
+     *
+     * @param channel 待关闭的通道
+     */
+    protected static void closeChannel(SocketChannel channel) {
+        try { channel.shutdownInput(); } catch (IOException e) { /* ignore */ }
+        try { channel.shutdownOutput(); } catch (IOException e) { /* ignore */ }
+        try { channel.close(); } catch (IOException e) { LOGGER.error("close channel failed", e); }
+    }
 }

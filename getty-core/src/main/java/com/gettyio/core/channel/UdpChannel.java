@@ -26,60 +26,77 @@ import com.gettyio.core.util.thread.ThreadPool;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.util.Iterator;
 
 /**
- * UdpChannel.java
+ * UDP 通道实现。
+ * <p>
+ * 基于 {@link DatagramChannel} 配合 Selector 实现非阻塞的 UDP 数据报收发。
+ * 写操作通过内部队列异步执行，避免阻塞调用方。
+ * </p>
  *
- * @description:udp通道
- * @author:gogym
- * @date:2020/4/9
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class UdpChannel extends AbstractSocketChannel {
 
+    /** UDP 通道 */
+    private final DatagramChannel datagramChannel;
+
+    /** 多路复用选择器 */
+    private final SelectedSelector selector;
+
+    /** 写出队列 */
+    private final LinkedBlockQueue<DatagramPacket> writeQueue;
+
+    /** 工作线程池 */
+    private final ThreadPool workerThreadPool;
 
     /**
-     * udp通道
+     * 构造 UDP 通道。
+     *
+     * @param datagramChannel    UDP 通道
+     * @param selector           选择器
+     * @param config             配置
+     * @param byteBufferPool     内存池
+     * @param channelInitializer 管道初始化器
+     * @param workerThreadNum    工作线程数
      */
-    private DatagramChannel datagramChannel;
-    private SelectedSelector selector;
-    /**
-     * 阻塞队列
-     */
-    private LinkedBlockQueue<DatagramPacket> queue;
-    private ThreadPool workerThreadPool;
-
-    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector, BaseConfig config, ByteBufferPool byteBufferPool,
+    public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector,
+                      BaseConfig config, ByteBufferPool byteBufferPool,
                       ChannelInitializer channelInitializer, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, workerThreadNum);
-        queue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
+        this.writeQueue = new LinkedBlockQueue<>(config.getBufferWriterQueueSize());
+        this.channelInitializer = channelInitializer;
+
         try {
-            //注意该方法可能抛异常
             channelInitializer.initChannel(this);
         } catch (Exception e) {
             throw new RuntimeException("channelPipeline init exception", e);
         }
-        //开启写监听线程
+
+        // 启动异步写出线程
         loopWrite();
-        //触发责任链回调
+
+        // 触发新连接事件
         try {
-            invokePipeline(ChannelState.NEW_CHANNEL);
+            invokePipeline(ChannelState.NEW_CHANNEL, null);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("fire NEW_CHANNEL failed", e);
         }
     }
 
+    // ==================== 读操作 ====================
 
     @Override
     public void starRead() {
-        this.initiateClose = false;
+        initiateClose = false;
 
         workerThreadPool.execute(new Runnable() {
             @Override
@@ -90,75 +107,132 @@ public class UdpChannel extends AbstractSocketChannel {
                         while (it.hasNext()) {
                             SelectionKey sk = it.next();
                             it.remove();
-                            if (sk.isReadable()) {
-                                RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
-                                //接收数据
+                            if (!sk.isReadable()) {
+                                continue;
+                            }
+
+                            RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+                            try {
+                                // 接收 UDP 数据报
                                 InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer.flipToFill());
-                                //读取缓冲区数据，输送到责任链
                                 readBuffer.flipToFlush();
-                                while (readBuffer.hasRemaining()) {
-                                    byte[] bytes = new byte[readBuffer.remaining()];
-                                    readBuffer.get(bytes);
-                                    //读取的数据封装成DatagramPacket
-                                    DatagramPacket datagramPacket = new DatagramPacket(bytes, bytes.length, address);
-                                    //输出到链条
-                                    UdpChannel.this.readToPipeline(datagramPacket);
+
+                                if (!readBuffer.hasRemaining()) {
+                                    continue;
                                 }
+
+                                // 堆内存零拷贝：直接使用底层数组
+                                byte[] bytes;
+                                ByteBuffer buf = readBuffer.getBuffer();
+                                if (buf.hasArray()) {
+                                    bytes = buf.array();
+                                } else {
+                                    bytes = new byte[readBuffer.remaining()];
+                                    readBuffer.get(bytes);
+                                }
+
+                                // 封装为 DatagramPacket 并输送到管道
+                                DatagramPacket packet = new DatagramPacket(bytes, bytes.length, address);
+                                invokePipeline(ChannelState.CHANNEL_READ, packet);
+                            } catch (Exception e) {
+                                logger.error("UDP read error", e);
+                            } finally {
                                 readBuffer.release();
                             }
                         }
-
                     }
                 } catch (Exception e) {
-                    logger.error(e);
+                    logger.error("UDP selector error", e);
                 }
             }
         });
     }
 
+    // ==================== 写操作 ====================
 
     /**
-     * 多线程持续写出
+     * 异步写出线程：从队列中取出数据报并发送。
      */
     private void loopWrite() {
         workerThreadPool.execute(new Runnable() {
             @Override
             public void run() {
                 try {
-                    DatagramPacket datagramPacket;
-                    while ((datagramPacket = queue.take()) != null) {
-                        UdpChannel.this.send(datagramPacket);
+                    DatagramPacket packet;
+                    while ((packet = writeQueue.take()) != null) {
+                        send(packet);
                     }
                 } catch (InterruptedException e) {
-                    logger.error(e.getMessage(), e);
+                    Thread.currentThread().interrupt();
+                    logger.error("UDP write loop interrupted", e);
                 }
             }
         });
     }
 
+    @Override
+    public boolean writeAndFlush(Object obj) {
+        if (obj instanceof DatagramPacket) {
+            try {
+                writeQueue.put((DatagramPacket) obj);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.error("UDP enqueue failed", e);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void writeToChannel(Object obj) {
+        writeAndFlush(obj);
+    }
+
+    /**
+     * 发送 UDP 数据报到目标地址。
+     *
+     * @param packet 待发送的数据报
+     */
+    private void send(DatagramPacket packet) {
+        try {
+            RetainableByteBuffer byteBuffer = byteBufferPool.acquire(packet.getLength());
+            byteBuffer.put(packet.getData());
+            datagramChannel.send(byteBuffer.getBuffer(), packet.getSocketAddress());
+            byteBuffer.release();
+        } catch (IOException e) {
+            logger.error("UDP send failed", e);
+        }
+    }
+
+    // ==================== 关闭 ====================
 
     @Override
     public void close() {
-
         if (status == CHANNEL_STATUS_CLOSED) {
-            logger.warn("Channel:{} is closed:", getChannelId());
             return;
         }
+        // 先标记为已关闭
+        status = CHANNEL_STATUS_CLOSED;
+
         try {
             datagramChannel.close();
         } catch (IOException e) {
-            logger.error(e);
+            logger.error("close datagramChannel failed", e);
         }
+
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
         }
-        //更新状态
-        status = CHANNEL_STATUS_CLOSED;
 
-        //最后需要清空责任链
-        if (channelPipeline != null) {
-            channelPipeline = null;
+        // 触发关闭事件
+        try {
+            invokePipeline(ChannelState.CHANNEL_CLOSED, null);
+        } catch (Exception e) {
+            logger.error("fire CHANNEL_CLOSED failed", e);
         }
+
+        channelPipeline = null;
     }
 
     @Override
@@ -167,29 +241,7 @@ public class UdpChannel extends AbstractSocketChannel {
         close();
     }
 
-    @Override
-    public boolean writeAndFlush(Object obj) {
-        try {
-            if(obj instanceof DatagramPacket) {
-                queue.put((DatagramPacket)obj);
-            }
-        } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
-        }
-        return true;
-    }
-
-    @Override
-    @Deprecated
-    public void writeToChannel(Object obj) {
-        try {
-            if(obj instanceof DatagramPacket) {
-                queue.put((DatagramPacket)obj);
-            }
-        } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
-        }
-    }
+    // ==================== 地址 ====================
 
     @Override
     public InetSocketAddress getLocalAddress() throws IOException {
@@ -197,39 +249,15 @@ public class UdpChannel extends AbstractSocketChannel {
         return (InetSocketAddress) datagramChannel.getLocalAddress();
     }
 
-    /**
-     * 断言
-     *
-     * @throws IOException 异常
-     */
+    @Override
+    public InetSocketAddress getRemoteAddress() throws IOException {
+        // UDP 是无连接协议，没有固定的远程地址
+        return null;
+    }
+
     private void assertChannel() throws IOException {
         if (status == CHANNEL_STATUS_CLOSED || datagramChannel == null) {
             throw new IOException("channel is closed");
         }
     }
-
-
-    /**
-     * 往目标地址发送消息
-     *
-     * @return void
-     * @params [datagramPacket]
-     */
-    private void send(DatagramPacket datagramPacket) {
-        try {
-            //转换成udp数据包
-            RetainableByteBuffer byteBuffer = byteBufferPool.acquire(datagramPacket.getLength());
-            byteBuffer.put(datagramPacket.getData());
-            //写出到目标地址
-            datagramChannel.send(byteBuffer.getBuffer(), datagramPacket.getSocketAddress());
-            //释放内存
-            byteBuffer.release();
-        } catch (ClassCastException e) {
-            logger.error(e.getMessage(), e);
-        } catch (IOException e) {
-            logger.error(e);
-        }
-    }
-
-
 }

@@ -15,9 +15,9 @@
  */
 package com.gettyio.core.channel.starter;
 
-import com.gettyio.core.buffer.pool.ArrayRetainableByteBufferPool;
-import com.gettyio.core.channel.NioChannel;
+import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.channel.AbstractSocketChannel;
+import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.UdpChannel;
 import com.gettyio.core.channel.config.ClientConfig;
@@ -40,123 +40,80 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * NioClientStarter.java
+ * NIO 客户端启动器。
+ * <p>
+ * 支持 TCP 和 UDP 两种模式。TCP 模式通过 Selector 处理连接事件，
+ * UDP 模式通过 DatagramChannel 进行数据报通信。
+ * </p>
  *
- * @description:nio客户端
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class NioClientStarter extends NioStarter {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioClientStarter.class);
 
-    /**
-     * 客户端配置
-     */
-    private ClientConfig config = new ClientConfig();
-    /**
-     * channel通道
-     */
+    /** 客户端配置 */
+    private final ClientConfig config;
+
+    /** 已建立的通道 */
     private AbstractSocketChannel nioChannel;
 
-    /**
-     * loop
-     */
+    /** 事件循环 */
     private NioEventLoop nioEventLoop;
 
-    /**
-     * 多路复用
-     */
-    SelectedSelector selector;
+    /** 连接用选择器 */
+    private SelectedSelector connectSelector;
 
-    /**
-     * 简单启动
-     *
-     * @param host 服务器地址
-     * @param port 服务器端口号
-     */
     public NioClientStarter(String host, int port) {
-        config.setHost(host);
-        config.setPort(port);
+        this.config = new ClientConfig();
+        this.config.setHost(host);
+        this.config.setPort(port);
     }
 
-
-    /**
-     * 配置文件启动
-     *
-     * @param config 配置
-     */
     public NioClientStarter(ClientConfig config) {
-        if (null == config.getHost() || "".equals(config.getHost())) {
-            throw new NullPointerException("The connection host is null.");
+        if (config.getHost() == null || config.getHost().isEmpty()) {
+            throw new NullPointerException("host can't be null");
         }
-        if (0 == config.getPort()) {
-            throw new NullPointerException("The connection port is null.");
+        if (config.getPort() == 0) {
+            throw new NullPointerException("port can't be 0");
         }
         this.config = config;
     }
 
-
-    /**
-     * 设置责任链
-     *
-     * @param channelInitializer 责任链
-     * @return AioClientStarter
-     */
     public NioClientStarter channelInitializer(ChannelInitializer channelInitializer) {
         this.channelInitializer = channelInitializer;
         return this;
     }
-
 
     public NioClientStarter socketMode(SocketMode socketMode) {
         this.socketMode = socketMode;
         return this;
     }
 
-
-    /**
-     * 启动客户端。
-     *
-     * @throws Exception 异常
-     */
     public final void start() throws Exception {
         try {
             start0(null);
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
-            throw new Exception(e);
+            LOGGER.error("start failed", e);
+            throw e;
         }
     }
 
-    /**
-     * 启动客户端,并且回调
-     *
-     * @throws Exception 异常
-     */
     public final void start(ConnectHandler connectHandler) {
         try {
             start0(connectHandler);
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("start failed", e);
             connectHandler.onFailed(e);
-            return;
         }
     }
 
-    /**
-     * 内部启动
-     *
-     * @throws Exception
-     */
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(config);
-        //初始化内存池
-        byteBufferPool = new ArrayRetainableByteBufferPool(bufferPoolMaxBucketSize,config.isDirect());
-        //调用内部启动
+        byteBufferPool = new GettyByteBufferPool(config.isDirect());
         nioEventLoop = new NioEventLoop(config, byteBufferPool);
         nioEventLoop.run();
+
         if (socketMode == SocketMode.TCP) {
             startTcp(connectHandler);
         } else {
@@ -164,146 +121,116 @@ public class NioClientStarter extends NioStarter {
         }
     }
 
-
     /**
-     * 该方法为非阻塞连接。连接成功与否，会回调
+     * TCP 非阻塞连接。
      */
     private void startTcp(final ConnectHandler connectHandler) throws Exception {
-
         final SocketChannel socketChannel = SocketChannel.open();
-        if (config.getSocketOptions() != null) {
-            for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
+
+        // 设置 Socket 选项
+        Map<SocketOption<Object>, Object> options = config.getSocketOptions();
+        if (options != null) {
+            for (Map.Entry<SocketOption<Object>, Object> entry : options.entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());
             }
         }
-        //设为非阻塞
-        socketChannel.configureBlocking(false);
-        /*
-         * 连接到指定的服务地址
-         */
-        socketChannel.connect(new InetSocketAddress(config.getHost(), config.getPort()));
-        /*
-         * 创建一个事件选择器Selector
-         */
-        selector = new SelectedSelector(Selector.open());
-        /*
-         * 将创建的SocketChannel注册到指定的Selector上，并指定关注的事件类型为OP_CONNECT
-         */
-        socketChannel.register(selector.getSelector(), SelectionKey.OP_CONNECT);
 
-        while (selector.select(0) > 0) {
-            Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+        socketChannel.configureBlocking(false);
+        socketChannel.connect(new InetSocketAddress(config.getHost(), config.getPort()));
+
+        // 创建连接专用选择器
+        connectSelector = new SelectedSelector(Selector.open());
+        socketChannel.register(connectSelector.getSelector(), SelectionKey.OP_CONNECT);
+
+        // 阻塞等待连接完成
+        while (connectSelector.select(0) > 0) {
+            Iterator<SelectionKey> it = connectSelector.selectedKeys().iterator();
             while (it.hasNext()) {
                 SelectionKey sk = it.next();
-                if (sk.isConnectable()) {
-                    SocketChannel channel = (SocketChannel) sk.channel();
-                    //during connecting, finish the connect
-                    if (channel.isConnectionPending()) {
-                        channel.finishConnect();
-                        try {
-                            nioChannel = new NioChannel(config, socketChannel, nioEventLoop, byteBufferPool, channelInitializer);
-                            if (connectHandler != null) {
-                                if (null != nioChannel.getSslHandler()) {
-                                    nioChannel.setSslHandshakeListener(new IHandshakeListener() {
-                                        @Override
-                                        public void onComplete() {
-                                            LOGGER.info("Ssl Handshake Completed");
-                                            connectHandler.onCompleted(nioChannel);
-                                        }
+                it.remove();
 
-                                        @Override
-                                        public void onFail(SSLException e) {
-                                            connectHandler.onFailed(e);
-                                        }
-                                    });
-                                } else {
+                if (!sk.isConnectable()) {
+                    continue;
+                }
+
+                SocketChannel ch = (SocketChannel) sk.channel();
+                if (!ch.isConnectionPending()) {
+                    continue;
+                }
+
+                ch.finishConnect();
+
+                try {
+                    nioChannel = new NioChannel(config, socketChannel, nioEventLoop, byteBufferPool, channelInitializer);
+
+                    if (connectHandler != null) {
+                        if (nioChannel.getSslHandler() != null) {
+                            nioChannel.setSslHandshakeListener(new IHandshakeListener() {
+                                @Override
+                                public void onComplete() {
+                                    LOGGER.info("SSL handshake completed");
                                     connectHandler.onCompleted(nioChannel);
                                 }
-                            }
-                            //创建成功注册
-                            ((NioChannel) nioChannel).register();
-                        } catch (Exception e) {
-                            LOGGER.error(e.getMessage(), e);
-                            if (nioChannel != null) {
-                                closeChannel(socketChannel);
-                            }
-                            if (null != connectHandler) {
-                                connectHandler.onFailed(e);
-                            }
+
+                                @Override
+                                public void onFail(SSLException e) {
+                                    connectHandler.onFailed(e);
+                                }
+                            });
+                        } else {
+                            connectHandler.onCompleted(nioChannel);
                         }
+                    }
+
+                    // 注册读事件到 EventLoop 的 Selector
+                    ((NioChannel) nioChannel).register();
+                } catch (Exception e) {
+                    LOGGER.error("create NioChannel failed", e);
+                    closeChannel(socketChannel);
+                    if (connectHandler != null) {
+                        connectHandler.onFailed(e);
                     }
                 }
             }
-            it.remove();
-            selector.close();
+            connectSelector.close();
             break;
         }
     }
 
     /**
-     * 启动udp
-     *
-     * @param connectHandler
-     * @throws IOException
+     * 启动 UDP 模式。
      */
-    private final void startUdp(ConnectHandler connectHandler) throws IOException {
-
+    private void startUdp(ConnectHandler connectHandler) throws IOException {
         DatagramChannel datagramChannel = DatagramChannel.open();
         datagramChannel.configureBlocking(false);
-        selector = new SelectedSelector(Selector.open());
-        datagramChannel.register(selector.getSelector(), SelectionKey.OP_READ);
-        nioChannel = new UdpChannel(datagramChannel, selector, config, byteBufferPool, channelInitializer, 3);
+        connectSelector = new SelectedSelector(Selector.open());
+        datagramChannel.register(connectSelector.getSelector(), SelectionKey.OP_READ);
+
+        nioChannel = new UdpChannel(datagramChannel, connectSelector, config, byteBufferPool, channelInitializer, 3);
         nioChannel.starRead();
-        if (null != connectHandler) {
+
+        if (connectHandler != null) {
             connectHandler.onCompleted(nioChannel);
         }
     }
 
-
     /**
-     * 停止客户端
+     * 停止客户端。
      */
     public final void shutdown() {
         if (nioChannel != null) {
             nioChannel.close();
             nioChannel = null;
         }
-
-        if (selector != null && selector.isOpen()) {
+        if (connectSelector != null && connectSelector.isOpen()) {
             try {
-                selector.close();
+                connectSelector.close();
             } catch (IOException e) {
-                LOGGER.error(e);
+                LOGGER.error("close selector failed", e);
             }
         }
-
         if (nioEventLoop != null) {
             nioEventLoop.shutdown();
         }
     }
-
-
-    /**
-     * 关闭客户端连接通道
-     *
-     * @param channel 通道
-     */
-    private void closeChannel(java.nio.channels.SocketChannel channel) {
-        try {
-            channel.shutdownInput();
-        } catch (IOException e) {
-            LOGGER.debug(e.getMessage(), e);
-        }
-        try {
-            channel.shutdownOutput();
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
-        try {
-            channel.close();
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
-    }
-
 }

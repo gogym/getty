@@ -28,227 +28,230 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 类名：SelectorHelper
- * 版权：Copyright by www.getty.com
- * 描述：
- * 时间：2020/6/16
+ * 对 JDK Selector 的增强包装。
+ * <p>
+ * 核心功能：检测并修复 JDK NIO 在 Linux epoll 下的空轮询 bug。
+ * 当空轮询次数超过阈值时，自动重建 Selector 并将所有通道迁移过去。
+ * </p>
  *
  * @author gogym
  */
 public class SelectedSelector extends Selector {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(SelectedSelector.class);
+    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(SelectedSelector.class);
 
     /**
-     * 线程同步标志
+     * 空轮询重建阈值。如果在一个时间周期内空轮询次数超过此值，
+     * 则判定发生了 epoll 空轮询 bug，需要重建 Selector。
      */
-    private volatile boolean mark = false;
+    private static final int REBUILD_THRESHOLD = 512;
+
+    /** 默认 select 超时时间（毫秒） */
+    private static final long DEFAULT_TIMEOUT_MILLIS = 1000L;
+
+    /** 注册操作进行中标志，用于与 select 线程同步 */
+    private volatile boolean registering;
+
+    /** 连续空轮询计数器 */
+    private int emptySelectCount;
+
+    /** 底层 Selector */
+    private Selector delegate;
 
     /**
-     * 如果空轮询的次数超过了512次，就认为其触发了空轮询bug
-     */
-    private final int SELECTOR_AUTO_REBUILD_THRESHOLD = 512;
-
-    /**
-     * 空轮询计数器
-     */
-    private int selectCnt = 1;
-
-    /**
-     * 默认超时时间1s
-     */
-    private final long timeoutMillis = 1000;
-
-    /**
-     * 多路复用器
-     */
-    private Selector selector;
-
-    /**
-     * 构造方法
+     * 构造方法。
      *
-     * @param selector
+     * @param delegate 底层 Selector
      */
-    public SelectedSelector(Selector selector) {
-        //super(selector.provider());
-        this.selector = selector;
+    public SelectedSelector(Selector delegate) {
+        this.delegate = delegate;
     }
 
     /**
-     * 获取多路复用器
+     * 获取底层 Selector。
      *
-     * @return
+     * @return 底层 Selector 实例
      */
     public Selector getSelector() {
-        return selector;
+        return delegate;
+    }
+
+    // ==================== 注册（与 select 线程同步） ====================
+
+    /**
+     * 注册通道到 Selector（无附件）。
+     * <p>
+     * 通过 wakeup + synchronized 确保注册操作不会与 select() 产生竞争。
+     * </p>
+     *
+     * @param channel 可选择的通道
+     * @param op      感兴趣的操作集合
+     * @return 注册后的 SelectionKey
+     * @throws ClosedChannelException 通道已关闭时抛出
+     */
+    public SelectionKey register(SelectableChannel channel, int op) throws ClosedChannelException {
+        return register(channel, op, null);
     }
 
     /**
-     * 注册通道监听事件
-     * 需要同步， 保证多个线程调用register不会出现问题
+     * 注册通道到 Selector（带附件）。
      *
-     * @param channel
-     * @param op
-     * @return
-     * @throws ClosedChannelException
+     * @param channel 可选择的通道
+     * @param op      感兴趣的操作集合
+     * @param att     附加到 SelectionKey 的对象
+     * @return 注册后的 SelectionKey
+     * @throws ClosedChannelException 通道已关闭时抛出
      */
-    public synchronized SelectionKey register(SelectableChannel channel, int op) throws ClosedChannelException {
-        mark = true;
-        selector.wakeup();
-        SelectionKey register = channel.register(selector, op);
-        mark = false;
-        return register;
+    public synchronized SelectionKey register(SelectableChannel channel, int op, Object att)
+            throws ClosedChannelException {
+        // 标记正在注册，让 select 线程跳过本轮 select
+        registering = true;
+        // 唤醒可能正在阻塞的 select()
+        delegate.wakeup();
+        try {
+            return channel.register(delegate, op, att);
+        } finally {
+            registering = false;
+        }
     }
 
-    /**
-     * 同步方法：在选择器中注册一个可选择的通道
-     * 此方法确保在多线程环境下安全地对选择器进行访问和修改
-     *
-     * @param channel 要注册的可选择通道
-     * @param op 注册通道的操作利息集合，比如读、写等
-     * @param att 注册时关联到选择键的附件
-     * @return 注册后的选择键，可用于后续操作
-     * @throws ClosedChannelException 如果通道已经关闭，则抛出此异常
-     */
-    public synchronized SelectionKey register(SelectableChannel channel, int op, Object att) throws ClosedChannelException {
-        // 标记当前是否有线程在执行注册操作
-        mark = true;
-
-        // 唤醒选择器，以确保当前的注册操作能被及时处理
-        selector.wakeup();
-
-        // 通过选择器注册通道，返回注册后生成的选择键
-        SelectionKey register = channel.register(selector, op, att);
-
-        // 注册操作完成后，重置标记，表示不再有注册操作正在进行
-        mark = false;
-
-        // 返回注册后生成的选择键
-        return register;
-    }
+    // ==================== Selector 接口实现 ====================
 
     @Override
     public boolean isOpen() {
-        return selector.isOpen();
+        return delegate.isOpen();
     }
 
     @Override
     public SelectorProvider provider() {
-        return selector.provider();
+        return delegate.provider();
     }
 
     @Override
     public Set<SelectionKey> keys() {
-        return selector.keys();
+        return delegate.keys();
     }
 
     @Override
     public Set<SelectionKey> selectedKeys() {
-        return selector.selectedKeys();
+        return delegate.selectedKeys();
     }
 
     @Override
     public int selectNow() throws IOException {
-        return selector.selectNow();
+        return delegate.selectNow();
     }
 
     @Override
     public int select(long timeout) throws IOException {
-        return select0(timeout);
+        return selectWithRebuild(timeout);
     }
 
     @Override
     public int select() throws IOException {
-        return select0(timeoutMillis);
-    }
-
-    private int select0(long timeout) throws IOException {
-        //当前纳秒
-        long currentTimeNanos = System.nanoTime();
-
-        for (; ; ) {
-            if (mark) {
-                continue;
-            }
-            int select = selector.select(timeout);
-            if (select >= 1) {
-                return select;
-            }
-            //计数器+1
-            selectCnt++;
-            long time = System.nanoTime();
-            if (time - TimeUnit.MILLISECONDS.toNanos(timeoutMillis) >= currentTimeNanos) {
-                // 超时
-                selectCnt = 1;
-            } else if (selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
-                //极短的时间内轮询超过默认值512
-                // 空轮询一次 cnt+1  如果一个周期内次数超过512，则假定发生了空轮询bug，重建selector
-                rebuildSelector();
-                selectCnt = 1;
-            }
-        }
+        return selectWithRebuild(DEFAULT_TIMEOUT_MILLIS);
     }
 
     @Override
     public Selector wakeup() {
-        return selector.wakeup();
+        return delegate.wakeup();
     }
 
     @Override
     public void close() throws IOException {
-        selector.close();
+        delegate.close();
     }
 
+    // ==================== 空轮询检测 ====================
+
     /**
-     * 新建一个selector来解决空轮询bug
+     * 带空轮询检测的 select 实现。
+     * <p>
+     * 如果 select 返回 0 且未超时，则增加空轮询计数。
+     * 当计数超过阈值时重建 Selector。
+     * </p>
+     *
+     * @param timeout 超时时间（毫秒）
+     * @return 就绪的通道数量
+     * @throws IOException I/O 错误
      */
-    public void rebuildSelector() {
-        rebuildSelector0();
+    private int selectWithRebuild(long timeout) throws IOException {
+        long startTimeNanos = System.nanoTime();
+        emptySelectCount = 0;
+
+        for (; ; ) {
+            // 如果有注册操作正在进行，跳过本轮 select
+            if (registering) {
+                continue;
+            }
+
+            int selected = delegate.select(timeout);
+            if (selected >= 1) {
+                emptySelectCount = 0;
+                return selected;
+            }
+
+            // 空轮询计数 +1
+            emptySelectCount++;
+            long elapsed = System.nanoTime() - startTimeNanos;
+
+            if (elapsed >= TimeUnit.MILLISECONDS.toNanos(timeout)) {
+                // 正常超时，重置计数器
+                emptySelectCount = 0;
+            } else if (emptySelectCount >= REBUILD_THRESHOLD) {
+                // 极短时间内大量空轮询 → 触发 bug，重建 Selector
+                LOGGER.warn("Selector empty poll detected ({} times), rebuilding...", emptySelectCount);
+                rebuildSelector();
+                // 重建后重置起始时间和计数器
+                startTimeNanos = System.nanoTime();
+                emptySelectCount = 0;
+            }
+        }
     }
 
-    /**
-     * 新建一个selector来解决空轮询bug
-     */
-    private void rebuildSelector0() {
-        final Selector oldSelector = selector;
+    // ==================== Selector 重建 ====================
 
-        //新建一个selector
-        Selector newSelectorTuple;
+    /**
+     * 重建 Selector 以解决 epoll 空轮询 bug。
+     * <p>
+     * 创建新的 Selector，将旧 Selector 上的所有通道迁移过去，然后关闭旧 Selector。
+     * </p>
+     */
+    private void rebuildSelector() {
+        final Selector oldSelector = delegate;
+        Selector newSelector;
         try {
-            newSelectorTuple = Selector.open();
+            newSelector = Selector.open();
         } catch (IOException e) {
-            logger.warn("Failed to create a new Selector.", e);
+            LOGGER.warn("Failed to create new Selector", e);
             return;
         }
 
-        // 将旧的selector的channel全部拿出来注册到新的selector上
-        int nChannels = 0;
+        // 迁移所有通道到新 Selector
+        int migratedCount = 0;
         for (SelectionKey key : oldSelector.keys()) {
-            Object a = key.attachment();
             try {
-                if (!key.isValid() || key.channel().keyFor(newSelectorTuple) != null) {
+                if (!key.isValid() || key.channel().keyFor(newSelector) != null) {
                     continue;
                 }
                 int interestOps = key.interestOps();
+                Object attachment = key.attachment();
                 key.cancel();
-                SelectionKey newKey = key.channel().register(newSelectorTuple, interestOps, a);
-                nChannels++;
+                key.channel().register(newSelector, interestOps, attachment);
+                migratedCount++;
             } catch (Exception e) {
-                logger.warn("Failed to re-register a Channel to the new Selector.", e);
+                LOGGER.warn("Failed to migrate channel to new Selector", e);
             }
         }
 
-        selector = newSelectorTuple;
-        //关掉旧的selector
+        delegate = newSelector;
+
         try {
             oldSelector.close();
         } catch (IOException e) {
-            logger.warn("Failed to close the old Selector.", e);
+            LOGGER.warn("Failed to close old Selector", e);
         }
 
-        if (logger.isInfoEnabled()) {
-            logger.info("Migrated " + nChannels + " channel(s) to the new Selector.");
-        }
+        LOGGER.info("Migrated {} channel(s) to new Selector", migratedCount);
     }
 }
-

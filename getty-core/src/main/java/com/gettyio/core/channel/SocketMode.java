@@ -16,14 +16,13 @@
 package com.gettyio.core.channel;
 
 /**
- * SocketMode.java
+ * Socket 通信模式。
  *
- * @description:通道类型
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public enum SocketMode {
+    /** TCP（面向连接的可靠传输） */
     TCP,
+    /** UDP（无连接的数据报传输） */
     UDP
 }

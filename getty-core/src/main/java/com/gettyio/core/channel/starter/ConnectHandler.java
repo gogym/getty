@@ -18,29 +18,23 @@ package com.gettyio.core.channel.starter;
 import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
- * ConnectHandler.java
+ * 客户端连接回调接口。
  *
- * @description: 启动连接回调
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public interface ConnectHandler {
 
     /**
-     * 连接成功回调
+     * 连接成功回调。
      *
-     * @param channel
+     * @param channel 已建立的通道
      */
     void onCompleted(AbstractSocketChannel channel);
 
     /**
-     * 连接失败回调
+     * 连接失败回调。
      *
-     * @param exc
+     * @param exc 失败原因
      */
     void onFailed(Throwable exc);
-
-
 }
-

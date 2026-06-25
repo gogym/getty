@@ -15,7 +15,6 @@
  */
 package com.gettyio.core.channel;
 
-
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.group.ChannelFutureListener;
@@ -28,255 +27,222 @@ import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.core.pipeline.DefaultChannelPipeline;
 import com.gettyio.core.util.ConcurrentSafeMap;
-import com.gettyio.core.util.StringUtil;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-
 /**
- * SocketChannel.java
+ * I/O 通道的抽象基类。
+ * <p>
+ * 定义了所有通道（AIO / NIO / UDP）共有的状态管理、管道执行、配置访问等核心行为。
+ * 子类只需实现具体的读写和关闭逻辑。
+ * </p>
  *
- * @description:io通道
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public abstract class AbstractSocketChannel {
+
     protected static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractSocketChannel.class);
-    /**
-     * 已关闭
-     */
+
+    // ==================== 通道状态常量 ====================
+
+    /** 通道已关闭 */
     protected static final byte CHANNEL_STATUS_CLOSED = 1;
-    /**
-     * 已开启
-     */
+
+    /** 通道已启用（正常工作） */
     protected static final byte CHANNEL_STATUS_ENABLED = 3;
 
-    /**
-     * 默认保持长连接
-     */
-    protected boolean keepAlive = true;
+    // ==================== 通道状态字段 ====================
 
     /**
-     * 是否调用close()方法关闭
+     * 通道当前状态。使用 volatile 保证多线程间的可见性。
      */
-    protected boolean initiateClose = false;
+    protected volatile byte status = CHANNEL_STATUS_ENABLED;
 
-    /**
-     * 是否已经握手
-     */
-    protected boolean handShake = false;
+    /** 是否保持长连接（短连接在写完后自动关闭） */
+    protected volatile boolean keepAlive = true;
 
-    /**
-     * 当前通道是否可写入
-     */
-    protected boolean writeable = true;
+    /** 是否由本端主动调用 close() 关闭 */
+    protected volatile boolean initiateClose;
 
-    /**
-     * 会话当前状态
-     */
-    protected byte status = CHANNEL_STATUS_ENABLED;
+    /** SSL 握手是否已完成 */
+    protected volatile boolean handShake;
 
+    /** 当前通道是否可写入（流控标志） */
+    protected volatile boolean writeable = true;
 
-    /**
-     * 内存池
-     */
+    // ==================== 核心组件 ====================
+
+    /** 内存池 */
     protected ByteBufferPool byteBufferPool;
 
-    /**
-     * 配置
-     */
+    /** 通道配置 */
     protected BaseConfig config;
 
-    /**
-     * 责任链对象
-     */
+    /** 管道（责任链），惰性初始化 */
     protected ChannelPipeline channelPipeline;
-    /**
-     * 关闭监听
-     */
+
+    /** 通道关闭监听器 */
     protected ChannelFutureListener channelFutureListener;
 
-    /**
-     * 用于方便设置随通道传播的属性
-     */
+    /** 通道属性（读写安全的 Map） */
     protected ConcurrentSafeMap<String, Object> channelAttribute = new ConcurrentSafeMap<>();
 
-    /**
-     * 通道初始化接口
-     */
+    /** 管道初始化器 */
     protected ChannelInitializer channelInitializer;
 
-    //-------------------------------------------------------------------------------------
+    // ==================== 标识与状态查询 ====================
 
     /**
-     * 获取当前aioChannel的唯一标识
+     * 获取通道唯一标识。
      *
-     * @return String
+     * @return 通道 ID 字符串
      */
     public final String getChannelId() {
-        return "aioChannel-" + System.identityHashCode(this);
+        return "channel-" + System.identityHashCode(this);
     }
 
     /**
-     * 当前会话是否已失效
+     * 通道是否已失效（非启用状态）。
      *
-     * @return boolean
+     * @return true 表示通道已关闭
      */
     public final boolean isInvalid() {
         return status != CHANNEL_STATUS_ENABLED;
     }
 
+    // ==================== 抽象方法（子类必须实现） ====================
 
     /**
-     * 开始读取，很重要，只有调用该方法，才会开始监听消息读取
+     * 开始读取。调用此方法后，通道才会开始监听消息读取。
      */
-    public void starRead() {
-    }
-
+    public abstract void starRead();
 
     /**
-     * 立即关闭会话
+     * 立即关闭通道，释放所有资源。
      */
     public abstract void close();
 
     /**
-     * 主动关闭，标记
+     * 带主动关闭标志的关闭方法。
      *
-     * @param initiateClose
+     * @param initiateClose true 表示本端主动关闭
      */
     public abstract void close(boolean initiateClose);
 
-//-------------------------------------------------------------------------------------------------
-
     /**
-     * 写出数据，经过责任链
+     * 写出数据，经过责任链处理。
      *
-     * @param obj 写入的数组
+     * @param obj 待写出的数据
+     * @return true 表示提交成功，false 表示被流控拒绝
      */
     public abstract boolean writeAndFlush(Object obj);
 
     /**
-     * 写到BufferWriter输出器，不经过责任链
+     * 直接写到输出器，跳过责任链。
      *
-     * @param obj 写入的数组
+     * @param obj 待写出的数据（通常是 byte[]）
      */
     public abstract void writeToChannel(Object obj);
 
-
-    //-----------------------------------------------------------------------------------
-
     /**
-     * 获取本地地址
+     * 获取本地地址。
      *
-     * @return InetSocketAddress
-     * @throws IOException 异常
+     * @return 本地 Socket 地址
+     * @throws IOException 通道已关闭时抛出
      */
     public abstract InetSocketAddress getLocalAddress() throws IOException;
 
     /**
-     * 获取远程地址
+     * 获取远程地址。
      *
-     * @return InetSocketAddress
-     * @throws IOException 异常
+     * @return 远程 Socket 地址
+     * @throws IOException 通道已关闭时抛出
      */
-    public InetSocketAddress getRemoteAddress() throws IOException {
-        return null;
-    }
+    public abstract InetSocketAddress getRemoteAddress() throws IOException;
 
-
-    //------------------------------------------------------------------------------
+    // ==================== 管道执行 ====================
 
     /**
-     * 消息读取到责任链管道
+     * 正向执行管道处理。
      *
-     * @param readBuffer 消息对象
-     * @throws Exception 异常
-     */
-    public void readToPipeline(Object readBuffer) throws Exception {
-        invokePipeline(ChannelState.CHANNEL_READ, readBuffer);
-    }
-
-    //------------------------------------------------------------------------------
-
-    /**
-     * 正向执行管道处理
-     *
-     * @param channelState 数据流向
-     * @throws Exception 异常
-     */
-    protected void invokePipeline(ChannelState channelState) throws Exception {
-        invokePipeline(channelState, null);
-    }
-
-    /**
-     * 正向执行管道处理
-     *
-     * @param channelState 数据流向
-     * @param obj          消息对象
-     * @throws Exception 异常
+     * @param channelState 数据流向（读 / 写 / 事件等）
+     * @param obj          消息对象，可为 null
+     * @throws Exception 处理过程中的异常
      */
     protected void invokePipeline(ChannelState channelState, Object obj) throws Exception {
-        ChannelHandlerContext channelHandlerContext = getChannelPipeline().head();
-        channelHandlerContext.fireChannelProcess(channelState, obj);
+        ChannelHandlerContext ctx = getChannelPipeline().head();
+        ctx.fireChannelProcess(channelState, obj);
     }
 
     /**
-     * 反向执行管道
+     * 反向执行管道处理（用于写出方向）。
      *
      * @param channelState 数据流向
      * @param obj          消息对象
-     * @throws Exception 异常
+     * @throws Exception 处理过程中的异常
      */
     protected void reverseInvokePipeline(ChannelState channelState, Object obj) throws Exception {
-        ChannelHandlerContext channelHandlerContext = getChannelPipeline().tail();
-        channelHandlerContext.fireChannelProcess(channelState, obj);
+        ChannelHandlerContext ctx = getChannelPipeline().tail();
+        ctx.fireChannelProcess(channelState, obj);
     }
-
 
     /**
-     * 获取责任链
+     * 获取责任链管道（惰性初始化）。
      *
-     * @return com.gettyio.core.pipeline.DefaultChannelPipeline
+     * @return ChannelPipeline
      */
     public ChannelPipeline getChannelPipeline() {
-        return channelPipeline != null ? channelPipeline : (channelPipeline = new DefaultChannelPipeline(this));
+        ChannelPipeline p = channelPipeline;
+        if (p == null) {
+            p = new DefaultChannelPipeline(this);
+            channelPipeline = p;
+        }
+        return p;
     }
 
-//--------------------------------------------------------------------------------------
-
+    // ==================== 内存池 ====================
 
     public ByteBufferPool getByteBufferPool() {
         return byteBufferPool;
     }
 
+    // ==================== SSL 相关（默认空实现，子类按需覆盖） ====================
+
     /**
-     * 设置SSLHandler
-     *
-     * @return AioChannel
+     * 设置 SSL 处理器。默认空实现，TCP 通道子类需覆盖。
      */
     public void setSslHandler(SSLHandler sslHandler) {
     }
 
     /**
-     * 获取ssl服务
+     * 获取 SSL 处理器。
      *
-     * @return com.gettyio.core.handler.ssl.SslService
+     * @return SSLHandler，未设置时返回 null
      */
     public SSLHandler getSslHandler() {
         return null;
     }
 
+    /**
+     * 获取 SSL 握手监听器。
+     *
+     * @return IHandshakeListener，未设置时返回 null
+     */
     public IHandshakeListener getSslHandshakeListener() {
         return null;
     }
 
+    /**
+     * 设置 SSL 握手监听器。默认空实现，TCP 通道子类需覆盖。
+     */
     public void setSslHandshakeListener(IHandshakeListener handshakeListener) {
     }
 
+    // ==================== 配置与属性 ====================
+
     public BaseConfig getConfig() {
-        return this.config;
+        return config;
     }
 
     public void setChannelFutureListener(ChannelFutureListener channelFutureListener) {
@@ -288,21 +254,21 @@ public abstract class AbstractSocketChannel {
     }
 
     public Object getChannelAttribute(String key) {
-        if (StringUtil.isEmpty(key)) {
+        if (key == null || key.isEmpty()) {
             return null;
         }
         return channelAttribute.get(key);
     }
 
     public void setChannelAttribute(String key, Object obj) {
-        this.channelAttribute.put(key, obj);
+        channelAttribute.put(key, obj);
     }
 
     public void removeChannelAttribute(String key) {
-        if (StringUtil.isEmpty(key)) {
+        if (key == null || key.isEmpty()) {
             return;
         }
-        this.channelAttribute.remove(key);
+        channelAttribute.remove(key);
     }
 
     public void setKeepAlive(boolean keepAlive) {

@@ -20,27 +20,28 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import java.util.Set;
 
 /**
- * ChannelGroup.java
+ * 通道分组接口。
+ * <p>
+ * 用于管理一组通道，方便批量操作（如广播消息）和按 ID 查找通道。
+ * 继承 {@link Set} 提供集合操作，继承 {@link Comparable} 支持按名称排序。
+ * </p>
  *
- * @description: 用于保存连接用的组
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public interface ChannelGroup extends Set<AbstractSocketChannel>, Comparable<ChannelGroup> {
 
     /**
-     * 名称
+     * 获取组名称。
      *
-     * @return
+     * @return 组名称
      */
     String name();
 
     /**
-     * 查找通道
+     * 按 ID 查找通道。
      *
-     * @param id
-     * @return
+     * @param id 通道 ID
+     * @return 匹配的通道，未找到返回 null
      */
     AbstractSocketChannel find(String id);
 }

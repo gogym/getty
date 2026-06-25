@@ -16,29 +16,25 @@
 package com.gettyio.core.channel.loop;
 
 /**
- * 事件循环
+ * 事件循环接口。
+ * <p>
+ * 负责在独立线程中轮询 Selector，处理 I/O 事件（连接、读取等）。
+ * </p>
  *
- * @author gogym.ggj
- * @ClassName EventLoop.java
- * @Description
- * @createTime 2020/12/15 13:59:32
+ * @author gogym
  */
 public interface EventLoop {
-    /**
-     * 运行
-     */
+
+    /** 启动事件循环 */
     void run();
 
-    /**
-     * 关闭
-     */
+    /** 停止事件循环并释放资源 */
     void shutdown();
 
     /**
-     * 获取selector
+     * 获取关联的选择器。
      *
-     * @return
+     * @return SelectedSelector
      */
     SelectedSelector getSelector();
-
 }

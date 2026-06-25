@@ -22,22 +22,25 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import java.nio.channels.CompletionHandler;
 
 /**
- * @description:写回调事件
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * AIO 异步写完成回调处理器。
+ * <p>
+ * 当异步写操作完成时，通知 {@link AioChannel#writeCompleted()} 继续写出后续数据。
+ * 写失败时自动关闭通道。
+ * </p>
+ *
+ * @author gogym
  */
 public class WriteCompletionHandler implements CompletionHandler<Integer, AioChannel> {
+
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(WriteCompletionHandler.class);
 
     @Override
-    public void completed(final Integer result, final AioChannel aioChannel) {
+    public void completed(Integer result, AioChannel aioChannel) {
         try {
             aioChannel.writeCompleted();
         } catch (Exception e) {
             failed(e, aioChannel);
         }
-
     }
 
     @Override
@@ -45,8 +48,7 @@ public class WriteCompletionHandler implements CompletionHandler<Integer, AioCha
         try {
             aioChannel.close();
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("close channel failed in WriteCompletionHandler", e);
         }
     }
-
 }

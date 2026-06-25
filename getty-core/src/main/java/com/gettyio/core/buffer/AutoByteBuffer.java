@@ -22,44 +22,42 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 
 /**
- * 数组缓存处理类，用于解决需要写入一个未知长度的byte[]，
- * 如果使用定长数组的话，处理起来相对麻烦，所以引入一个可自动扩容的数组类。
+ * 自动扩容字节缓冲区。
+ * <p>
+ * 用于写入未知长度的数据，支持自动扩容。采用指数增长策略（倍增），
+ * 确保追加操作的均摊时间复杂度为 O(1)。
+ * </p>
  *
  * @author gogym
- * @version 1.0.0
- * @className AutoByteBuffer.java
- * @date 2019/9/27
  */
 public class AutoByteBuffer {
 
     /**
-     * 默认的长度
+     * 默认初始容量
      */
     public static final int BUFFER_SIZE = 256;
+
     /**
-     * 指针位置，即将读取的位置
+     * 读指针位置
      */
     private int readerIndex;
+
     /**
-     * 指针位置，即将写入的位置
+     * 写指针位置
      */
     private int writerIndex;
+
     /**
-     * 已储存的数数据
+     * 底层数据存储
      */
     private byte[] data;
 
-    /**
-     * 获取一个新的实例
-     *
-     * @param capacity
-     */
     private AutoByteBuffer(int capacity) {
         data = new byte[capacity];
     }
 
     /**
-     * 获取一个新的实例
+     * 使用默认容量创建实例
      *
      * @return AutoByteBuffer
      */
@@ -68,9 +66,9 @@ public class AutoByteBuffer {
     }
 
     /**
-     * 获取一个新的实例
+     * 使用指定容量创建实例
      *
-     * @param capacity 长度
+     * @param capacity 初始容量
      * @return AutoByteBuffer
      */
     public static AutoByteBuffer newByteBuffer(int capacity) {
@@ -78,20 +76,19 @@ public class AutoByteBuffer {
     }
 
     /**
-     * 清空数据，重置指针
+     * 清空数据，重置指针。复用已有数组避免重复分配。
      *
-     * @return AutoByteBuffer
+     * @return this
      */
     public AutoByteBuffer clear() {
         readerIndex = 0;
         writerIndex = 0;
-        data = new byte[BUFFER_SIZE];
+        // 复用已有数组，不重新分配
         return this;
     }
 
     /**
-     * 清理指针标记，数组内容保留，下次写入会被覆盖，除了array()获取原始数组外无法得到旧数据
-     *
+     * 重置指针位置，数组内容保留
      */
     public void reset() {
         readerIndex = 0;
@@ -99,16 +96,16 @@ public class AutoByteBuffer {
     }
 
     /**
-     * 数组是否有长度
+     * 是否有已写入数据
      *
-     * @return
+     * @return true 如果 writerIndex > 0
      */
     public boolean hasArray() {
         return writerIndex > 0;
     }
 
     /**
-     * 获取未处理byte[]，就是获取原始数组的意思
+     * 获取底层原始数组
      *
      * @return byte[]
      */
@@ -116,132 +113,112 @@ public class AutoByteBuffer {
         return data;
     }
 
-
     /**
-     * 获取剩余未读数据
+     * 获取剩余未读数据的拷贝
      *
      * @return byte[]
      */
     public byte[] readableBytesArray() {
-        byte[] bytes = new byte[readableBytes()];
-        readBytesFromBytes(data, bytes, readerIndex);
+        int len = readableBytes();
+        byte[] bytes = new byte[len];
+        System.arraycopy(data, readerIndex, bytes, 0, len);
         return bytes;
     }
 
     /**
-     * 获取已写入的数据
+     * 获取已写入数据的拷贝
      *
      * @return byte[]
      */
     public byte[] allWriteBytesArray() {
         byte[] bytes = new byte[writerIndex];
-        readBytesFromBytes(data, bytes, 0);
+        System.arraycopy(data, 0, bytes, 0, writerIndex);
         return bytes;
     }
 
     /**
-     * 删除已读部分，保留未读部分
-     * 读下标初始为0，写下标为未读长度
+     * 删除已读部分，将未读数据移动到数组起始位置
      */
     public void discardReadBytes() {
-        byte[] newBytes = new byte[capacity()];
-        int oldReadableBytes = readableBytes();
-        //参数意思：原数组，源数组要复制的起始位置，目标数组，目标数组起始位置，要复制的长度
-        System.arraycopy(data, readerIndex, newBytes, 0, oldReadableBytes);
-        writerIndex = oldReadableBytes;
+        int readable = readableBytes();
+        if (readable > 0 && readerIndex > 0) {
+            System.arraycopy(data, readerIndex, data, 0, readable);
+        }
+        writerIndex = readable;
         readerIndex = 0;
-        data = newBytes;
     }
 
     /**
-     * 重置读指针位置,相当于指定下次开始读取的下标
-     * 如果大于写入位置，则可读位置重置为写入位置，readableBytes()结果则为0
+     * 设置读指针位置
      *
-     * @param position 下标
-     * @return AutoByteBuffer
+     * @param position 新位置
+     * @return this
      */
     public AutoByteBuffer readerIndex(int position) {
-        if (position <= writerIndex) {
-            readerIndex = position;
-        } else {
-            readerIndex = writerIndex;
-        }
+        readerIndex = Math.min(position, writerIndex);
         return this;
     }
 
     /**
-     * 读取指针位置
-     *
-     * @return 读取指针位置
+     * @return 读指针位置
      */
     public int readerIndex() {
         return readerIndex;
     }
 
     /**
-     * 写入指针位置
-     *
-     * @return 写入指针位置
+     * @return 写指针位置
      */
     public int writerIndex() {
         return writerIndex;
     }
 
     /**
-     * 当前可读长度，writerIndex - readerIndex
-     *
-     * @return 当前可读长度 相当于remaining()
+     * @return 当前可读字节数
      */
     public int readableBytes() {
         return writerIndex - readerIndex;
     }
 
     /**
-     * 当前是否有可读数据
-     *
-     * @return 当前是否有可读数据
+     * @return 是否有可读数据
      */
     public boolean hasRemaining() {
-        if ((writerIndex - readerIndex) > 0) {
-            return true;
-        }
-        return false;
+        return writerIndex > readerIndex;
     }
 
     /**
-     * 当前剩余可写入数据长度，每次触发扩容后都不一样
-     *
-     * @return int
+     * @return 当前可写入字节数
      */
     public int writableBytes() {
         return data.length - writerIndex;
     }
 
     /**
-     * 复制自身
+     * 复制自身（深拷贝）
      *
-     * @return
+     * @return 新的 AutoByteBuffer
      */
     public AutoByteBuffer duplicate() {
-        AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
-        autoByteBuffer.writeBytes(this);
-        return autoByteBuffer;
+        AutoByteBuffer dup = new AutoByteBuffer(writerIndex > 0 ? writerIndex : BUFFER_SIZE);
+        System.arraycopy(data, 0, dup.data, 0, writerIndex);
+        dup.writerIndex = writerIndex;
+        dup.readerIndex = readerIndex;
+        return dup;
     }
 
     /**
-     * 当前容量，当写入数据超过当前容量后会自动扩容
-     *
-     * @return int
+     * @return 当前底层数组容量
      */
     public int capacity() {
         return data.length;
     }
 
     /**
-     * 获取长度下标
+     * 跳过指定字节数
      *
-     * @param length
-     * @return
+     * @param length 跳过的字节数
+     * @return this
      */
     public AutoByteBuffer skipBytes(int length) {
         readerIndex += length;
@@ -249,452 +226,337 @@ public class AutoByteBuffer {
     }
 
     /**
-     * 读取一个数据到byte，从readIndex位置开始，每读取一个，指针+1，类似byteBuffer的get方法
+     * 读取一个字节（有符号）
      *
-     * @return int
-     * @throws ByteBufferException 抛出异常
+     * @return 字节值
+     * @throws ByteBufferException 无可读数据时抛出
      */
     public int read() throws ByteBufferException {
-        if (readableBytes() > 0) {
-            int i = data[readerIndex];
-            readerIndex++;
-            return i;
-        } else {
+        if (readerIndex >= writerIndex) {
             throw new ByteBufferException("readableBytes = 0");
         }
+        return data[readerIndex++];
     }
 
     /**
-     * 读取制定下标的一个byte。
+     * 读取指定位置的字节
      *
-     * @param index
-     * @return
-     * @throws ByteBufferException
+     * @param index 位置
+     * @return 字节值
+     * @throws ByteBufferException 越界时抛出
      */
     public byte read(int index) throws ByteBufferException {
-        if (writerIndex() > index) {
-            byte i = data[index];
-            return i;
-        } else {
+        if (index >= writerIndex) {
             throw new ByteBufferException("IndexOutOfBoundsException");
         }
+        return data[index];
     }
 
-
     /**
-     * 读取数据到byte，1 byte，从readIndex位置开始
+     * 读取一个字节
      *
-     * @return byte
-     * @throws ByteBufferException 抛出异常
+     * @return 字节值
+     * @throws ByteBufferException 无可读数据时抛出
      */
     public byte readByte() throws ByteBufferException {
-        if (readableBytes() > 0) {
-            byte i = data[readerIndex];
-            readerIndex++;
-            return i;
-        } else {
+        if (readerIndex >= writerIndex) {
             throw new ByteBufferException("readableBytes = 0");
         }
+        return data[readerIndex++];
     }
 
-
     /**
-     * 读取无符号byte
+     * 读取一个无符号字节
      *
-     * @return
-     * @throws ByteBufferException
+     * @return 无符号字节值 (0~255)
+     * @throws ByteBufferException 无可读数据时抛出
      */
     public short readUnsignedByte() throws ByteBufferException {
         return (short) (readByte() & 0xFF);
     }
 
     /**
-     * 读取integer值，读4 byte转换为integer，从readIndex位置开始
+     * 读取 4 字节整数（大端序）
      *
-     * @return int
-     * @throws ByteBufferException 抛出异常
+     * @return int 值
+     * @throws ByteBufferException 可读数据不足 4 字节时抛出
      */
     public int readInt() throws ByteBufferException {
-        if (readableBytes() >= 4) {
-            int result = byteArrayToInt(data, readerIndex);
-            readerIndex += 4;
-            return result;
-        } else {
+        if (readableBytes() < 4) {
             throw new ByteBufferException("readableBytes < 4");
         }
+        int result = (data[readerIndex] & 0xFF) << 24
+                | (data[readerIndex + 1] & 0xFF) << 16
+                | (data[readerIndex + 2] & 0xFF) << 8
+                | (data[readerIndex + 3] & 0xFF);
+        readerIndex += 4;
+        return result;
     }
 
     /**
-     * 读取数据到bytes，从readIndex位置开始
+     * 读取数据到字节数组
      *
-     * @param bytes 数组
-     * @return int
-     * @throws ByteBufferException 抛出异常
+     * @param bytes 目标数组
+     * @return 源数组长度
+     * @throws ByteBufferException 可读数据不足时抛出
      */
     public int readBytes(byte[] bytes) throws ByteBufferException {
-        if (readableBytes() >= bytes.length) {
-            int result = readBytesFromBytes(data, bytes, readerIndex);
-            readerIndex += bytes.length;
-            return result;
-        } else {
+        if (readableBytes() < bytes.length) {
             throw new ByteBufferException("readableBytes < " + bytes.length);
         }
+        System.arraycopy(data, readerIndex, bytes, 0, bytes.length);
+        readerIndex += bytes.length;
+        return data.length;
     }
 
     /**
-     * 读取数据到bytes，写入从offset到offset+length的区域
+     * 读取数据到字节数组的指定区域
      *
-     * @param bytes  数组
-     * @param offset 下标
-     * @param length 长度
-     * @return int
-     * @throws ByteBufferException 抛出异常
+     * @param bytes  目标数组
+     * @param offset 目标数组起始偏移
+     * @param length 读取长度
+     * @return 源数组长度
+     * @throws ByteBufferException 可读数据不足时抛出
      */
     public int readBytes(byte[] bytes, int offset, int length) throws ByteBufferException {
-        if (readableBytes() >= length) {
-            int result = readBytesFromBytes(data, bytes, readerIndex, offset, length);
-            readerIndex += length;
-            return result;
-        } else {
+        if (readableBytes() < length) {
             throw new ByteBufferException("readableBytes < " + length);
         }
+        System.arraycopy(data, readerIndex, bytes, offset, length);
+        readerIndex += length;
+        return data.length;
     }
 
-
     /**
-     * 读取数据到另一个ByteBuffer
+     * 读取数据到另一个 AutoByteBuffer
      *
-     * @param b 数组
-     * @return int
+     * @param b 目标缓冲区
+     * @return 源数组长度
      */
     public int readBytes(AutoByteBuffer b) {
-        byte[] bytes = new byte[b.writableBytes()];
-        int result = readBytesFromBytes(data, bytes, readerIndex);
-        readerIndex += bytes.length;
-        b.writeBytes(bytes);
-        return result;
-
+        int len = readableBytes();
+        b.writeBytes(data, readerIndex, len);
+        readerIndex += len;
+        return data.length;
     }
 
     /**
-     * 读取指定长度的数据，返回AutoByteBuffer
+     * 读取指定长度的数据，返回新的 AutoByteBuffer
      *
-     * @param len
-     * @return
-     * @throws ByteBufferException
+     * @param len 读取长度
+     * @return 新的 AutoByteBuffer
+     * @throws ByteBufferException 可读数据不足时抛出
      */
     public AutoByteBuffer readRetainedSlice(int len) throws ByteBufferException {
-        byte[] bytes = new byte[len];
-        this.readBytes(bytes);
-        AutoByteBuffer b = AutoByteBuffer.newByteBuffer(len).writeBytes(bytes);
+        if (readableBytes() < len) {
+            throw new ByteBufferException("readableBytes < " + len);
+        }
+        AutoByteBuffer b = new AutoByteBuffer(len);
+        System.arraycopy(data, readerIndex, b.data, 0, len);
+        b.writerIndex = len;
+        readerIndex += len;
         return b;
     }
 
     /**
-     * 写入Byte数据，1 byte，类似byteBuffer的put
+     * 写入单个字节
      *
-     * @param b 字节
-     * @return AutoByteBuffer
+     * @param b 字节值
+     * @return this
      */
     public AutoByteBuffer writeByte(byte b) {
-        autoExpandCapacity(1);
-        data[writerIndex] = b;
-        writerIndex++;
+        ensureWritable(1);
+        data[writerIndex++] = b;
         return this;
     }
 
     /**
-     * 写入int值的byte转换结果，即丢弃高位
+     * 写入单个字节（取 int 的低 8 位）
      *
-     * @param b 整数字节
-     * @return AutoByteBuffer
+     * @param b 整数值
+     * @return this
      */
     public AutoByteBuffer write(int b) {
-        autoExpandCapacity(1);
-        data[writerIndex] = (byte) ((0xFF) & b);
-        writerIndex++;
+        ensureWritable(1);
+        data[writerIndex++] = (byte) b;
         return this;
-
     }
 
     /**
-     * 写入integer数据，4 byte
+     * 写入 4 字节整数（大端序）
      *
-     * @param b 整数字节
-     * @return AutoByteBuffer
+     * @param b 整数值
+     * @return this
      */
     public AutoByteBuffer writeInt(int b) {
-        autoExpandCapacity(4);
-        writeBytesToBytes(intToByteArray(b), data, writerIndex);
+        ensureWritable(4);
+        data[writerIndex] = (byte) (b >>> 24);
+        data[writerIndex + 1] = (byte) (b >>> 16);
+        data[writerIndex + 2] = (byte) (b >>> 8);
+        data[writerIndex + 3] = (byte) b;
         writerIndex += 4;
         return this;
     }
 
     /**
-     * 写入一个short
+     * 写入 2 字节 short（大端序）
      *
-     * @param value
-     * @return
+     * @param value short 值
+     * @return this
      */
     public AutoByteBuffer writeShort(int value) {
-        autoExpandCapacity(2);
-        writeBytesToBytes(shortToByte(value), data, writerIndex);
+        ensureWritable(2);
+        data[writerIndex] = (byte) (value >>> 8);
+        data[writerIndex + 1] = (byte) value;
         writerIndex += 2;
         return this;
     }
 
     /**
-     * 写入数组
+     * 写入整个字节数组
      *
-     * @param b 写入数据
-     * @return AutoByteBuffer
+     * @param b 数据
+     * @return this
      */
     public AutoByteBuffer writeBytes(byte[] b) {
-        autoExpandCapacity(b.length);
-        writeBytesToBytes(b, data, writerIndex);
+        ensureWritable(b.length);
+        System.arraycopy(b, 0, data, writerIndex, b.length);
         writerIndex += b.length;
         return this;
     }
 
     /**
-     * 写入数组,并指定写入长度
+     * 写入字节数组的指定长度
      *
      * @param b   数据
      * @param len 写入长度
-     * @return AutoByteBuffer
+     * @return this
      */
     public AutoByteBuffer writeBytes(byte[] b, int len) {
-        autoExpandCapacity(b.length);
-        writeBytesToBytes(b, data, writerIndex, len);
+        ensureWritable(len);
+        System.arraycopy(b, 0, data, writerIndex, len);
         writerIndex += len;
         return this;
     }
 
-
     /**
-     * 写入一个数组，指定位置
+     * 写入字节数组的指定区域
      *
-     * @param src      来源数组
-     * @param srcIndex 来源数组开始位置
-     * @param len      来源数组写入长度
-     * @return AutoByteBuffer
+     * @param src      源数组
+     * @param srcIndex 源数组起始位置
+     * @param len      写入长度
+     * @return this
      */
     public AutoByteBuffer writeBytes(byte[] src, int srcIndex, int len) {
-        autoExpandCapacity(len);
-        // src : 原数组 int srcPos : 从元数据的起始位置开始 dest : 目标数组 destPos : 目标数组的开始起始位置 length  : 要copy的数组的长度
+        ensureWritable(len);
         System.arraycopy(src, srcIndex, data, writerIndex, len);
         writerIndex += len;
         return this;
     }
 
-
     /**
-     * 写入一个ByteBuffer可读数据
+     * 写入另一个 AutoByteBuffer 的可读数据
      *
-     * @param b 写入数据
-     * @return AutoByteBuffer
+     * @param b 源缓冲区
+     * @return this
      */
     public AutoByteBuffer writeBytes(AutoByteBuffer b) {
-        int readableBytes = b.readableBytes();
-        autoExpandCapacity(readableBytes);
-        writeBytesToBytes(b.readableBytesArray(), data, writerIndex);
-        b.readerIndex(b.writerIndex);
-        writerIndex += readableBytes;
+        int len = b.readableBytes();
+        ensureWritable(len);
+        System.arraycopy(b.data, b.readerIndex, data, writerIndex, len);
+        b.readerIndex = b.writerIndex;
+        writerIndex += len;
         return this;
     }
 
     /**
-     * 写入一个ByteBuffer可读数据的部分长度
+     * 写入另一个 AutoByteBuffer 的指定长度数据
      *
-     * @param b          数据
+     * @param b          源缓冲区
      * @param dataLength 写入长度
-     * @return AutoByteBuffer
+     * @return this
      */
     public AutoByteBuffer writeBytes(AutoByteBuffer b, int dataLength) {
-        autoExpandCapacity(dataLength);
-        writeBytesToBytes(b.readableBytesArray(), data, writerIndex, dataLength);
-        b.readerIndex(b.readerIndex + dataLength);
+        ensureWritable(dataLength);
+        System.arraycopy(b.data, b.readerIndex, data, writerIndex, dataLength);
+        b.readerIndex += dataLength;
         writerIndex += dataLength;
         return this;
     }
 
+    // ======================== 内部方法 ========================
 
     /**
-     * 检查写入数据长度，如果不够则扩容,自动扩容,递增值为BUFFER_SIZE的倍数
+     * 确保可写入空间足够。采用指数增长策略（倍增），均摊 O(1)。
      *
-     * @param addLength 扩容长度
+     * @param needed 需要的字节数
      */
-    private void autoExpandCapacity(int addLength) {
-        if (writableBytes() < addLength) {
-            int newSize = writerIndex + addLength;
-            int size = 0;
-            while (size < newSize) {
-                size += BUFFER_SIZE;
-            }
-            byte[] newBytes = new byte[size];
-            writeBytesToBytes(data, newBytes, 0);
-            data = newBytes;
+    private void ensureWritable(int needed) {
+        int available = data.length - writerIndex;
+        if (available >= needed) {
+            return;
         }
+        // 指数增长：每次至少翻倍，直到满足需求
+        int newCapacity = data.length;
+        int minCapacity = writerIndex + needed;
+        while (newCapacity < minCapacity) {
+            newCapacity <<= 1;
+            // 防溢出
+            if (newCapacity < 0) {
+                newCapacity = minCapacity;
+                break;
+            }
+        }
+        byte[] newData = new byte[newCapacity];
+        System.arraycopy(data, 0, newData, 0, writerIndex);
+        data = newData;
     }
 
     /**
-     * 数组转换成整数型
+     * 解析为字符串
      *
-     * @param b        数组
-     * @param position 下标
-     */
-    private int byteArrayToInt(byte[] b, int position) {
-        return b[position + 3] & 0xFF | (b[position + 2] & 0xFF) << 8 | (b[position + 1] & 0xFF) << 16 | (b[position] & 0xFF) << 24;
-    }
-
-    /**
-     * 数据读取，从一个数组中读取一部分数组
-     *
-     * @param position 下标
-     * @param src      源数组
-     * @param result   目标数组
-     * @return int
-     */
-    private int readBytesFromBytes(byte[] src, byte[] result, int position) {
-        System.arraycopy(src, position, result, 0, result.length);
-        return src.length;
-    }
-
-    /**
-     * 数据读取，从一个数组中读取一部分数组，写到指定的下标位置
-     *
-     * @param position 下标
-     * @param src      源数组
-     * @param result   目标数组
-     * @param offset   目标数组起始下标位置
-     * @return int
-     */
-    private int readBytesFromBytes(byte[] src, byte[] result, int position, int offset, int length) {
-        System.arraycopy(src, position, result, offset, length);
-        return src.length;
-    }
-
-
-    /**
-     * 数组复制，向一个数组写入一个数组
-     *
-     * @param src            来源数组
-     * @param target         被写入新数据数组
-     * @param targetPosition 新数组被写入位置
-     * @return AutoByteBuffer
-     */
-    private void writeBytesToBytes(byte[] src, byte[] target, int targetPosition) {
-        writeBytesToBytes(src, target, targetPosition, src.length);
-    }
-
-    /**
-     * 数组复制，向一个数组写入一个数组数组
-     *
-     * @param src            来源数组
-     * @param target         被写入新数据数组
-     * @param targetPosition 新数组被写入位置
-     * @return AutoByteBuffer
-     */
-    private void writeBytesToBytes(byte[] src, byte[] target, int targetPosition, int dataLength) {
-        System.arraycopy(src, 0, target, targetPosition, dataLength);
-    }
-
-    /**
-     * 获取指定的数组
-     *
-     * @param start
-     * @param length
-     * @return
-     */
-    private byte[] getBytes(int start, int length) {
-        byte[] bs = new byte[length];
-        System.arraycopy(this, start, bs, 0, length);
-        return bs;
-    }
-
-
-    /**
-     * 整数转换成数组
-     *
-     * @param i 整数
-     * @return byte length=4
-     */
-    private byte[] intToByteArray(int i) {
-        return new byte[]{(byte) ((i >> 24) & 0xFF), (byte) ((i >> 16) & 0xFF), (byte) ((i >> 8) & 0xFF), (byte) (i & 0xFF)};
-    }
-
-    /**
-     * shortToByte
-     *
-     * @param s
-     * @return
-     */
-    private byte[] shortToByte(int s) {
-        byte[] targets = new byte[2];
-        targets[0] = (byte) (s >> 8 & 0xFF);
-        targets[1] = (byte) (s & 0xFF);
-        return targets;
-    }
-
-
-    @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder("ByteBuffer{");
-        sb.append("readerIndex=").append(readerIndex);
-        sb.append(", writerIndex=").append(writerIndex);
-        sb.append(", capacity=").append(data.length);
-        sb.append('}');
-        return sb.toString();
-    }
-
-    /**
-     * 解析成string
-     *
-     * @param index
-     * @param length
-     * @param charset
-     * @return
+     * @param index   起始位置
+     * @param length  长度
+     * @param charset 字符集
+     * @return 字符串
      */
     public String decodeString(int index, int length, Charset charset) {
         return decodeString(this, index, length, charset);
     }
 
     /**
-     * 指定解析成string
+     * 从指定 AutoByteBuffer 解析字符串
      *
-     * @param src
-     * @param readerIndex
-     * @param len
-     * @param charset
-     * @return
+     * @param src         源缓冲区
+     * @param readerIndex 起始位置
+     * @param len         长度
+     * @param charset     字符集
+     * @return 字符串
      */
     public String decodeString(AutoByteBuffer src, int readerIndex, int len, Charset charset) {
         if (len == 0) {
             return StringUtil.EMPTY_STRING;
         }
-        final byte[] array;
-        final int offset;
-
-        if (src.hasArray()) {
-            array = src.array();
-            offset = readerIndex;
-        } else {
-            offset = 0;
-            array = getBytes(readerIndex, len);
-        }
+        byte[] srcArray = src.data;
         if (CharsetUtil.US_ASCII.equals(charset)) {
-            // Fast-path for US-ASCII which is used frequently.
-            return new String(array, 0, offset, len);
+            return new String(srcArray, 0, readerIndex, len);
         }
-        return new String(array, offset, len, charset);
+        return new String(srcArray, readerIndex, len, charset);
     }
 
+    @Override
+    public String toString() {
+        return "ByteBuffer{readerIndex=" + readerIndex
+                + ", writerIndex=" + writerIndex
+                + ", capacity=" + data.length + '}';
+    }
 
+    /**
+     * 缓冲区操作异常
+     */
     public static class ByteBufferException extends IOException {
         ByteBufferException(String message) {
             super(message);
         }
     }
-
 }
-

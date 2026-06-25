@@ -18,19 +18,16 @@ package com.gettyio.core.channel.group;
 import com.gettyio.core.channel.AbstractSocketChannel;
 
 /**
- * ChannelFutureListener.java
+ * 通道关闭监听器。用于在通道关闭时清理相关资源（如从 ChannelGroup 中移除）。
  *
- * 监听，目前用于监听通道关闭时清理相关资源
- * @author:gogym
- * @date:2020/4/8
+ * @author gogym
  */
 public interface ChannelFutureListener {
 
     /**
-     * 操作完成监听
+     * 操作完成回调。
      *
-     * @param abstractSocketChannel
+     * @param channel 已完成的通道
      */
-    void operationComplete(AbstractSocketChannel abstractSocketChannel);
-
+    void operationComplete(AbstractSocketChannel channel);
 }

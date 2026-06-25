@@ -15,67 +15,72 @@
  */
 package com.gettyio.core.buffer;
 
+import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+
 import java.io.IOException;
 
-
 /**
- * 流数据统一输出
+ * 流数据统一输出抽象基类。
  *
  * @author gogym
- * @version 1.0.0
- * @className AbstractBufferWriter.java
- * @date 2020/6/17
  */
-public abstract class AbstractBufferWriter<T> {
+public abstract class AbstractBufferWriter {
 
     /**
      * 当前是否已关闭
      */
-    boolean closed = false;
-
-    public void write(int b) throws IOException {
-    }
-
-
-    public void write(byte[] b, int off, int len) throws IOException {
-    }
-
-
-    public void flush() throws IOException {
-    }
-
-
-    public void close() throws IOException {
-    }
+    boolean closed;
 
     /**
-     * 写入队列，并刷新
+     * 写入字节数组
      *
-     * @param b
-     * @throws IOException 可能会有IO异常
+     * @param b   数据
+     * @param off 起始偏移
+     * @param len 写入长度
+     * @throws IOException 写入异常
      */
-    public void writeAndFlush(byte[] b) throws IOException {
-    }
+    public abstract void write(byte[] b, int off, int len) throws IOException;
+
+    /**
+     * 刷新缓冲区
+     *
+     * @throws IOException 刷新异常
+     */
+    public abstract void flush() throws IOException;
+
+    /**
+     * 关闭输出流
+     *
+     * @throws IOException 关闭异常
+     */
+    public abstract void close() throws IOException;
+
+    /**
+     * 写入并刷新
+     *
+     * @param b 数据
+     * @throws IOException 写入或刷新异常
+     */
+    public abstract void writeAndFlush(byte[] b) throws IOException;
 
     /**
      * 是否已经关闭
      *
-     * @return
+     * @return true 如果已关闭
      */
     public abstract boolean isClosed();
 
     /**
-     * 弹出队列中的数据
+     * 从队列中弹出一个缓冲区
      *
-     * @return
+     * @return 缓冲区，队列为空时返回 null
      */
-    public abstract T poll();
+    public abstract RetainableByteBuffer poll();
 
     /**
-     * 获取队列数量
+     * 获取队列中缓冲区数量
      *
-     * @return
+     * @return 队列大小
      */
     public abstract int getCount();
-
 }

@@ -18,29 +18,24 @@ package com.gettyio.core.buffer;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.function.Function;
-import com.gettyio.core.logging.InternalLogger;
-import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.queue.LinkedBlockQueue;
 import com.gettyio.core.util.queue.LinkedQueue;
 
 import java.io.IOException;
-
+import java.nio.ByteBuffer;
 
 /**
- * 控制数据输出
+ * 控制数据输出。
+ * <p>
+ * 将写入的字节数据封装为池化缓冲区，排入队列等待 flush 写出。
+ * </p>
  *
  * @author gogym
- * @version 1.0.0
- * @className BufferWriter.java
- * @description
- * @date 2020/4/8
  */
-public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffer> {
-
-    private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(BufferWriter.class);
+public final class BufferWriter extends AbstractBufferWriter {
 
     /**
-     * 函数
+     * flush 回调函数
      */
     private final Function<BufferWriter, Void> function;
 
@@ -50,15 +45,15 @@ public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffe
     private final LinkedQueue<RetainableByteBuffer> queue;
 
     /**
-     * 缓冲区构造器
+     * 缓冲区池
      */
     private final ByteBufferPool byteBufferPool;
 
     /**
      * 构造方法
      *
-     * @param byteBufferPool      内存池
-     * @param flushFunction         函数
+     * @param byteBufferPool        内存池
+     * @param flushFunction         flush 回调
      * @param bufferWriterQueueSize 写队列大小
      */
     public BufferWriter(ByteBufferPool byteBufferPool, Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
@@ -70,29 +65,57 @@ public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffe
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
         if (closed) {
-            IOException ioException = new IOException("OutputStream is closed");
-            LOGGER.error(ioException.getMessage(), ioException);
-            throw ioException;
+            throw new IOException("BufferWriter is closed");
         }
-        if (len <= 0 || b.length == 0) {
+        if (b == null) {
+            throw new NullPointerException("byte array is null");
+        }
+        if (len <= 0) {
             return;
         }
+        // 从池中获取精确大小的缓冲区
+        RetainableByteBuffer byteBuf = byteBufferPool.acquire(len);
+        // 直接通过 arraycopy 写入指定范围数据，避免经过 BufferUtil 多层调用
+        ByteBuffer buf = byteBuf.getBuffer();
+        int pos = buf.position();
+        int limit = buf.limit();
+        if (pos == limit) {
+            buf.position(0);
+            buf.limit(buf.capacity());
+        } else {
+            int capacity = buf.capacity();
+            if (limit == capacity) {
+                buf.compact();
+            } else {
+                buf.position(limit);
+                buf.limit(capacity);
+            }
+            pos = limit;
+        }
+        // 直接 arraycopy，比 ByteBuffer.put() 更高效（堆内存场景）
+        if (buf.hasArray()) {
+            System.arraycopy(b, off, buf.array(), buf.arrayOffset() + buf.position(), len);
+            buf.position(buf.position() + len);
+        } else {
+            buf.put(b, off, len);
+        }
+        // 切回 flush 模式
+        buf.limit(buf.position());
+        buf.position(pos);
+
         try {
-            //申请写缓冲
-            RetainableByteBuffer byteBuf = byteBufferPool.acquire(len - off);
-            //写入数据
-            byteBuf.put(b);
-            //写到缓冲队列
             queue.put(byteBuf);
-        } catch (Exception e) {
-            LOGGER.error(e);
+        } catch (InterruptedException e) {
+            byteBuf.release();
+            Thread.currentThread().interrupt();
+            throw new IOException("Write interrupted", e);
         }
     }
 
     @Override
     public void writeAndFlush(byte[] b) throws IOException {
         if (b == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("byte array is null");
         }
         write(b, 0, b.length);
         flush();
@@ -101,7 +124,7 @@ public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffe
     @Override
     public void flush() throws IOException {
         if (closed) {
-            throw new IOException("outputStream is closed");
+            throw new IOException("BufferWriter is closed");
         }
         function.apply(this);
     }
@@ -109,9 +132,8 @@ public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffe
     @Override
     public void close() throws IOException {
         if (closed) {
-            throw new IOException("outputStream is closed");
+            throw new IOException("BufferWriter is closed");
         }
-        //关闭前先把缓冲队列是数据输出完
         flush();
         closed = true;
     }
@@ -126,9 +148,9 @@ public final class BufferWriter extends AbstractBufferWriter<RetainableByteBuffe
         try {
             return queue.poll();
         } catch (InterruptedException e) {
-            LOGGER.error(e.getMessage(), e);
+            Thread.currentThread().interrupt();
+            return null;
         }
-        return null;
     }
 
     @Override

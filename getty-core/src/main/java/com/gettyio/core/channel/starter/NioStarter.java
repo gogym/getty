@@ -13,24 +13,17 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.channel.SocketMode;
 
 /**
- * NioStarter.java
+ * NIO Starter 基类。持有 Socket 模式（TCP / UDP）。
  *
- * @description:
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public abstract class NioStarter extends Starter {
 
-    /**
-     * 开启的socket模式 TCP/UDP ,默认tcp
-     */
+    /** Socket 模式，默认 TCP */
     protected SocketMode socketMode = SocketMode.TCP;
-
 }

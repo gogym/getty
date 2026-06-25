@@ -16,12 +16,9 @@
 package com.gettyio.core.channel.config;
 
 /**
- * ClientConfig.java
+ * 客户端配置。
  *
- * @description:客户端配置
- * @author:gogym
- * @date:2020/4/8
+ * @author gogym
  */
 public final class ClientConfig extends BaseConfig {
-
 }

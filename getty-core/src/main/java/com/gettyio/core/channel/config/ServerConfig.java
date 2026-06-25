@@ -16,12 +16,9 @@
 package com.gettyio.core.channel.config;
 
 /**
- * ServerConfig.java
+ * 服务端配置。
  *
- * @description:服务器端配置
- * @author:gogym
- * @date:2020/4/8
+ * @author gogym
  */
 public final class ServerConfig extends BaseConfig {
-
 }

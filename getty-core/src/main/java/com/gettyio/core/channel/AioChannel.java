@@ -34,344 +34,284 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 /**
- * AioChannel.java
+ * AIO（异步 I/O）通道实现。
+ * <p>
+ * 基于 {@link AsynchronousSocketChannel}，通过 CompletionHandler 回调机制
+ * 实现非阻塞的读写操作。使用信号量控制写出并发，确保同一时刻只有一个写操作在执行。
+ * </p>
  *
- * @description: aio通道
- * @author:gogym
- * @date:2020/4/8
- * @copyright: Copyright by gettyio.com
+ * @author gogym
  */
 public class AioChannel extends AbstractSocketChannel implements Function<BufferWriter, Void> {
 
-    /**
-     * 通信channel对象
-     */
-    protected AsynchronousSocketChannel channel;
-    /**
-     * 读缓冲。
-     */
-    protected RetainableByteBuffer readByteBuffer;
-    /**
-     * 写缓冲
-     */
-    protected RetainableByteBuffer writeByteBuffer;
-    /**
-     * 输出信号量
-     */
-    private final Semaphore semaphore = new Semaphore(1);
+    /** 底层异步 Socket 通道 */
+    private final AsynchronousSocketChannel channel;
 
-    /**
-     * 读写回调
-     */
+    /** 读缓冲区（每次读取时从池中获取，读完释放） */
+    private RetainableByteBuffer readByteBuffer;
+
+    /** 当前正在写出的缓冲区 */
+    private RetainableByteBuffer writeByteBuffer;
+
+    /** 写出信号量，保证同一时刻最多一个写操作 */
+    private final Semaphore writeSemaphore = new Semaphore(1);
+
+    /** 读 / 写完成回调 */
     private final ReadCompletionHandler readCompletionHandler;
     private final WriteCompletionHandler writeCompletionHandler;
 
-    /**
-     * SSL服务
-     */
+    /** SSL 处理器 */
     private SSLHandler sslHandler;
+
+    /** SSL 握手监听器 */
     private IHandshakeListener handshakeListener;
 
-    /**
-     * 数据输出组建
-     */
-    protected BufferWriter bufferWriter;
+    /** 数据输出组件 */
+    private BufferWriter bufferWriter;
 
     /**
-     * @param channel                通道
-     * @param config                 配置
-     * @param readCompletionHandler  读回调
-     * @param writeCompletionHandler 写回调
+     * 构造 AIO 通道。
+     *
+     * @param channel                底层异步通道
+     * @param config                 通道配置
+     * @param readCompletionHandler  读回调处理器
+     * @param writeCompletionHandler 写回调处理器
      * @param byteBufferPool         内存池
-     * @param channelInitializer     责任链
+     * @param channelInitializer     管道初始化器
      */
-    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config, ReadCompletionHandler readCompletionHandler,
-                      WriteCompletionHandler writeCompletionHandler, ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
+    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config,
+                      ReadCompletionHandler readCompletionHandler,
+                      WriteCompletionHandler writeCompletionHandler,
+                      ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.writeCompletionHandler = writeCompletionHandler;
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.channelInitializer = channelInitializer;
+
         try {
-            //注意该方法可能抛异常
             channelInitializer.initChannel(this);
         } catch (Exception e) {
-            try {
-                channel.close();
-            } catch (IOException e1) {
-                logger.error(e1);
-            }
+            try { channel.close(); } catch (IOException ex) { /* ignore */ }
             throw new RuntimeException("channelPipeline init exception", e);
         }
-        //初始化数据输出类
-        bufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
 
-        //触发责任链
+        // 初始化数据输出组件
+        this.bufferWriter = new BufferWriter(byteBufferPool, this, config.getBufferWriterQueueSize());
+
+        // 触发新连接事件
         try {
-            invokePipeline(ChannelState.NEW_CHANNEL);
+            invokePipeline(ChannelState.NEW_CHANNEL, null);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("fire NEW_CHANNEL failed", e);
         }
     }
 
+    // ==================== 读操作 ====================
 
-    /**
-     * 开始读取，很重要，只有调用该方法，才会开始监听消息读取
-     */
     @Override
     public void starRead() {
-        //主动关闭标志设置为false;
         initiateClose = false;
         continueRead();
-        if (this.sslHandler != null) {
-            //若开启了SSL，则需要握手
-            this.sslHandler.beginHandshake();
+        if (sslHandler != null) {
+            sslHandler.beginHandshake();
         }
     }
 
-
     /**
-     * 立即关闭会话
+     * 发起下一次异步读取。从内存池获取缓冲区并提交给通道。
      */
-    @Override
-    public synchronized void close() {
-
+    private void continueRead() {
         if (status == CHANNEL_STATUS_CLOSED) {
             return;
         }
+        readByteBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+        channel.read(readByteBuffer.flipToFill(), this, readCompletionHandler);
+    }
 
-        if (readByteBuffer != null) {
-            readByteBuffer.release();
+    /**
+     * 处理异步读完成事件。将缓冲区数据输送到管道，然后释放缓冲区并发起下一次读取。
+     *
+     * @param eof 是否已到达流末尾（read 返回 -1）
+     */
+    public void readFromChannel(boolean eof) {
+        RetainableByteBuffer readBuf = this.readByteBuffer;
+        if (readBuf == null) {
+            return;
         }
 
-        if (writeByteBuffer != null) {
+        // 切换到读模式
+        readBuf.flipToFlush();
+
+        if (readBuf.hasRemaining()) {
+            byte[] bytes;
+            // 堆内存零拷贝：直接使用底层数组，避免每次读取都分配新数组
+            ByteBuffer buf = readBuf.getBuffer();
+            if (buf.hasArray()) {
+                bytes = buf.array();
+            } else {
+                // 直接内存回退：必须拷贝
+                bytes = new byte[readBuf.remaining()];
+                readBuf.get(bytes);
+            }
+
+            try {
+                invokePipeline(ChannelState.CHANNEL_READ, bytes);
+            } catch (Exception e) {
+                logger.error("pipeline read handler error", e);
+                // 释放缓冲区防止内存泄漏
+                this.readByteBuffer = null;
+                readBuf.release();
+                try { invokePipeline(ChannelState.CHANNEL_EXCEPTION, null); } catch (Exception ex) { logger.error(ex); }
+                close();
+                return;
+            }
+        }
+
+        if (eof) {
+            close();
+            return;
+        }
+
+        // 释放当前缓冲区并发起下一次读取
+        readBuf.release();
+        continueRead();
+    }
+
+    // ==================== 写操作 ====================
+
+    @Override
+    public boolean writeAndFlush(Object obj) {
+        try {
+            if (config.isFlowControl()) {
+                int count = bufferWriter.getCount();
+                if (count >= config.getHighWaterMark()) {
+                    writeable = false;
+                    return false;
+                }
+                if (count <= config.getLowWaterMark()) {
+                    writeable = true;
+                }
+            }
+            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        } catch (Exception e) {
+            logger.error("writeAndFlush failed", e);
+        }
+        return true;
+    }
+
+    @Override
+    public void writeToChannel(Object obj) {
+        try {
+            bufferWriter.writeAndFlush((byte[]) obj);
+        } catch (Exception e) {
+            logger.error("writeToChannel failed", e);
+        }
+    }
+
+    /**
+     * 发起异步写出操作。
+     */
+    private void continueWrite(ByteBuffer writeBuffer) {
+        channel.write(writeBuffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+    }
+
+    /**
+     * 写出完成回调。如果缓冲区还有剩余数据则继续写，否则取出下一个缓冲区继续。
+     * 当所有数据写完后释放信号量。
+     */
+    public void writeCompleted() {
+        if (writeByteBuffer != null && !writeByteBuffer.hasRemaining()) {
             writeByteBuffer.release();
+            writeByteBuffer = bufferWriter.poll();
         }
 
+        if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
+            // 还有数据，继续异步写出（不释放信号量，确保当前线程写完所有数据）
+            continueWrite(writeByteBuffer.getBuffer());
+            return;
+        }
+
+        // 所有数据写完，释放信号量
+        writeSemaphore.release();
+        if (!keepAlive) {
+            close();
+        }
+    }
+
+    // ==================== 关闭 ====================
+
+    @Override
+    public synchronized void close() {
+        if (status == CHANNEL_STATUS_CLOSED) {
+            return;
+        }
+        // 先标记为已关闭，防止并发重入
+        status = CHANNEL_STATUS_CLOSED;
+
+        // 释放读缓冲区
+        RetainableByteBuffer rBuf = readByteBuffer;
+        if (rBuf != null) {
+            readByteBuffer = null;
+            rBuf.release();
+        }
+
+        // 释放写缓冲区
+        RetainableByteBuffer wBuf = writeByteBuffer;
+        if (wBuf != null) {
+            writeByteBuffer = null;
+            wBuf.release();
+        }
+
+        // 通知关闭监听器
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
         }
 
-        try {
-            if (!bufferWriter.isClosed()) {
-                bufferWriter.close();
+        // 关闭输出组件
+        BufferWriter bw = bufferWriter;
+        if (bw != null) {
+            try {
+                if (!bw.isClosed()) {
+                    bw.close();
+                }
+            } catch (IOException e) {
+                logger.error("close bufferWriter failed", e);
             }
             bufferWriter = null;
-        } catch (IOException e) {
-            logger.error(e);
         }
 
+        // 关闭底层通道
+        try { channel.shutdownInput(); } catch (IOException e) { logger.error("shutdownInput failed", e); }
+        try { channel.shutdownOutput(); } catch (IOException e) { logger.error("shutdownOutput failed", e); }
+        try { channel.close(); } catch (IOException e) { logger.error("close channel failed", e); }
+
+        // 触发关闭事件
         try {
-            channel.shutdownInput();
-        } catch (IOException e) {
-            logger.error(e.getMessage(), e);
-        }
-        try {
-            channel.shutdownOutput();
-        } catch (IOException e) {
-            logger.error(e.getMessage(), e);
-        }
-        try {
-            channel.close();
-        } catch (IOException e) {
-            logger.error("close channel exception", e);
-        }
-        //更新状态
-        status = CHANNEL_STATUS_CLOSED;
-        //触发责任链通知
-        try {
-            invokePipeline(ChannelState.CHANNEL_CLOSED);
+            invokePipeline(ChannelState.CHANNEL_CLOSED, null);
         } catch (Exception e) {
-            logger.error("close channel exception", e);
+            logger.error("fire CHANNEL_CLOSED failed", e);
         }
 
-        //最后需要清空责任链
-        if (channelPipeline != null) {
-            channelPipeline = null;
-        }
-
+        // 清空管道引用
+        channelPipeline = null;
     }
 
-    /**
-     * 主动关闭
-     *
-     * @param initiateClose
-     */
     @Override
     public synchronized void close(boolean initiateClose) {
         this.initiateClose = initiateClose;
         close();
     }
 
+    // ==================== 地址与通道信息 ====================
 
-    //--------------------------------------------------------------------------
-
-    /**
-     * 读取socket通道内的数据
-     */
-    protected void continueRead() {
-        if (status == CHANNEL_STATUS_CLOSED) {
-            return;
-        }
-        //初始化读缓冲区
-        this.readByteBuffer = byteBufferPool.acquire(config.getReadBufferSize());
-        channel.read(readByteBuffer.flipToFill(), this, readCompletionHandler);
-    }
-
-
-    /**
-     * socket通道的读回调操作
-     *
-     * @param eof 状态回调标记
-     */
-    public void readFromChannel(boolean eof) {
-
-        final RetainableByteBuffer readBuffer = this.readByteBuffer;
-        if (readBuffer == null) {
-            return;
-        }
-
-        //切换为读取模式
-        readBuffer.flipToFlush();
-        //读取缓冲区数据到管道,输送到责任链
-        while (readBuffer.hasRemaining()) {
-            byte[] bytes = new byte[readBuffer.remaining()];
-            try {
-                readBuffer.get(bytes);
-                readToPipeline(bytes);
-            } catch (Exception e) {
-                logger.error(e);
-                try {
-                    invokePipeline(ChannelState.CHANNEL_EXCEPTION);
-                } catch (Exception e1) {
-                    logger.error(e1);
-                }
-                close();
-                return;
-            }
-        }
-        if (eof) {
-            close();
-            return;
-        }
-        //触发读取完成，处理后续操作
-        readCompleted(readBuffer);
-    }
-
-    /**
-     * socket读取完成
-     *
-     * @param readBuffer 读取的缓冲区
-     */
-    public void readCompleted(RetainableByteBuffer readBuffer) {
-
-        if (readBuffer == null) {
-            return;
-        }
-        //读取完要释放缓冲区
-        readBuffer.release();
-        //再次调用读取方法。循环监听socket通道数据的读取
-        continueRead();
-    }
-
-
-//-------------------------------------------------------------------------------------------------
-
-    /**
-     * 写数据到责任链管道
-     *
-     * @param obj 写入的数据
-     */
-    @Override
-    public boolean writeAndFlush(Object obj) {
-        try {
-            if (config.isFlowControl()) {
-                if (bufferWriter.getCount() >= config.getHighWaterMark()) {
-                    super.writeable = false;
-                    return false;
-                }
-                if (bufferWriter.getCount() <= config.getLowWaterMark()) {
-                    super.writeable = true;
-                }
-            }
-            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
-        } catch (Exception e) {
-            logger.error(e);
-        }
-        return true;
-    }
-
-    /**
-     * 写到BufferWriter输出器，不经过责任链
-     *
-     * @param obj 写入的数组
-     */
-    @Override
-    public void writeToChannel(Object obj) {
-        try {
-            bufferWriter.writeAndFlush((byte[]) obj);
-        } catch (Exception e) {
-            logger.error(e);
-        }
-    }
-
-    /**
-     * 继续写
-     *
-     * @param writeBuffer 写入的缓冲区
-     */
-    private void continueWrite(ByteBuffer writeBuffer) {
-        channel.write(writeBuffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
-    }
-
-
-    /**
-     * 写操作完成回调
-     * 需要同步控制
-     */
-    public void writeCompleted() {
-        if (!writeByteBuffer.hasRemaining()) {
-            //写完及时释放内存
-            writeByteBuffer.release();
-            //继续循环写出
-            writeByteBuffer = bufferWriter.poll();
-        }
-
-        if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
-            //再次写
-            continueWrite(writeByteBuffer.getBuffer());
-            //这里return是为了确保这个线程可以完全写完需要输出的数据。因此不释放信号量
-            return;
-        }
-        //释放信号量
-        semaphore.release();
-        if (!keepAlive) {
-            this.close();
-        }
-    }
-
-    //-----------------------------------------------------------------------------------
-
-
-    /**
-     * 获取本地地址
-     *
-     * @return InetSocketAddress
-     * @throws IOException 异常
-     */
     @Override
     public final InetSocketAddress getLocalAddress() throws IOException {
         assertChannel();
         return (InetSocketAddress) channel.getLocalAddress();
     }
 
-    /**
-     * 获取远程地址
-     *
-     * @return InetSocketAddress
-     * @throws IOException 异常
-     */
     @Override
     public final InetSocketAddress getRemoteAddress() throws IOException {
         assertChannel();
@@ -384,11 +324,11 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
         }
     }
 
-//--------------------------------------------------------------------------------------
-
     public AsynchronousSocketChannel getSocketChannel() {
         return channel;
     }
+
+    // ==================== SSL ====================
 
     @Override
     public void setSslHandler(SSLHandler sslHandler) {
@@ -397,7 +337,7 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
 
     @Override
     public SSLHandler getSslHandler() {
-        return this.sslHandler;
+        return sslHandler;
     }
 
     @Override
@@ -407,22 +347,23 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
 
     @Override
     public IHandshakeListener getSslHandshakeListener() {
-        return this.handshakeListener;
+        return handshakeListener;
     }
+
+    // ==================== Function 实现（flush 回调） ====================
 
     @Override
     public Void apply(BufferWriter input) {
-
-        //获取信息量
-        if (semaphore.tryAcquire()) {
-            this.writeByteBuffer = input.poll();
-            if (null != writeByteBuffer && writeByteBuffer.hasRemaining()) {
-                this.continueWrite(writeByteBuffer.getBuffer());
+        // 尝试获取信号量，如果获取失败说明已有写操作在进行中
+        if (writeSemaphore.tryAcquire()) {
+            writeByteBuffer = input.poll();
+            if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
+                continueWrite(writeByteBuffer.getBuffer());
             } else {
-                semaphore.release();
+                // 无数据可写，立即释放信号量
+                writeSemaphore.release();
             }
         }
         return null;
     }
-
 }
