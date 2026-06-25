@@ -21,7 +21,7 @@ public class NettyClient {
 
 
         int i = 0;
-        while (i < 10) {
+        while (i < 1) {
             NettyClient ac = new NettyClient();
             ac.test(3333);
             i++;

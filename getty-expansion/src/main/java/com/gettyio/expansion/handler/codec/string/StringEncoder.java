@@ -23,8 +23,8 @@ import com.gettyio.core.util.CharsetUtil;
 /**
  * 字符串编码器。
  * <p>
- * 将 {@link String} 对象按 UTF-8 编码转换为 byte[]，传递给下一个处理器。
- * 非 String 类型的数据将原样透传。
+ * 将 {@link String} 或 byte[] 转换为 {@link RetainableByteBuffer}，传递给下一个处理器。
+ * 已经是 {@link RetainableByteBuffer} 的数据直接透传。
  * </p>
  *
  * @author gogym
@@ -36,6 +36,11 @@ public class StringEncoder extends MessageToByteEncoder {
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof String) {
             byte[] bytes = ((String) obj).getBytes(CharsetUtil.UTF_8);
+            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+            buf.writeBytes(bytes);
+            obj = buf;
+        } else if (obj instanceof byte[]) {
+            byte[] bytes = (byte[]) obj;
             RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
             buf.writeBytes(bytes);
             obj = buf;

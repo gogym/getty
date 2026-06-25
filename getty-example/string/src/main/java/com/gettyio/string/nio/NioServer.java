@@ -61,7 +61,7 @@ public class NioServer {
 
                     defaultChannelPipeline.addLast(new StringEncoder());
                     //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
-                    defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
+                    defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
                     //添加字符串解码器
                     defaultChannelPipeline.addLast(new StringDecoder());
                     //添加自定义的简单消息处理器

@@ -137,7 +137,7 @@ public class Test {
                 @Override
                 public void run() {
                     for (int i = 0; i < 1000000; i++) {
-                        RetainableByteBuffer buf = byteBufferPool.acquire(257);
+                        RetainableByteBuffer buf = byteBufferPool.acquire(63);
                         buf.release();
                     }
                     countDownLatch.countDown();

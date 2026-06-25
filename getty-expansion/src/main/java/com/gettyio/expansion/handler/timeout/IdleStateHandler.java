@@ -124,11 +124,11 @@ public class IdleStateHandler extends ChannelAllBoundHandlerAdapter {
         this.writerIdleTimeNanos = unit.toNanos(writerIdleTime);
 
         if (readerIdleTimeNanos > 0) {
-            readerTimeout = timer.newTimeout(new ReaderIdleTask(), readerIdleTimeNanos, TimeUnit.NANOSECONDS);
+            readerTimeout = this.timer.newTimeout(new ReaderIdleTask(), readerIdleTimeNanos, TimeUnit.NANOSECONDS);
         }
 
         if (writerIdleTimeNanos > 0) {
-            writerTimeout = timer.newTimeout(new WriterIdleTask(), writerIdleTimeNanos, TimeUnit.NANOSECONDS);
+            writerTimeout = this.timer.newTimeout(new WriterIdleTask(), writerIdleTimeNanos, TimeUnit.NANOSECONDS);
         }
     }
 

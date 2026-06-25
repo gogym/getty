@@ -33,9 +33,14 @@ public class StringDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        RetainableByteBuffer buf = (RetainableByteBuffer) in;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
+        byte[] bytes;
+        if (in instanceof byte[]) {
+            bytes = (byte[]) in;
+        } else {
+            RetainableByteBuffer buf = (RetainableByteBuffer) in;
+            bytes = new byte[buf.readableBytes()];
+            buf.readBytes(bytes);
+        }
         String str = new String(bytes, CharsetUtil.UTF_8);
         super.channelRead(ctx, str);
     }

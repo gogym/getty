@@ -104,7 +104,9 @@ public class NioClientStarter extends NioStarter {
             start0(connectHandler);
         } catch (Exception e) {
             LOGGER.error("start failed", e);
-            connectHandler.onFailed(e);
+            if (connectHandler != null) {
+                connectHandler.onFailed(e);
+            }
         }
     }
 

@@ -146,11 +146,9 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
 
         if (readBuf.isReadable()) {
             try {
-                // 零拷贝：直接传递 RetainableByteBuffer，不提取 byte[]
                 invokePipeline(ChannelState.CHANNEL_READ, readBuf);
             } catch (Exception e) {
                 logger.error("pipeline read handler error", e);
-                // 释放缓冲区防止内存泄漏
                 this.readByteBuffer = null;
                 readBuf.release();
                 try { invokePipeline(ChannelState.CHANNEL_EXCEPTION, null); } catch (Exception ex) { logger.error("invoke CHANNEL_EXCEPTION failed", ex); }
@@ -164,7 +162,6 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             return;
         }
 
-        // 释放当前缓冲区并发起下一次读取
         readBuf.release();
         continueRead();
     }
@@ -194,7 +191,19 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     @Override
     public void writeToChannel(Object obj) {
         try {
-            bufferWriter.writeAndFlush((RetainableByteBuffer) obj);
+            RetainableByteBuffer buf = (RetainableByteBuffer) obj;
+            buf.getBuffer().position(buf.readerIndex());
+            buf.getBuffer().limit(buf.writerIndex());
+
+            // 快速路径：通道空闲时直接写，跳过队列
+            if (writeSemaphore.tryAcquire()) {
+                writeByteBuffer = buf;
+                continueWrite(buf.getBuffer());
+                return;
+            }
+
+            // 慢速路径：AIO 忙碌，入队等待 writeCompleted 自动消费
+            bufferWriter.writeAndFlush(buf);
         } catch (Exception e) {
             logger.error("writeToChannel failed", e);
         }
@@ -208,24 +217,34 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     }
 
     /**
-     * 写出完成回调。如果缓冲区还有剩余数据则继续写，否则取出下一个缓冲区继续。
+     * 写出完成回调。取出队列中的下一个缓冲区继续写出。
      * 当所有数据写完后释放信号量。
      */
     public void writeCompleted() {
         if (writeByteBuffer != null && !writeByteBuffer.hasRemaining()) {
             writeByteBuffer.release();
-            writeByteBuffer = bufferWriter.poll();
+            writeByteBuffer = null;
         }
 
+        writeByteBuffer = bufferWriter.poll();
+
         if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
-            // 还有数据，继续异步写出（不释放信号量，确保当前线程写完所有数据）
             continueWrite(writeByteBuffer.getBuffer());
             return;
         }
 
         // 所有数据写完，释放信号量
         writeSemaphore.release();
-        if (!keepAlive) {
+        // double-check：释放信号量前可能有新数据入队
+        if (bufferWriter.getCount() > 0 && writeSemaphore.tryAcquire()) {
+            writeByteBuffer = bufferWriter.poll();
+            if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
+                continueWrite(writeByteBuffer.getBuffer());
+                return;
+            }
+            writeSemaphore.release();
+        }
+        if (!keepAlive && bufferWriter.getCount() == 0) {
             close();
         }
     }
@@ -237,29 +256,24 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
         if (status == CHANNEL_STATUS_CLOSED) {
             return;
         }
-        // 先标记为已关闭，防止并发重入
         status = CHANNEL_STATUS_CLOSED;
 
-        // 释放读缓冲区
         RetainableByteBuffer rBuf = readByteBuffer;
         if (rBuf != null) {
             readByteBuffer = null;
             rBuf.release();
         }
 
-        // 释放写缓冲区
         RetainableByteBuffer wBuf = writeByteBuffer;
         if (wBuf != null) {
             writeByteBuffer = null;
             wBuf.release();
         }
 
-        // 通知关闭监听器
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
         }
 
-        // 关闭输出组件
         BufferWriter bw = bufferWriter;
         if (bw != null) {
             try {
@@ -272,19 +286,16 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             bufferWriter = null;
         }
 
-        // 关闭底层通道
         try { channel.shutdownInput(); } catch (IOException e) { logger.error("shutdownInput failed", e); }
         try { channel.shutdownOutput(); } catch (IOException e) { logger.error("shutdownOutput failed", e); }
         try { channel.close(); } catch (IOException e) { logger.error("close channel failed", e); }
 
-        // 触发关闭事件
         try {
             invokePipeline(ChannelState.CHANNEL_CLOSED, null);
         } catch (Exception e) {
             logger.error("fire CHANNEL_CLOSED failed", e);
         }
 
-        // 清空管道引用
         channelPipeline = null;
     }
 
@@ -340,13 +351,11 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
 
     @Override
     public Void apply(BufferWriter input) {
-        // 尝试获取信号量，如果获取失败说明已有写操作在进行中
         if (writeSemaphore.tryAcquire()) {
-            writeByteBuffer = input.poll();
+            writeByteBuffer = bufferWriter.poll();
             if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
                 continueWrite(writeByteBuffer.getBuffer());
             } else {
-                // 无数据可写，立即释放信号量
                 writeSemaphore.release();
             }
         }

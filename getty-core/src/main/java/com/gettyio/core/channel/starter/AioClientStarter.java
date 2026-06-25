@@ -27,6 +27,7 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
 import java.nio.channels.AsynchronousChannelGroup;
@@ -107,7 +108,9 @@ public class AioClientStarter extends AioStarter {
             start0(connectHandler);
         } catch (Exception e) {
             LOGGER.error("start failed", e);
-            connectHandler.onFailed(e);
+            if (connectHandler != null) {
+                connectHandler.onFailed(e);
+            }
         }
     }
 
@@ -122,7 +125,7 @@ public class AioClientStarter extends AioStarter {
             @Override
             public Thread newThread(Runnable r) {
                 Thread t = new Thread(r, "getty-aio-client");
-                t.setDaemon(true);
+                t.setDaemon(false);
                 return t;
             }
         });
@@ -153,19 +156,28 @@ public class AioClientStarter extends AioStarter {
                     @Override
                     public void completed(Void result, AsynchronousSocketChannel ch) {
                         LOGGER.info("connected to server");
-                        aioChannel = new AioChannel(ch, config,
-                                new ReadCompletionHandler(), new WriteCompletionHandler(),
-                                byteBufferPool, channelInitializer);
-                        aioChannel.starRead();
+                        try {
+                            aioChannel = new AioChannel(ch, config,
+                                    new ReadCompletionHandler(), new WriteCompletionHandler(),
+                                    byteBufferPool, channelInitializer);
+                            aioChannel.starRead();
 
-                        if (connectHandler != null) {
-                            fireConnectCallback(connectHandler);
+                            if (connectHandler != null) {
+                                fireConnectCallback(connectHandler);
+                            }
+                        } catch (Exception e) {
+                            LOGGER.error("create AioChannel failed", e);
+                            try { ch.close(); } catch (IOException ex) { /* ignore */ }
+                            if (connectHandler != null) {
+                                connectHandler.onFailed(e);
+                            }
                         }
                     }
 
                     @Override
                     public void failed(Throwable exc, AsynchronousSocketChannel ch) {
                         LOGGER.error("connect failed", exc);
+                        try { ch.close(); } catch (IOException ex) { /* ignore */ }
                         if (connectHandler != null) {
                             connectHandler.onFailed(exc);
                         }
@@ -183,36 +195,18 @@ public class AioClientStarter extends AioStarter {
                 @Override
                 public void onComplete() {
                     LOGGER.info("SSL handshake completed");
-                    runCallbackAsync(connectHandler, null);
+                    connectHandler.onCompleted(aioChannel);
                 }
 
                 @Override
                 public void onFail(SSLException e) {
-                    runCallbackAsync(connectHandler, e);
+                    connectHandler.onFailed(e);
                 }
             });
         } else {
             // 非 SSL 场景：直接回调
-            runCallbackAsync(connectHandler, null);
+            connectHandler.onCompleted(aioChannel);
         }
-    }
-
-    /**
-     * 在守护线程中执行用户回调，避免阻塞 I/O 线程。
-     */
-    private void runCallbackAsync(final ConnectHandler connectHandler, final Throwable error) {
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (error != null) {
-                    connectHandler.onFailed(error);
-                } else {
-                    connectHandler.onCompleted(aioChannel);
-                }
-            }
-        }, "getty-connect-callback");
-        t.setDaemon(true);
-        t.start();
     }
 
     /**

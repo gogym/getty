@@ -74,7 +74,7 @@ public class AioClient {
 
                 defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
-                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
+                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
                 //字符串解码器
                 defaultChannelPipeline.addLast(new StringDecoder());
                 //定义消息解码器
@@ -95,7 +95,7 @@ public class AioClient {
                             long ct = System.currentTimeMillis();
 
                             int i = 0;
-                            while (i < 100) {
+                            while (i < 1000000) {
                                 boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
                                 //if (flag) {
                                 i++;
@@ -110,13 +110,11 @@ public class AioClient {
                         }
                     }
                 }).start();
-
-
             }
 
             @Override
             public void onFailed(Throwable exc) {
-
+                exc.printStackTrace();
             }
         });
 

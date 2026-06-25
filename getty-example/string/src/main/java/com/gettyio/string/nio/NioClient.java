@@ -73,7 +73,7 @@ public class NioClient {
 
                 defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器
-                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.lineDelimiter));
+                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
                 //字符串解码器
                 defaultChannelPipeline.addLast(new StringDecoder());
                 //定义消息解码器
