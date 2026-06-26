@@ -19,7 +19,7 @@ import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.channel.internal.GatherWriteCompletionHandler;
+import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import java.util.function.Function;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -30,8 +30,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -39,7 +37,7 @@ import java.util.concurrent.TimeUnit;
  * AIO（异步 I/O）通道实现。
  * <p>
  * 基于 {@link AsynchronousSocketChannel}，通过 CompletionHandler 回调机制
- * 实现非阻塞的读写操作。使用信号量控制写出并发，确保同一时刻只有一个写操作在执行。
+ * 实现非阻塞的读写操作。使用信号量控制写出并发，每次只发送一条消息，确保同一时刻只有一个写操作在执行。
  * </p>
  *
  * @author gogym
@@ -52,21 +50,15 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     /** 读缓冲区（每次读取时从池中获取，读完释放） */
     private RetainableByteBuffer readByteBuffer;
 
-    /** 当前正在批量写出的缓冲区数组（Gathering Write 批次） */
-    private RetainableByteBuffer[] writeBatchBuffers;
-
-    /** 复用的 ByteBuffer 数组，用于 Gathering Write */
-    private ByteBuffer[] gatherBuffers;
-
-    /** 单次 Gathering Write 最大缓冲区数量 */
-    private static final int MAX_BATCH_SIZE = 4096;
+    /** 当前正在写出的缓冲区（单条消息） */
+    private RetainableByteBuffer currentWriteBuf;
 
     /** 写出信号量，保证同一时刻最多一个写操作 */
     private final Semaphore writeSemaphore = new Semaphore(1);
 
     /** 读 / 写完成回调 */
     private final ReadCompletionHandler readCompletionHandler;
-    private final GatherWriteCompletionHandler gatherWriteCompletionHandler;
+    private final WriteCompletionHandler writeCompletionHandler;
 
     /** SSL 处理器 */
     private SSLHandler sslHandler;
@@ -83,17 +75,17 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
      * @param channel                底层异步通道
      * @param config                 通道配置
      * @param readCompletionHandler        读回调处理器
-     * @param gatherWriteCompletionHandler Gathering Write 回调处理器
+     * @param writeCompletionHandler       写回调处理器
      * @param byteBufferPool         内存池
      * @param channelInitializer     管道初始化器
      */
     public AioChannel(AsynchronousSocketChannel channel, BaseConfig config,
                       ReadCompletionHandler readCompletionHandler,
-                      GatherWriteCompletionHandler gatherWriteCompletionHandler,
+                      WriteCompletionHandler writeCompletionHandler,
                       ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
-        this.gatherWriteCompletionHandler = gatherWriteCompletionHandler;
+        this.writeCompletionHandler = writeCompletionHandler;
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.channelInitializer = channelInitializer;
@@ -200,10 +192,7 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     public void writeToChannel(Object obj) {
         try {
             RetainableByteBuffer buf = (RetainableByteBuffer) obj;
-            buf.getBuffer().position(buf.readerIndex());
-            buf.getBuffer().limit(buf.writerIndex());
-
-            // 所有消息统一入队，由 writeCompleted / apply 批量消费
+            // 不在此处设置 position/limit，由 startWrite 在真正写出时设置
             bufferWriter.writeAndFlush(buf);
         } catch (Exception e) {
             logger.error("writeToChannel failed", e);
@@ -211,38 +200,35 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     }
 
     /**
-     * 发起异步 Gathering Write，一次性写出多个 ByteBuffer。
+     * 发起异步单条消息写出。
      *
-     * @param buffers 待写出的 ByteBuffer 数组
+     * @param buffer 待写出的 ByteBuffer
      */
-    private void continueGatherWrite(ByteBuffer[] buffers) {
-        channel.write(buffers, 0, buffers.length, 0L, TimeUnit.MILLISECONDS, this, gatherWriteCompletionHandler);
+    private void continueWrite(ByteBuffer buffer) {
+        channel.write(buffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
     }
 
     /**
-     * 批量消费队列中所有待写缓冲区，执行一次 Gathering Write。
-     * 将多个消息合并为一次系统调用，减少 write 次数。
+     * 从队列取出一条消息并写出。
+     * 队列为空时释放信号量，并做 double-check 防止遗漏。
      */
-    private void drainAndGatherWrite() {
-        // 释放已完成的旧批次
-        if (writeBatchBuffers != null) {
-            for (RetainableByteBuffer buf : writeBatchBuffers) {
-                if (buf != null) buf.release();
-            }
-            writeBatchBuffers = null;
+    private void drainAndWrite() {
+        // 释放已完成的旧缓冲区
+        if (currentWriteBuf != null) {
+            currentWriteBuf.release();
+            currentWriteBuf = null;
         }
 
-        // 从队列中批量取出待写缓冲区（不超过 MAX_BATCH_SIZE）
-        List<RetainableByteBuffer> batch = new ArrayList<>();
-        bufferWriter.pollAll(batch, MAX_BATCH_SIZE);
+        // 从队列中取出一条待写缓冲区
+        RetainableByteBuffer buf = bufferWriter.poll();
 
-        if (batch.isEmpty()) {
+        if (buf == null) {
             writeSemaphore.release();
             // double-check：释放信号量前可能有新数据入队
             if (bufferWriter.getCount() > 0 && writeSemaphore.tryAcquire()) {
-                bufferWriter.pollAll(batch, MAX_BATCH_SIZE);
-                if (!batch.isEmpty()) {
-                    startGatherWrite(batch);
+                buf = bufferWriter.poll();
+                if (buf != null) {
+                    startWrite(buf);
                     return;
                 }
                 writeSemaphore.release();
@@ -253,52 +239,34 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             return;
         }
 
-        startGatherWrite(batch);
+        startWrite(buf);
     }
 
     /**
-     * 将批量取出的缓冲区组装为 ByteBuffer[] 并发起 Gathering Write。
+     * 设置当前写出缓冲区并发起写出。
      *
-     * @param batch 待写出的 RetainableByteBuffer 列表
+     * @param buf 待写出的 RetainableByteBuffer
      */
-    private void startGatherWrite(List<RetainableByteBuffer> batch) {
-        int size = batch.size();
-        writeBatchBuffers = batch.toArray(new RetainableByteBuffer[0]);
-
-        // 复用或新建 gatherBuffers 数组
-        if (gatherBuffers == null || gatherBuffers.length < size) {
-            gatherBuffers = new ByteBuffer[size];
-        }
-        for (int i = 0; i < size; i++) {
-            gatherBuffers[i] = writeBatchBuffers[i].getBuffer();
-        }
-
-        continueGatherWrite(gatherBuffers);
+    private void startWrite(RetainableByteBuffer buf) {
+        currentWriteBuf = buf;
+        // 在真正写出前设置 position/limit，确保值准确
+        buf.getBuffer().position(buf.readerIndex());
+        buf.getBuffer().limit(buf.writerIndex());
+        continueWrite(buf.getBuffer());
     }
 
     /**
-     * 写出完成回调。批量释放已写完的缓冲区，从队列取出下一批继续 Gathering Write。
+     * 写出完成回调。释放已写完的缓冲区，从队列取出下一条消息继续写出。
      * 当所有数据写完后释放信号量。
      */
     public void writeCompleted() {
-        // 检查当前批次是否全部写完
-        if (writeBatchBuffers != null) {
-            boolean allDone = true;
-            for (RetainableByteBuffer buf : writeBatchBuffers) {
-                if (buf != null && buf.hasRemaining()) {
-                    allDone = false;
-                    break;
-                }
-            }
-            if (allDone) {
-                // 全部写完，进入下一批次
-                drainAndGatherWrite();
-            } else {
-                // 部分未写完（partial write），继续写出剩余数据
-                continueGatherWrite(gatherBuffers);
-            }
+        // 检查当前消息是否全部写完
+        if (currentWriteBuf != null && currentWriteBuf.hasRemaining()) {
+            // 部分未写完（partial write），继续写出剩余数据
+            continueWrite(currentWriteBuf.getBuffer());
         } else {
-            drainAndGatherWrite();
+            // 当前消息写完，进入下一条
+            drainAndWrite();
         }
     }
 
@@ -317,12 +285,10 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             rBuf.release();
         }
 
-        RetainableByteBuffer[] batchBufs = writeBatchBuffers;
-        if (batchBufs != null) {
-            writeBatchBuffers = null;
-            for (RetainableByteBuffer buf : batchBufs) {
-                if (buf != null) buf.release();
-            }
+        RetainableByteBuffer curBuf = currentWriteBuf;
+        if (curBuf != null) {
+            currentWriteBuf = null;
+            curBuf.release();
         }
 
         if (channelFutureListener != null) {
@@ -407,10 +373,9 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     @Override
     public Void apply(BufferWriter input) {
         if (writeSemaphore.tryAcquire()) {
-            List<RetainableByteBuffer> batch = new ArrayList<>();
-            bufferWriter.pollAll(batch, MAX_BATCH_SIZE);
-            if (!batch.isEmpty()) {
-                startGatherWrite(batch);
+            RetainableByteBuffer buf = bufferWriter.poll();
+            if (buf != null) {
+                startWrite(buf);
             } else {
                 writeSemaphore.release();
             }

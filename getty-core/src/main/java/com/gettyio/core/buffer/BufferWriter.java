@@ -73,13 +73,6 @@ public final class BufferWriter extends AbstractBufferWriter {
         if (byteBuf == null) {
             throw new NullPointerException("byteBuf is null");
         }
-        if (!byteBuf.isReadable()) {
-            byteBuf.release();
-            return;
-        }
-        // 同步 ByteBuffer 的 position/limit 到 readerIndex/writerIndex，确保通道可直接写出
-        byteBuf.getBuffer().position(byteBuf.readerIndex());
-        byteBuf.getBuffer().limit(byteBuf.writerIndex());
         try {
             queue.put(byteBuf);
         } catch (InterruptedException e) {

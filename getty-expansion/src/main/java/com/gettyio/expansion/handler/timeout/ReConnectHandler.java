@@ -19,7 +19,7 @@ import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.channel.internal.GatherWriteCompletionHandler;
+import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.channel.starter.ConnectHandler;
@@ -161,7 +161,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
                     public void completed(Void result, AsynchronousSocketChannel attachment) {
                         LOGGER.info("reconnect AIO server success");
                         channel = new AioChannel(attachment, clientConfig,
-                                new ReadCompletionHandler(), new GatherWriteCompletionHandler(),
+                                new ReadCompletionHandler(), new WriteCompletionHandler(),
                                 channel.getByteBufferPool(), channel.getChannelInitializer());
                         onConnectSuccess(channel);
                         channel.starRead();
