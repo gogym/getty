@@ -195,14 +195,7 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             buf.getBuffer().position(buf.readerIndex());
             buf.getBuffer().limit(buf.writerIndex());
 
-            // 快速路径：通道空闲时直接写，跳过队列
-            if (writeSemaphore.tryAcquire()) {
-                writeByteBuffer = buf;
-                continueWrite(buf.getBuffer());
-                return;
-            }
-
-            // 慢速路径：AIO 忙碌，入队等待 writeCompleted 自动消费
+            // 所有消息统一入队，由 writeCompleted / apply 批量消费
             bufferWriter.writeAndFlush(buf);
         } catch (Exception e) {
             logger.error("writeToChannel failed", e);
