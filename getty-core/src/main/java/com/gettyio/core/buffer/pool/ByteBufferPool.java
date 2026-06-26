@@ -27,9 +27,9 @@ public interface ByteBufferPool {
      *
      * @param size 需要获取的ByteBuffer的大小。这个大小是指ByteBuffer能够存储的数据的字节长度。
      * @param direct 指定是否需要一个直接的ByteBuffer。直接的ByteBuffer会在Java堆外分配内存，可能会提高某些情况下的性能。
-     * @return 返回一个RetainableByteBuffer实例，这个实例可以从池中获取并使用，用完后需要释放以返回池中。
+     * @return 返回一个PooledByteBuffer实例，这个实例可以从池中获取并使用，用完后需要释放以返回池中。
      */
-    RetainableByteBuffer acquire(int size, boolean direct);
+    PooledByteBuffer acquire(int size, boolean direct);
 
     /**
      * 申请一个缓冲区
@@ -37,7 +37,7 @@ public interface ByteBufferPool {
      * @param size
      * @return
      */
-    RetainableByteBuffer acquire(int size);
+    PooledByteBuffer acquire(int size);
 
 
 }

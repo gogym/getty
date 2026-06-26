@@ -15,7 +15,7 @@
  */
 package com.gettyio.expansion.handler.traffic;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.all.ChannelAllBoundHandlerAdapter;
@@ -110,12 +110,12 @@ public class ChannelTrafficShapingHandler extends ChannelAllBoundHandlerAdapter 
     /**
      * 获取数据长度。
      * <p>
-     * 支持 RetainableByteBuffer 和 byte[] 两种类型。
+     * 支持 PooledByteBuffer 和 byte[] 两种类型。
      * </p>
      */
     private int getDataLength(Object data) {
-        if (data instanceof RetainableByteBuffer) {
-            return ((RetainableByteBuffer) data).readableBytes();
+        if (data instanceof PooledByteBuffer) {
+            return ((PooledByteBuffer) data).readableBytes();
         } else if (data instanceof byte[]) {
             return ((byte[]) data).length;
         }

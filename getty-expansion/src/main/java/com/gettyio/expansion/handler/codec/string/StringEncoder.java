@@ -15,7 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.string;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
@@ -23,8 +23,8 @@ import com.gettyio.core.util.CharsetUtil;
 /**
  * 字符串编码器。
  * <p>
- * 将 {@link String} 或 byte[] 转换为 {@link RetainableByteBuffer}，传递给下一个处理器。
- * 已经是 {@link RetainableByteBuffer} 的数据直接透传。
+ * 将 {@link String} 或 byte[] 转换为 {@link PooledByteBuffer}，传递给下一个处理器。
+ * 已经是 {@link PooledByteBuffer} 的数据直接透传。
  * </p>
  *
  * @author gogym
@@ -36,12 +36,12 @@ public class StringEncoder extends MessageToByteEncoder {
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof String) {
             byte[] bytes = ((String) obj).getBytes(CharsetUtil.UTF_8);
-            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
             buf.writeBytes(bytes);
             obj = buf;
         } else if (obj instanceof byte[]) {
             byte[] bytes = (byte[]) obj;
-            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
             buf.writeBytes(bytes);
             obj = buf;
         }

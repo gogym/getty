@@ -16,7 +16,7 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -111,7 +111,7 @@ public class UdpChannel extends AbstractSocketChannel {
                                 continue;
                             }
 
-                            RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+                            PooledByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
                             try {
                                 // 接收 UDP 数据报
                                 InetSocketAddress address = (InetSocketAddress) datagramChannel.receive(readBuffer.flipToFill());
@@ -196,7 +196,7 @@ public class UdpChannel extends AbstractSocketChannel {
      */
     private void send(DatagramPacket packet) {
         try {
-            RetainableByteBuffer byteBuffer = byteBufferPool.acquire(packet.getLength());
+            PooledByteBuffer byteBuffer = byteBufferPool.acquire(packet.getLength());
             byteBuffer.put(packet.getData());
             datagramChannel.send(byteBuffer.getBuffer(), packet.getSocketAddress());
             byteBuffer.release();

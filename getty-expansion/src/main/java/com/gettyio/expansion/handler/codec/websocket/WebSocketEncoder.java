@@ -16,7 +16,7 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
@@ -74,7 +74,7 @@ public class WebSocketEncoder extends MessageToByteEncoder {
                 byte[] payload = ObjectUtil.ObjToByteArray(obj);
                 encoded = encodeFrame(payload, Opcode.BINARY.getCode());
             }
-            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(encoded.length);
+            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(encoded.length);
             buf.writeBytes(encoded);
             obj = buf;
         }

@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.handler.ssl;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.ssl.facade.SSLFacade;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -95,7 +95,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        RetainableByteBuffer buf = (RetainableByteBuffer) obj;
+        PooledByteBuffer buf = (PooledByteBuffer) obj;
         // 零拷贝：直接获取底层 ByteBuffer 视图，不分配中间 byte[]
         ByteBuffer bb = buf.asByteBuffer();
         if (!ssl.isHandshakeCompleted()) {
@@ -112,7 +112,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
-        RetainableByteBuffer buf = (RetainableByteBuffer) obj;
+        PooledByteBuffer buf = (PooledByteBuffer) obj;
         // 零拷贝：直接获取底层 ByteBuffer 视图，不分配中间 byte[]
         ByteBuffer bb = buf.asByteBuffer();
         if (!ssl.isHandshakeCompleted()) {
@@ -138,7 +138,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             ssl.decrypt(buffer);
             // 解密后 buffer 中可能包含握手响应数据
             if (buffer.hasRemaining()) {
-                RetainableByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(buffer.remaining());
+                PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(buffer.remaining());
                 buf.writeBytes(buffer);
                 channelHandlerContext().channel().writeToChannel(buf);
             }
@@ -238,8 +238,8 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     /** 将加密数据写入底层通道 */
     private void emitToChannel(ByteBuffer wrappedBytes) {
         try {
-            RetainableByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(wrappedBytes.remaining());
-            // 单次拷贝：直接从 ByteBuffer 写入 RetainableByteBuffer
+            PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(wrappedBytes.remaining());
+            // 单次拷贝：直接从 ByteBuffer 写入 PooledByteBuffer
             buf.writeBytes(wrappedBytes);
             channelHandlerContext().channel().writeToChannel(buf);
         } catch (Exception e) {
@@ -247,13 +247,13 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
         }
     }
 
-    /** 将解密后的明文数据传播到管道链上游（使用 RetainableByteBuffer 零拷贝传递） */
+    /** 将解密后的明文数据传播到管道链上游（使用 PooledByteBuffer 零拷贝传递） */
     private void emitToUpstream(ByteBuffer plainBytes) {
         try {
             int len = plainBytes.remaining();
             if (len == 0) return;
             // 单次拷贝：直接从 ByteBuffer 写入池化缓冲区
-            RetainableByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(len);
+            PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(len);
             buf.writeBytes(plainBytes);
             super.channelRead(channelHandlerContext(), buf);
         } catch (Exception e) {

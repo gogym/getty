@@ -46,7 +46,7 @@ import java.nio.ByteBuffer;
  * @see PooledByteBuffer
  * @see ByteBufferPool
  */
-public class RetainableByteBuffer {
+class RetainableByteBuffer {
 
     /** 底层 ByteBuffer 实例 */
     private final ByteBuffer buffer;

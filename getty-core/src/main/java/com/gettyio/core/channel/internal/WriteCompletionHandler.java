@@ -24,18 +24,18 @@ import java.nio.channels.CompletionHandler;
 /**
  * AIO 异步写完成回调处理器。
  * <p>
- * 当异步写操作完成时，通知 {@link AioChannel#writeCompleted()} 继续写出后续数据。
+ * 当 Gathering Write 操作完成时，通知 {@link AioChannel#writeCompleted()} 继续写出后续数据。
  * 写失败时自动关闭通道。
  * </p>
  *
  * @author gogym
  */
-public class WriteCompletionHandler implements CompletionHandler<Integer, AioChannel> {
+public class WriteCompletionHandler implements CompletionHandler<Long, AioChannel> {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(WriteCompletionHandler.class);
 
     @Override
-    public void completed(Integer result, AioChannel aioChannel) {
+    public void completed(Long result, AioChannel aioChannel) {
         try {
             aioChannel.writeCompleted();
         } catch (Exception e) {

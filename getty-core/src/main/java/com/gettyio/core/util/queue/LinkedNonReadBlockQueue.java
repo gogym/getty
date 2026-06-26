@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.util.queue;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import java.lang.reflect.Array;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -199,7 +199,7 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
      * 排空队列中的所有元素并唤醒等待的生产者线程。
      * <p>
      * 设置 released 标记使后续 put 操作立即失败。
-     * 如果队列元素类型为 {@link RetainableByteBuffer}，则自动调用 release() 释放资源。
+     * 如果队列元素类型为 {@link PooledByteBuffer}，则自动调用 release() 释放资源。
      * </p>
      */
     @Override
@@ -210,8 +210,8 @@ public class LinkedNonReadBlockQueue<T> implements LinkedQueue<T> {
             for (int i = 0; i < count; i++) {
                 T item = items[removeIndex];
                 items[removeIndex] = null;
-                if (item instanceof RetainableByteBuffer) {
-                    ((RetainableByteBuffer) item).release();
+                if (item instanceof PooledByteBuffer) {
+                    ((PooledByteBuffer) item).release();
                 }
                 if (++removeIndex == items.length) {
                     removeIndex = 0;

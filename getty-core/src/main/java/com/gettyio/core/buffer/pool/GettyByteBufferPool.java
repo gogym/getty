@@ -60,7 +60,7 @@ import java.nio.ByteBuffer;
  *   ByteBufferPool pool = new GettyByteBufferPool();
  *
  *   // 分配一个 1024 字节的缓冲区
- *   RetainableByteBuffer buf = pool.acquire(1024);
+ *   PooledByteBuffer buf = pool.acquire(1024);
  *
  *   // 使用缓冲区
  *   buf.put("Hello".getBytes());
@@ -181,10 +181,10 @@ public class GettyByteBufferPool implements ByteBufferPool, Closeable {
      *
      * @param size   请求容量（字节）
      * @param direct true 使用直接内存，false 使用堆内存
-     * @return 池化的 RetainableByteBuffer，使用完后必须调用 release() 归还
+     * @return 池化的 PooledByteBuffer，使用完后必须调用 release() 归还
      */
     @Override
-    public RetainableByteBuffer acquire(int size, boolean direct) {
+    public PooledByteBuffer acquire(int size, boolean direct) {
         if (size <= 0) {
             size = 1;
         }
@@ -220,10 +220,10 @@ public class GettyByteBufferPool implements ByteBufferPool, Closeable {
      * 从池中获取指定大小的可保留 ByteBuffer，使用默认的内存类型。
      *
      * @param size 请求容量（字节）
-     * @return 池化的 RetainableByteBuffer
+     * @return 池化的 PooledByteBuffer
      */
     @Override
-    public RetainableByteBuffer acquire(int size) {
+    public PooledByteBuffer acquire(int size) {
         return acquire(size, defaultDirect);
     }
 

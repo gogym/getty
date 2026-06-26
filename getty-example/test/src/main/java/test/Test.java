@@ -1,7 +1,7 @@
 package test;
 
 import com.gettyio.core.buffer.pool.GettyByteBufferPool;
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.util.FastArrayList;
 import com.gettyio.core.util.FastCopyOnWriteArrayList;
 import com.gettyio.core.util.timer.HashedWheelTimer;
@@ -137,7 +137,7 @@ public class Test {
                 @Override
                 public void run() {
                     for (int i = 0; i < 1000000; i++) {
-                        RetainableByteBuffer buf = byteBufferPool.acquire(63);
+                        PooledByteBuffer buf = byteBufferPool.acquire(63);
                         buf.release();
                     }
                     countDownLatch.countDown();

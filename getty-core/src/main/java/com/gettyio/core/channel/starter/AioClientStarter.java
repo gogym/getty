@@ -19,7 +19,6 @@ import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ClientConfig;
-import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLException;
@@ -158,7 +157,7 @@ public class AioClientStarter extends AioStarter {
                         LOGGER.info("connected to server");
                         try {
                             aioChannel = new AioChannel(ch, config,
-                                    new ReadCompletionHandler(), new WriteCompletionHandler(),
+                                    new ReadCompletionHandler(),
                                     byteBufferPool, channelInitializer);
                             aioChannel.starRead();
 

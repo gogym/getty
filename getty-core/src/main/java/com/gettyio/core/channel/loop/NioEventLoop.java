@@ -16,7 +16,7 @@
 package com.gettyio.core.channel.loop;
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
@@ -81,7 +81,7 @@ public class NioEventLoop implements EventLoop {
             @Override
             public void run() {
                 // 长生命周期读缓冲区：整个事件循环复用，避免每次 read 都 acquire/release
-                RetainableByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+                PooledByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
                 try {
                     while (!shutdown) {
                         try {
@@ -106,6 +106,8 @@ public class NioEventLoop implements EventLoop {
                                 handleConnect(sk, nioChannel);
                             } else if (sk.isReadable()) {
                                 handleRead(sk, nioChannel, readBuffer);
+                            } else if (sk.isWritable()) {
+                                handleWrite(sk, nioChannel);
                             }
                         }
                     }
@@ -140,7 +142,7 @@ public class NioEventLoop implements EventLoop {
      * 管道处理是同步的，因此缓冲区可在下一次读循环安全复用。
      * </p>
      */
-    private void handleRead(SelectionKey sk, NioChannel nioChannel, RetainableByteBuffer readBuffer) {
+    private void handleRead(SelectionKey sk, NioChannel nioChannel, PooledByteBuffer readBuffer) {
         java.nio.channels.SocketChannel channel = (java.nio.channels.SocketChannel) sk.channel();
         try {
             // 复用缓冲区：重置指针后重新填充
@@ -164,8 +166,24 @@ public class NioEventLoop implements EventLoop {
         readBuffer.flipToFlush();
 
         if (readBuffer.isReadable()) {
-            // 零拷贝：直接传递 RetainableByteBuffer（管道同步消费，下一次 read 前数据已被处理）
+            // 零拷贝：直接传递 PooledByteBuffer（管道同步消费，下一次 read 前数据已被处理）
             nioChannel.doRead(readBuffer);
+        }
+    }
+
+    /**
+     * 处理写事件。由 EventLoop 在 OP_WRITE 就绪时调用。
+     * <p>
+     * 委托给 {@link NioChannel#doWrite()} 执行 Gathering Write，
+     * 将 BufferWriter 链表中的所有缓冲区一次性写入 Socket。
+     * </p>
+     */
+    private void handleWrite(SelectionKey sk, NioChannel nioChannel) {
+        try {
+            nioChannel.doWrite();
+        } catch (Exception e) {
+            LOGGER.error("channel write error", e);
+            nioChannel.close();
         }
     }
 

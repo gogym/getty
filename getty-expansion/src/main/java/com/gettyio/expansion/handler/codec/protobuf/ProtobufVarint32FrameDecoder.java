@@ -16,7 +16,7 @@
 package com.gettyio.expansion.handler.codec.protobuf;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
@@ -37,7 +37,7 @@ public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        PooledByteBuffer buf = (PooledByteBuffer) in;
         byte[] bytes = new byte[buf.readableBytes()];
         buf.readBytes(bytes);
         cumulation.writeBytes(bytes);

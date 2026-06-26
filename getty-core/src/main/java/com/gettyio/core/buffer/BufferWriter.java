@@ -15,10 +15,8 @@
  */
 package com.gettyio.core.buffer;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
-import java.util.function.Function;
-import com.gettyio.core.util.queue.LinkedBlockQueue;
-import com.gettyio.core.util.queue.LinkedQueue;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
+import com.gettyio.core.util.LinkedBufferList;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,7 +24,9 @@ import java.util.List;
 /**
  * 控制数据输出。
  * <p>
- * 将写入的字节数据封装为池化缓冲区，排入队列等待 flush 写出。
+ * 内部使用 {@link LinkedBufferList}（Entry 单向链表）缓存待发送的
+ * {@link PooledByteBuffer}。写入线程加锁追加后立即返回，永不阻塞业务线程；
+ * 消费线程（EventLoop）通过 {@link #poll()} 从链表头部取出数据写出。
  * </p>
  *
  * @author gogym
@@ -34,38 +34,35 @@ import java.util.List;
 public final class BufferWriter extends AbstractBufferWriter {
 
     /**
-     * flush 回调函数
+     * 写出通知器，用于通知 EventLoop 注册 OP_WRITE
      */
-    private final Function<BufferWriter, Void> function;
+    private final FlushNotifier flushNotifier;
 
-    /**
-     * 数据缓冲队列
-     */
-    private final LinkedQueue<RetainableByteBuffer> queue;
+    /** 单向链表，缓存待写出的缓冲区 */
+    private final LinkedBufferList bufferList = new LinkedBufferList();
 
     /**
      * 构造方法
      *
-     * @param flushFunction         flush 回调
-     * @param bufferWriterQueueSize 写队列大小
+     * @param flushNotifier 写出通知器
      */
-    public BufferWriter(Function<BufferWriter, Void> flushFunction, int bufferWriterQueueSize) {
-        this.function = flushFunction;
-        this.queue = new LinkedBlockQueue<>(bufferWriterQueueSize);
+    public BufferWriter(FlushNotifier flushNotifier) {
+        this.flushNotifier = flushNotifier;
     }
 
     /**
-     * 零拷贝写入：将 RetainableByteBuffer 直接入队，不进行任何数组拷贝。
+     * 零拷贝写入：将 PooledByteBuffer 追加到链表尾部并触发 flush。
      * <p>
-     * 调用方必须确保传入的 RetainableByteBuffer 生命周期由 BufferWriter 接管，
+     * 调用方必须确保传入的 PooledByteBuffer 生命周期由 BufferWriter 接管，
      * 即入队后不再使用此缓冲区。通道层在写出完成后会自动调用 release()。
      * </p>
+     * <p>写入线程加锁追加后立即返回，永不阻塞。</p>
      *
      * @param byteBuf 待写出的缓冲区
-     * @throws IOException 已关闭或入队中断时抛出
+     * @throws IOException 已关闭时抛出
      */
     @Override
-    public void writeAndFlush(RetainableByteBuffer byteBuf) throws IOException {
+    public void writeAndFlush(PooledByteBuffer byteBuf) throws IOException {
         if (closed) {
             byteBuf.release();
             throw new IOException("BufferWriter is closed");
@@ -73,30 +70,36 @@ public final class BufferWriter extends AbstractBufferWriter {
         if (byteBuf == null) {
             throw new NullPointerException("byteBuf is null");
         }
-        try {
-            queue.put(byteBuf);
-        } catch (InterruptedException e) {
-            // put 被中断（包括 drain 唤醒）：缓冲区未入队，由调用方释放
-            byteBuf.release();
-            Thread.currentThread().interrupt();
-            throw new IOException("Write interrupted", e);
-        }
-        // 防止 put 阻塞期间 close() 已通过 drain 释放队列，确保不泄漏已入队的缓冲区
-        if (closed) {
-            byteBuf.release();
-            throw new IOException("BufferWriter is closed");
+        synchronized (this) {
+            if (closed) {
+                // 加锁后二次检查：防止 close() 在首次检查和入队之间完成
+                byteBuf.release();
+                return;
+            }
+            // 追加到链表尾部，O(1)
+            bufferList.offer(byteBuf);
         }
         flush();
     }
 
+    /**
+     * 通知 EventLoop 注册 OP_WRITE，由 EventLoop 驱动实际写出。
+     * <p>业务线程调用后立即返回，不参与任何 I/O 操作。</p>
+     */
     @Override
     public void flush() throws IOException {
         if (closed) {
             throw new IOException("BufferWriter is closed");
         }
-        function.apply(this);
+        flushNotifier.notifyFlush();
     }
 
+    /**
+     * 关闭输出流。
+     * <p>
+     * 标记为已关闭，清空链表中残留的缓冲区，防止资源泄漏。
+     * </p>
+     */
     @Override
     public void close() throws IOException {
         if (closed) {
@@ -104,14 +107,8 @@ public final class BufferWriter extends AbstractBufferWriter {
         }
         // 1. 先标记为已关闭，拒绝新的写入
         closed = true;
-        // 2. 尽力刷新：让通道消费队列中的数据
-        try {
-            function.apply(this);
-        } catch (Exception e) {
-            // 通道可能已关闭，忽略刷新异常
-        }
-        // 3. 排空队列中残留的缓冲区，防止内存泄漏，同时唤醒可能阻塞的 put 线程
-        queue.drain();
+        // 2. 清空链表中残留的缓冲区，防止内存泄漏
+        bufferList.drainAndRelease();
     }
 
     @Override
@@ -119,44 +116,56 @@ public final class BufferWriter extends AbstractBufferWriter {
         return closed;
     }
 
+    /**
+     * 从链表头部弹出一个缓冲区。
+     * <p>
+     * 非阻塞：链表为空时立即返回 null。
+     * </p>
+     *
+     * @return 缓冲区，链表为空时返回 null
+     */
     @Override
-    public RetainableByteBuffer poll() {
-        try {
-            return queue.poll();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
-        }
-    }
-
-    @Override
-    public void pollAll(List<RetainableByteBuffer> list) {
-        try {
-            RetainableByteBuffer buf;
-            while ((buf = queue.poll()) != null) {
-                list.add(buf);
+    public PooledByteBuffer poll() {
+        synchronized (this) {
+            if (closed) {
+                return null;
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            return bufferList.poll();
         }
     }
 
+    /**
+     * 从链表中批量弹出所有可用缓冲区。
+     *
+     * @param list 用于接收弹出元素的列表（调用方传入，避免每次分配）
+     */
     @Override
-    public void pollAll(List<RetainableByteBuffer> list, int maxCount) {
-        try {
-            RetainableByteBuffer buf;
-            int count = 0;
-            while (count < maxCount && (buf = queue.poll()) != null) {
-                list.add(buf);
-                count++;
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+    public void pollAll(List<PooledByteBuffer> list) {
+        synchronized (this) {
+            bufferList.pollAll(list);
         }
     }
 
+    /**
+     * 从链表中批量弹出最多 maxCount 个缓冲区。
+     *
+     * @param list     用于接收弹出元素的列表
+     * @param maxCount 最多弹出数量
+     */
+    @Override
+    public void pollAll(List<PooledByteBuffer> list, int maxCount) {
+        synchronized (this) {
+            bufferList.pollAll(list, maxCount);
+        }
+    }
+
+    /**
+     * 获取链表中待写出的缓冲区数量。
+     *
+     * @return 待写出数量
+     */
     @Override
     public int getCount() {
-        return queue.getCount();
+        return bufferList.size();
     }
 }

@@ -19,7 +19,6 @@ import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ServerConfig;
-import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.constant.Banner;
 import com.gettyio.core.logging.InternalLogger;
@@ -54,9 +53,8 @@ public class AioServerStarter extends AioStarter {
     /** 服务端配置 */
     protected final ServerConfig config;
 
-    /** 读 / 写回调处理器（所有连接共享） */
+    /** 读回调处理器（所有连接共享） */
     protected ReadCompletionHandler readCompletionHandler;
-    protected WriteCompletionHandler writeCompletionHandler;
 
     /** 服务端 Socket 通道 */
     private AsynchronousServerSocketChannel serverSocketChannel;
@@ -112,7 +110,6 @@ public class AioServerStarter extends AioStarter {
      */
     private void startTcp() throws IOException {
         readCompletionHandler = new ReadCompletionHandler();
-        writeCompletionHandler = new WriteCompletionHandler();
 
         try {
             asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(bossThreadNum, new ThreadFactory() {
@@ -213,7 +210,7 @@ public class AioServerStarter extends AioStarter {
     private void createTcpChannel(AsynchronousSocketChannel channel) {
         try {
             AbstractSocketChannel aioChannel = new AioChannel(channel, config,
-                    readCompletionHandler, writeCompletionHandler,
+                    readCompletionHandler,
                     byteBufferPool, channelInitializer);
             aioChannel.starRead();
         } catch (Exception e) {

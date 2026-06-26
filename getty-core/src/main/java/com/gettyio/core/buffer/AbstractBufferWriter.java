@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.buffer;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,12 +33,12 @@ public abstract class AbstractBufferWriter {
     volatile boolean closed;
 
     /**
-     * 零拷贝写入：将 RetainableByteBuffer 直接入队并刷新。
+     * 零拷贝写入：将 PooledByteBuffer 直接入队并刷新。
      *
      * @param byteBuf 待写出的缓冲区
      * @throws IOException 写入或刷新异常
      */
-    public abstract void writeAndFlush(RetainableByteBuffer byteBuf) throws IOException;
+    public abstract void writeAndFlush(PooledByteBuffer byteBuf) throws IOException;
 
     /**
      * 刷新缓冲区
@@ -66,14 +66,14 @@ public abstract class AbstractBufferWriter {
      *
      * @return 缓冲区，队列为空时返回 null
      */
-    public abstract RetainableByteBuffer poll();
+    public abstract PooledByteBuffer poll();
 
     /**
      * 从队列中批量弹出所有可用缓冲区。
      *
      * @param list 用于接收弹出元素的列表（调用方传入，避免每次分配）
      */
-    public abstract void pollAll(List<RetainableByteBuffer> list);
+    public abstract void pollAll(List<PooledByteBuffer> list);
 
     /**
      * 从队列中批量弹出最多 maxCount 个缓冲区。
@@ -81,7 +81,7 @@ public abstract class AbstractBufferWriter {
      * @param list     用于接收弹出元素的列表
      * @param maxCount 最多弹出数量
      */
-    public abstract void pollAll(List<RetainableByteBuffer> list, int maxCount);
+    public abstract void pollAll(List<PooledByteBuffer> list, int maxCount);
 
     /**
      * 获取队列中缓冲区数量

@@ -15,7 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.string;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
@@ -37,7 +37,7 @@ public class StringDecoder extends ByteToMessageDecoder {
         if (in instanceof byte[]) {
             bytes = (byte[]) in;
         } else {
-            RetainableByteBuffer buf = (RetainableByteBuffer) in;
+            PooledByteBuffer buf = (PooledByteBuffer) in;
             bytes = new byte[buf.readableBytes()];
             buf.readBytes(bytes);
         }

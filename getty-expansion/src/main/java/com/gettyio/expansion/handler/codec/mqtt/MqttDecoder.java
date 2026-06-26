@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.ChannelState;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.handler.codec.DecoderException;
@@ -126,7 +126,7 @@ public final class MqttDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        RetainableByteBuffer buf = (RetainableByteBuffer) in;
+        PooledByteBuffer buf = (PooledByteBuffer) in;
         byte[] bytes = new byte[buf.readableBytes()];
         buf.readBytes(bytes);
         AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer().writeBytes(bytes);

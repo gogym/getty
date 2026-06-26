@@ -15,7 +15,7 @@
  */
 package com.gettyio.expansion.handler.codec.protobuf;
 
-import com.gettyio.core.buffer.pool.RetainableByteBuffer;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.google.protobuf.MessageLite;
@@ -36,12 +36,12 @@ public class ProtobufEncoder extends MessageToByteEncoder {
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof MessageLite) {
             byte[] bytes = ((MessageLite) obj).toByteArray();
-            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
             buf.writeBytes(bytes);
             obj = buf;
         } else if (obj instanceof MessageLite.Builder) {
             byte[] bytes = ((MessageLite.Builder) obj).build().toByteArray();
-            RetainableByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
+            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
             buf.writeBytes(bytes);
             obj = buf;
         }
