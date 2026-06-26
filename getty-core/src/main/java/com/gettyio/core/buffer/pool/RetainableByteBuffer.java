@@ -274,18 +274,8 @@ public class RetainableByteBuffer {
      */
     public RetainableByteBuffer readBytes(byte[] bytes, int offset, int length) {
         checkReadableBytes(length);
-        if (buffer.hasArray()) {
-            // 堆内存快速路径：直接 System.arraycopy，零逐字节开销
-            System.arraycopy(buffer.array(), buffer.arrayOffset() + readerIndex, bytes, offset, length);
-        } else {
-            // 直接内存路径：批量 get
-            int oldPos = buffer.position();
-            int oldLim = buffer.limit();
-            buffer.position(readerIndex);
-            buffer.limit(readerIndex + length);
-            buffer.get(bytes, offset, length);
-            buffer.position(oldPos);
-            buffer.limit(oldLim);
+        for (int i = 0; i < length; i++) {
+            bytes[offset + i] = buffer.get(readerIndex + i);
         }
         readerIndex += length;
         return this;
@@ -379,18 +369,8 @@ public class RetainableByteBuffer {
             throw new IndexOutOfBoundsException(
                     "writeBytes: " + length + " > writableBytes: " + writableBytes());
         }
-        if (buffer.hasArray()) {
-            // 堆内存快速路径：直接 System.arraycopy
-            System.arraycopy(bytes, offset, buffer.array(), buffer.arrayOffset() + writerIndex, length);
-        } else {
-            // 直接内存路径：批量 put
-            int oldPos = buffer.position();
-            int oldLim = buffer.limit();
-            buffer.position(writerIndex);
-            buffer.limit(writerIndex + length);
-            buffer.put(bytes, offset, length);
-            buffer.position(oldPos);
-            buffer.limit(oldLim);
+        for (int i = 0; i < length; i++) {
+            buffer.put(writerIndex + i, bytes[offset + i]);
         }
         writerIndex += length;
         return this;
@@ -404,46 +384,8 @@ public class RetainableByteBuffer {
      */
     public RetainableByteBuffer writeBytes(RetainableByteBuffer src) {
         int length = src.readableBytes();
-        if (buffer.hasArray() && src.buffer.hasArray()) {
-            // 双方都是堆内存：最快路径，单次 arraycopy
-            System.arraycopy(src.buffer.array(), src.buffer.arrayOffset() + src.readerIndex,
-                    buffer.array(), buffer.arrayOffset() + writerIndex, length);
-        } else if (buffer.hasArray()) {
-            // 目标是堆内存，源是直接内存
-            int oldPos = src.buffer.position();
-            int oldLim = src.buffer.limit();
-            src.buffer.position(src.readerIndex);
-            src.buffer.limit(src.readerIndex + length);
-            src.buffer.get(buffer.array(), buffer.arrayOffset() + writerIndex, length);
-            src.buffer.position(oldPos);
-            src.buffer.limit(oldLim);
-        } else if (src.buffer.hasArray()) {
-            // 目标是直接内存，源是堆内存
-            int oldPos = buffer.position();
-            int oldLim = buffer.limit();
-            buffer.position(writerIndex);
-            buffer.limit(writerIndex + length);
-            buffer.put(src.buffer.array(), src.buffer.arrayOffset() + src.readerIndex, length);
-            buffer.position(oldPos);
-            buffer.limit(oldLim);
-        } else {
-            // 双方都是直接内存：通过临时数组中转
-            byte[] tmp = new byte[length];
-            int oldSrcPos = src.buffer.position();
-            int oldSrcLim = src.buffer.limit();
-            src.buffer.position(src.readerIndex);
-            src.buffer.limit(src.readerIndex + length);
-            src.buffer.get(tmp, 0, length);
-            src.buffer.position(oldSrcPos);
-            src.buffer.limit(oldSrcLim);
-
-            int oldPos = buffer.position();
-            int oldLim = buffer.limit();
-            buffer.position(writerIndex);
-            buffer.limit(writerIndex + length);
-            buffer.put(tmp, 0, length);
-            buffer.position(oldPos);
-            buffer.limit(oldLim);
+        for (int i = 0; i < length; i++) {
+            buffer.put(writerIndex + i, src.buffer.get(src.readerIndex + i));
         }
         src.readerIndex += length;
         this.writerIndex += length;
@@ -452,9 +394,6 @@ public class RetainableByteBuffer {
 
     /**
      * 写入 ByteBuffer 的剩余数据，writerIndex += src.remaining()。
-     * <p>
-     * 堆内存场景下使用 System.arraycopy 实现高效批量拷贝。
-     * </p>
      *
      * @param src 源 ByteBuffer（position 到 limit 之间的数据）
      * @return this
@@ -465,23 +404,8 @@ public class RetainableByteBuffer {
             throw new IndexOutOfBoundsException(
                     "writeBytes: " + length + " > writableBytes: " + writableBytes());
         }
-        if (buffer.hasArray() && src.hasArray()) {
-            // 双方都是堆内存：最快路径
-            System.arraycopy(src.array(), src.arrayOffset() + src.position(),
-                    buffer.array(), buffer.arrayOffset() + writerIndex, length);
-            src.position(src.position() + length);
-        } else if (buffer.hasArray()) {
-            // 目标是堆内存，源是直接内存
-            src.get(buffer.array(), buffer.arrayOffset() + writerIndex, length);
-        } else {
-            // 目标是直接内存
-            int oldPos = buffer.position();
-            int oldLim = buffer.limit();
-            buffer.position(writerIndex);
-            buffer.limit(writerIndex + length);
-            buffer.put(src);
-            buffer.position(oldPos);
-            buffer.limit(oldLim);
+        for (int i = 0; i < length; i++) {
+            buffer.put(writerIndex + i, src.get());
         }
         writerIndex += length;
         return this;
@@ -605,17 +529,8 @@ public class RetainableByteBuffer {
     public RetainableByteBuffer copy() {
         int len = readableBytes();
         ByteBuffer copy = ByteBuffer.allocate(len);
-        if (buffer.hasArray()) {
-            System.arraycopy(buffer.array(), buffer.arrayOffset() + readerIndex, copy.array(), copy.arrayOffset(), len);
-        } else {
-            int oldPos = buffer.position();
-            int oldLim = buffer.limit();
-            buffer.position(readerIndex);
-            buffer.limit(readerIndex + len);
-            copy.put(buffer);
-            buffer.position(oldPos);
-            buffer.limit(oldLim);
-            copy.flip();
+        for (int i = 0; i < len; i++) {
+            copy.put(i, buffer.get(readerIndex + i));
         }
         return new RetainableByteBuffer(copy);
     }
@@ -652,47 +567,47 @@ public class RetainableByteBuffer {
     // ======================== I/O 兼容方法 ========================
 
     /**
-     * 返回缓冲区中剩余的字节数。
+     * 返回缓冲区中剩余的字节数（兼容旧 API）。
      *
      * @return 剩余字节数（等同于 {@link #readableBytes()}）
-     * @deprecated 使用 {@link #readableBytes()} 替代
      */
-    @Deprecated
     public int remaining() {
         return readableBytes();
     }
 
     /**
-     * 检查缓冲区是否还有剩余数据。
+     * 检查缓冲区是否还有剩余数据（兼容旧 API）。
      *
      * @return true 如果 readableBytes() > 0
-     * @deprecated 使用 {@link #isReadable()} 替代
      */
-    @Deprecated
     public boolean hasRemaining() {
         return isReadable();
     }
 
     /**
-     * 往缓冲区追加数据。
+     * 往缓冲区追加数据（兼容旧 API）。
+     * <p>
+     * 使用 ByteBuffer 的 position/limit 进行写入，不影响 readerIndex/writerIndex。
+     * 建议新代码使用 {@link #writeBytes(byte[])} 替代。
+     * </p>
      *
      * @param bytes 要写入的字节数组
-     * @deprecated 使用 {@link #writeBytes(byte[])} 替代
      */
-    @Deprecated
     public void put(byte[] bytes) {
-        writeBytes(bytes);
+        BufferUtil.append(buffer, bytes);
     }
 
     /**
-     * 从缓冲区读取数据到字节数组。
+     * 从缓冲区读取数据到字节数组（兼容旧 API）。
+     * <p>
+     * 使用 ByteBuffer 的 position/limit 进行读取，不影响 readerIndex/writerIndex。
+     * 建议新代码使用 {@link #readBytes(byte[])} 替代。
+     * </p>
      *
      * @param bytes 目标字节数组
-     * @deprecated 使用 {@link #readBytes(byte[])} 替代
      */
-    @Deprecated
     public void get(byte[] bytes) {
-        readBytes(bytes);
+        BufferUtil.writeTo(buffer, bytes);
     }
 
     /**
