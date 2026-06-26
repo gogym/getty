@@ -18,6 +18,7 @@ package com.gettyio.core.buffer;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * 流数据统一输出抽象基类。
@@ -66,6 +67,21 @@ public abstract class AbstractBufferWriter {
      * @return 缓冲区，队列为空时返回 null
      */
     public abstract RetainableByteBuffer poll();
+
+    /**
+     * 从队列中批量弹出所有可用缓冲区。
+     *
+     * @param list 用于接收弹出元素的列表（调用方传入，避免每次分配）
+     */
+    public abstract void pollAll(List<RetainableByteBuffer> list);
+
+    /**
+     * 从队列中批量弹出最多 maxCount 个缓冲区。
+     *
+     * @param list     用于接收弹出元素的列表
+     * @param maxCount 最多弹出数量
+     */
+    public abstract void pollAll(List<RetainableByteBuffer> list, int maxCount);
 
     /**
      * 获取队列中缓冲区数量

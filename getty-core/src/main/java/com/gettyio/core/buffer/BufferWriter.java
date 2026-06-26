@@ -21,6 +21,7 @@ import com.gettyio.core.util.queue.LinkedBlockQueue;
 import com.gettyio.core.util.queue.LinkedQueue;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * 控制数据输出。
@@ -132,6 +133,32 @@ public final class BufferWriter extends AbstractBufferWriter {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
+        }
+    }
+
+    @Override
+    public void pollAll(List<RetainableByteBuffer> list) {
+        try {
+            RetainableByteBuffer buf;
+            while ((buf = queue.poll()) != null) {
+                list.add(buf);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @Override
+    public void pollAll(List<RetainableByteBuffer> list, int maxCount) {
+        try {
+            RetainableByteBuffer buf;
+            int count = 0;
+            while (count < maxCount && (buf = queue.poll()) != null) {
+                list.add(buf);
+                count++;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

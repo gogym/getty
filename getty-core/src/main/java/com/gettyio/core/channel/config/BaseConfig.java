@@ -39,7 +39,7 @@ public abstract class BaseConfig {
     private int readBufferSize = 32 * 1024;
 
     /** 写队列容量，默认 1M */
-    private int bufferWriterQueueSize = 1024 * 1024;
+    private int bufferWriterQueueSize = 10*1024 * 1024;
 
     /** 是否使用直接内存（DirectByteBuffer），默认堆内存 */
     private boolean direct;

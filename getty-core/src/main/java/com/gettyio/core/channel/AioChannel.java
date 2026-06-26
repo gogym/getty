@@ -19,8 +19,8 @@ import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.internal.GatherWriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
-import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import java.util.function.Function;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLHandler;
@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -50,15 +52,21 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     /** 读缓冲区（每次读取时从池中获取，读完释放） */
     private RetainableByteBuffer readByteBuffer;
 
-    /** 当前正在写出的缓冲区 */
-    private RetainableByteBuffer writeByteBuffer;
+    /** 当前正在批量写出的缓冲区数组（Gathering Write 批次） */
+    private RetainableByteBuffer[] writeBatchBuffers;
+
+    /** 复用的 ByteBuffer 数组，用于 Gathering Write */
+    private ByteBuffer[] gatherBuffers;
+
+    /** 单次 Gathering Write 最大缓冲区数量 */
+    private static final int MAX_BATCH_SIZE = 4096;
 
     /** 写出信号量，保证同一时刻最多一个写操作 */
     private final Semaphore writeSemaphore = new Semaphore(1);
 
     /** 读 / 写完成回调 */
     private final ReadCompletionHandler readCompletionHandler;
-    private final WriteCompletionHandler writeCompletionHandler;
+    private final GatherWriteCompletionHandler gatherWriteCompletionHandler;
 
     /** SSL 处理器 */
     private SSLHandler sslHandler;
@@ -74,18 +82,18 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
      *
      * @param channel                底层异步通道
      * @param config                 通道配置
-     * @param readCompletionHandler  读回调处理器
-     * @param writeCompletionHandler 写回调处理器
+     * @param readCompletionHandler        读回调处理器
+     * @param gatherWriteCompletionHandler Gathering Write 回调处理器
      * @param byteBufferPool         内存池
      * @param channelInitializer     管道初始化器
      */
     public AioChannel(AsynchronousSocketChannel channel, BaseConfig config,
                       ReadCompletionHandler readCompletionHandler,
-                      WriteCompletionHandler writeCompletionHandler,
+                      GatherWriteCompletionHandler gatherWriteCompletionHandler,
                       ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
-        this.writeCompletionHandler = writeCompletionHandler;
+        this.gatherWriteCompletionHandler = gatherWriteCompletionHandler;
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.channelInitializer = channelInitializer;
@@ -203,42 +211,94 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     }
 
     /**
-     * 发起异步写出操作。
+     * 发起异步 Gathering Write，一次性写出多个 ByteBuffer。
+     *
+     * @param buffers 待写出的 ByteBuffer 数组
      */
-    private void continueWrite(ByteBuffer writeBuffer) {
-        channel.write(writeBuffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+    private void continueGatherWrite(ByteBuffer[] buffers) {
+        channel.write(buffers, 0, buffers.length, 0L, TimeUnit.MILLISECONDS, this, gatherWriteCompletionHandler);
     }
 
     /**
-     * 写出完成回调。取出队列中的下一个缓冲区继续写出。
-     * 当所有数据写完后释放信号量。
+     * 批量消费队列中所有待写缓冲区，执行一次 Gathering Write。
+     * 将多个消息合并为一次系统调用，减少 write 次数。
      */
-    public void writeCompleted() {
-        if (writeByteBuffer != null && !writeByteBuffer.hasRemaining()) {
-            writeByteBuffer.release();
-            writeByteBuffer = null;
+    private void drainAndGatherWrite() {
+        // 释放已完成的旧批次
+        if (writeBatchBuffers != null) {
+            for (RetainableByteBuffer buf : writeBatchBuffers) {
+                if (buf != null) buf.release();
+            }
+            writeBatchBuffers = null;
         }
 
-        writeByteBuffer = bufferWriter.poll();
+        // 从队列中批量取出待写缓冲区（不超过 MAX_BATCH_SIZE）
+        List<RetainableByteBuffer> batch = new ArrayList<>();
+        bufferWriter.pollAll(batch, MAX_BATCH_SIZE);
 
-        if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
-            continueWrite(writeByteBuffer.getBuffer());
+        if (batch.isEmpty()) {
+            writeSemaphore.release();
+            // double-check：释放信号量前可能有新数据入队
+            if (bufferWriter.getCount() > 0 && writeSemaphore.tryAcquire()) {
+                bufferWriter.pollAll(batch, MAX_BATCH_SIZE);
+                if (!batch.isEmpty()) {
+                    startGatherWrite(batch);
+                    return;
+                }
+                writeSemaphore.release();
+            }
+            if (!keepAlive && bufferWriter.getCount() == 0) {
+                close();
+            }
             return;
         }
 
-        // 所有数据写完，释放信号量
-        writeSemaphore.release();
-        // double-check：释放信号量前可能有新数据入队
-        if (bufferWriter.getCount() > 0 && writeSemaphore.tryAcquire()) {
-            writeByteBuffer = bufferWriter.poll();
-            if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
-                continueWrite(writeByteBuffer.getBuffer());
-                return;
-            }
-            writeSemaphore.release();
+        startGatherWrite(batch);
+    }
+
+    /**
+     * 将批量取出的缓冲区组装为 ByteBuffer[] 并发起 Gathering Write。
+     *
+     * @param batch 待写出的 RetainableByteBuffer 列表
+     */
+    private void startGatherWrite(List<RetainableByteBuffer> batch) {
+        int size = batch.size();
+        writeBatchBuffers = batch.toArray(new RetainableByteBuffer[0]);
+
+        // 复用或新建 gatherBuffers 数组
+        if (gatherBuffers == null || gatherBuffers.length < size) {
+            gatherBuffers = new ByteBuffer[size];
         }
-        if (!keepAlive && bufferWriter.getCount() == 0) {
-            close();
+        for (int i = 0; i < size; i++) {
+            gatherBuffers[i] = writeBatchBuffers[i].getBuffer();
+        }
+
+        continueGatherWrite(gatherBuffers);
+    }
+
+    /**
+     * 写出完成回调。批量释放已写完的缓冲区，从队列取出下一批继续 Gathering Write。
+     * 当所有数据写完后释放信号量。
+     */
+    public void writeCompleted() {
+        // 检查当前批次是否全部写完
+        if (writeBatchBuffers != null) {
+            boolean allDone = true;
+            for (RetainableByteBuffer buf : writeBatchBuffers) {
+                if (buf != null && buf.hasRemaining()) {
+                    allDone = false;
+                    break;
+                }
+            }
+            if (allDone) {
+                // 全部写完，进入下一批次
+                drainAndGatherWrite();
+            } else {
+                // 部分未写完（partial write），继续写出剩余数据
+                continueGatherWrite(gatherBuffers);
+            }
+        } else {
+            drainAndGatherWrite();
         }
     }
 
@@ -257,10 +317,12 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             rBuf.release();
         }
 
-        RetainableByteBuffer wBuf = writeByteBuffer;
-        if (wBuf != null) {
-            writeByteBuffer = null;
-            wBuf.release();
+        RetainableByteBuffer[] batchBufs = writeBatchBuffers;
+        if (batchBufs != null) {
+            writeBatchBuffers = null;
+            for (RetainableByteBuffer buf : batchBufs) {
+                if (buf != null) buf.release();
+            }
         }
 
         if (channelFutureListener != null) {
@@ -345,9 +407,10 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     @Override
     public Void apply(BufferWriter input) {
         if (writeSemaphore.tryAcquire()) {
-            writeByteBuffer = bufferWriter.poll();
-            if (writeByteBuffer != null && writeByteBuffer.hasRemaining()) {
-                continueWrite(writeByteBuffer.getBuffer());
+            List<RetainableByteBuffer> batch = new ArrayList<>();
+            bufferWriter.pollAll(batch, MAX_BATCH_SIZE);
+            if (!batch.isEmpty()) {
+                startGatherWrite(batch);
             } else {
                 writeSemaphore.release();
             }
