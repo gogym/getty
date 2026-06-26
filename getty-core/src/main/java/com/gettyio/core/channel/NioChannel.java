@@ -169,6 +169,13 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
 
     @Override
     public void writeToChannel(Object obj) {
+        // 通道已关闭，静默释放缓冲区，避免大量 ERROR 日志
+        if (status == CHANNEL_STATUS_CLOSED) {
+            if (obj instanceof PooledByteBuffer) {
+                ((PooledByteBuffer) obj).release();
+            }
+            return;
+        }
         try {
             bufferWriter.writeAndFlush((PooledByteBuffer) obj);
         } catch (Exception e) {
@@ -211,9 +218,6 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         } catch (Exception e) {
             logger.error("fire CHANNEL_CLOSED failed", e);
         }
-
-        // 清空管道引用
-        channelPipeline = null;
     }
 
     @Override

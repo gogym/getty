@@ -231,8 +231,6 @@ public class UdpChannel extends AbstractSocketChannel {
         } catch (Exception e) {
             logger.error("fire CHANNEL_CLOSED failed", e);
         }
-
-        channelPipeline = null;
     }
 
     @Override

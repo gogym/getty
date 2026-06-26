@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.nio.channels.WritePendingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -59,21 +58,17 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     private final BufferWriter bufferWriter;
 
     /**
-     * 部分写出时暂存的缓冲区列表。
+     * 标记 AIO 异步写是否进行中。
      * <p>
-     * 当 Gathering Write 未一次性写完所有缓冲区时，
-     * 剩余缓冲区保留在此列表中，由 {@link #writeCompleted()} 回调驱动下次写出。
+     * false = 可提交新写操作，true = 上一次 write 尚未完成。
      * </p>
      */
-    private List<PooledByteBuffer> pendingWriteBufs;
+    private boolean writeInFlight;
 
     /**
-     * 当前提交给 AIO 的 ByteBuffer 视图数组。
-     * <p>
-     * 写出完成后可通过 {@code position()} 获取每个缓冲区的实际写出量。
-     * </p>
+     * 当前提交给 AIO 的缓冲区列表，写出完成后统一释放。
      */
-    private ByteBuffer[] pendingWriteViews;
+    private List<PooledByteBuffer> pendingWriteBufs;
 
     /** 读完成回调 */
     private final ReadCompletionHandler readCompletionHandler;
@@ -195,7 +190,6 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         } catch (Exception e) {
             logger.error("writeAndFlush failed", e);
         }
-        drainPending();
         return true;
     }
 
@@ -208,6 +202,13 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      */
     @Override
     public void writeToChannel(Object obj) {
+        // 通道已关闭，静默释放缓冲区，避免大量 ERROR 日志
+        if (status == CHANNEL_STATUS_CLOSED) {
+            if (obj instanceof PooledByteBuffer) {
+                ((PooledByteBuffer) obj).release();
+            }
+            return;
+        }
         try {
             bufferWriter.writeAndFlush((PooledByteBuffer) obj);
         } catch (Exception e) {
@@ -236,24 +237,17 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * 组成 {@code ByteBuffer[]} 数组，调用 {@code channel.write(ByteBuffer[])} 一次性写出。
      * 无需合并拷贝，零额外内存分配。
      * </p>
-     * <p>
-     * 部分写出处理：若 Socket 缓冲区满导致未一次性写完，
-     * 通过推进 {@code readerIndex} 标记已写出量，剩余缓冲区保留在 {@link #pendingWriteBufs}，
-     * 由 {@link #writeCompleted()} 回调驱动下次写出。
-     * </p>
      */
     private void drainPending() {
-        // 优先处理上次部分写出的剩余缓冲区
-        List<PooledByteBuffer> bufs;
-        if (pendingWriteBufs != null) {
-            bufs = pendingWriteBufs;
-            pendingWriteBufs = null;
-        } else {
-            bufs = new ArrayList<>();
-            bufferWriter.pollAll(bufs);
-            if (bufs.isEmpty()) {
-                return;
-            }
+        // 如果上一次 write 尚未完成，数据留在 BufferWriter 链表中，等 writeCompleted() 驱动下次写出
+        if (writeInFlight) {
+            return;
+        }
+
+        List<PooledByteBuffer> bufs = new ArrayList<>();
+        bufferWriter.pollAll(bufs);
+        if (bufs.isEmpty()) {
+            return;
         }
 
         submitWrite(bufs);
@@ -261,12 +255,6 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
 
     /**
      * 使用 Gathering Write 提交异步写出。
-     * <p>
-     * 为每个 {@link PooledByteBuffer} 创建 {@link ByteBuffer} 视图，
-     * 组成数组后调用 {@code channel.write(ByteBuffer[])}。
-     * 若上一次 write 尚未完成，抛出 {@link WritePendingException}，
-     * 缓冲区整体保留到 {@link #pendingWriteBufs}，由回调驱动下次写出。
-     * </p>
      *
      * @param bufs 待写出的缓冲区列表
      */
@@ -276,64 +264,29 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         for (int i = 0; i < bufs.size(); i++) {
             views[i] = bufs.get(i).asByteBuffer();
         }
-        pendingWriteViews = views;
-
-        try {
-            channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
-        } catch (WritePendingException e) {
-            // 上一次 write 尚未完成，缓冲区整体保留，由 writeCompleted() 驱动下次写出
-            pendingWriteBufs = bufs;
-            pendingWriteViews = null;
-            logger.warn("WritePendingException in submitWrite", e);
+        pendingWriteBufs = bufs;
+        // 标记写操作进行中，drainPending() 看到 true 会跳过，数据留在 BufferWriter 链表
+        writeInFlight = true;
+        try{
+        channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+        }catch (Exception e){
+            logger.error("channel write failed", e);
         }
     }
 
     /**
-     * 写出完成回调。处理部分写出，释放已写完的缓冲区，并继续写出。
-     * <p>
-     * 通过比较每个 {@link ByteBuffer} 视图的 {@code position} 变化量，
-     * 精确计算每个缓冲区的已写出字节数，推进对应的 {@code readerIndex}。
-     * 全部写完则释放所有缓冲区；部分写出则保留剩余缓冲区供下次写出。
-     * </p>
+     * 写出完成回调。释放已写出的缓冲区。
      */
     public void writeCompleted() {
-        ByteBuffer[] views = pendingWriteViews;
+        writeInFlight = false;
+
+        // 释放本次提交给 AIO 的缓冲区（内核已接收，全部释放）
         List<PooledByteBuffer> bufs = pendingWriteBufs;
-        pendingWriteViews = null;
         pendingWriteBufs = null;
-
-        if (views != null && bufs != null) {
-            // 通过 ByteBuffer 视图的 position 变化量计算每个缓冲区的实际写出量
-            List<PooledByteBuffer> remaining = null;
-
-            for (int i = 0; i < bufs.size(); i++) {
-                PooledByteBuffer buf = bufs.get(i);
-                int written = views[i].position();
-                if (written > 0) {
-                    buf.readerIndex(buf.readerIndex() + written);
-                }
-                if (buf.hasRemaining()) {
-                    if (remaining == null) {
-                        remaining = new ArrayList<>();
-                    }
-                    remaining.add(buf);
-                } else {
-                    // 已完全写出，释放缓冲区
-                    buf.release();
-                }
+        if (bufs != null) {
+            for (PooledByteBuffer buf : bufs) {
+                buf.release();
             }
-
-            if (remaining != null) {
-                // 部分写出，保留剩余缓冲区等待下次写出
-                pendingWriteBufs = remaining;
-                submitWrite(remaining);
-                return;
-            }
-        }
-
-        // 全部写出完成，检查 BufferWriter 链表是否还有数据
-        if (bufferWriter.getCount() > 0) {
-            drainPending();
         }
     }
 
@@ -352,14 +305,7 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             rBuf.release();
         }
 
-        // 释放部分写出暂存的缓冲区
-        if (pendingWriteBufs != null) {
-            for (PooledByteBuffer buf : pendingWriteBufs) {
-                buf.release();
-            }
-            pendingWriteBufs = null;
-            pendingWriteViews = null;
-        }
+        pendingWriteBufs = null;
 
         try {
             bufferWriter.close();
@@ -380,8 +326,6 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         } catch (Exception e) {
             logger.error("fire CHANNEL_CLOSED failed", e);
         }
-
-        channelPipeline = null;
     }
 
     @Override
