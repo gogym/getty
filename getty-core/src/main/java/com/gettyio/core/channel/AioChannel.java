@@ -15,13 +15,11 @@
  */
 package com.gettyio.core.channel;
 
-import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.RetainableByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
-import java.util.function.Function;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -30,19 +28,20 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.util.concurrent.Semaphore;
+import java.nio.channels.WritePendingException;
 import java.util.concurrent.TimeUnit;
 
 /**
  * AIO（异步 I/O）通道实现。
  * <p>
  * 基于 {@link AsynchronousSocketChannel}，通过 CompletionHandler 回调机制
- * 实现非阻塞的读写操作。使用信号量控制写出并发，每次只发送一条消息，确保同一时刻只有一个写操作在执行。
+ * 实现非阻塞的读写操作。采用无队列直接写出设计：用户线程加锁追加数据到 pendingWrite，
+ * 由 AIO 回调线程驱动 drainPending 提交写出，减少系统调用次数。
  * </p>
  *
  * @author gogym
  */
-public class AioChannel extends AbstractSocketChannel implements Function<BufferWriter, Void> {
+public class AioChannel extends AbstractSocketChannel {
 
     /** 底层异步 Socket 通道 */
     private final AsynchronousSocketChannel channel;
@@ -50,11 +49,24 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     /** 读缓冲区（每次读取时从池中获取，读完释放） */
     private RetainableByteBuffer readByteBuffer;
 
-    /** 当前正在写出的缓冲区（单条消息） */
-    private RetainableByteBuffer currentWriteBuf;
+    /**
+     * 写出锁：保护 pendingWrite 的并发访问，同时标记是否有写挂起。
+     * <p>
+     * 锁内状态：
+     * <ul>
+     *   <li>pendingWrite != null → 有数据等待写出</li>
+     *   <li>currentWrite != null → 有数据正在写出（channel.write 挂起中）</li>
+     * </ul>
+     * 当 pendingWrite == null 且 currentWrite 已清空时，写出流程结束。
+     * </p>
+     */
+    private final Object writeLock = new Object();
 
-    /** 写出信号量，保证同一时刻最多一个写操作 */
-    private final Semaphore writeSemaphore = new Semaphore(1);
+    /** 当前正在写出的缓冲区 */
+    private RetainableByteBuffer currentWrite;
+
+    /** 待写缓冲区（用户线程加锁追加，永不阻塞） */
+    private RetainableByteBuffer pendingWrite;
 
     /** 读 / 写完成回调 */
     private final ReadCompletionHandler readCompletionHandler;
@@ -65,9 +77,6 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
 
     /** SSL 握手监听器 */
     private IHandshakeListener handshakeListener;
-
-    /** 数据输出组件 */
-    private BufferWriter bufferWriter;
 
     /**
      * 构造 AIO 通道。
@@ -96,9 +105,6 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             try { channel.close(); } catch (IOException ex) { /* ignore */ }
             throw new RuntimeException("channelPipeline init exception", e);
         }
-
-        // 初始化数据输出组件
-        this.bufferWriter = new BufferWriter(this, config.getBufferWriterQueueSize());
 
         // 触发新连接事件
         try {
@@ -171,16 +177,6 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
     @Override
     public boolean writeAndFlush(Object obj) {
         try {
-            if (config.isFlowControl()) {
-                int count = bufferWriter.getCount();
-                if (count >= config.getHighWaterMark()) {
-                    writeable = false;
-                    return false;
-                }
-                if (count <= config.getLowWaterMark()) {
-                    writeable = true;
-                }
-            }
             reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
         } catch (Exception e) {
             logger.error("writeAndFlush failed", e);
@@ -188,85 +184,155 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
         return true;
     }
 
+    /**
+     * 将数据追加到 pendingWrite，然后尝试启动写出。
+     * <p>
+     * 无队列设计：用户线程只短暂持有 writeLock 追加数据，永不阻塞。
+     * 如果当前有写正在进行（currentWrite != null），数据留在 pendingWrite，
+     * 等 writeCompleted 回调时由 drainPending 继续处理。
+     * </p>
+     */
     @Override
     public void writeToChannel(Object obj) {
+        RetainableByteBuffer buf = (RetainableByteBuffer) obj;
+        boolean needDrain = false;
         try {
-            RetainableByteBuffer buf = (RetainableByteBuffer) obj;
-            // 不在此处设置 position/limit，由 startWrite 在真正写出时设置
-            bufferWriter.writeAndFlush(buf);
+            synchronized (writeLock) {
+                if (pendingWrite == null) {
+                    pendingWrite = buf;
+                } else if (pendingWrite.writableBytes() >= buf.readableBytes()) {
+                    // 空间足够，直接合并
+                    pendingWrite.writeBytes(buf);
+                    buf.release();
+                } else {
+                    // 空间不足，从池中分配更大的缓冲区
+                    int newSize = pendingWrite.readableBytes() + buf.readableBytes();
+                    RetainableByteBuffer newBuf = byteBufferPool.acquire(newSize);
+                    newBuf.writeBytes(pendingWrite);
+                    pendingWrite.release();
+                    newBuf.writeBytes(buf);
+                    buf.release();
+                    pendingWrite = newBuf;
+                }
+                // 当前没有写挂起时，需要在锁外启动 drainPending
+                if (currentWrite == null) {
+                    needDrain = true;
+                }
+            }
+
+            if (needDrain) {
+                drainPending();
+            }
         } catch (Exception e) {
             logger.error("writeToChannel failed", e);
+            // writeBytes 未成功消费时，buf 仍有剩余数据，需释放防止泄漏
+            if (buf.hasRemaining()) {
+                buf.release();
+            }
         }
     }
 
     /**
-     * 发起异步单条消息写出。
-     *
-     * @param buffer 待写出的 ByteBuffer
+     * 设置 position/limit 并发起异步写出。
+     * <p>调用前必须已持有 writeLock，且 currentWrite 已设置。</p>
      */
-    private void continueWrite(ByteBuffer buffer) {
-        channel.write(buffer, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+    private void continueWrite(RetainableByteBuffer buf) {
+        ByteBuffer bb = buf.getBuffer();
+        bb.position(buf.readerIndex());
+        bb.limit(buf.writerIndex());
+        channel.write(bb, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
     }
 
     /**
-     * 从队列取出一条消息并写出。
-     * 队列为空时释放信号量，并做 double-check 防止遗漏。
+     * 从 pendingWrite 拿数据、提交 channel.write()。
+     * <p>
+     * 全程持有 writeLock：交换 pendingWrite → currentWrite，提交写出。
+     * 处理 currentWrite 的剩余数据（部分写出场景）。
+     * </p>
      */
-    private void drainAndWrite() {
-        // 释放已完成的旧缓冲区
-        if (currentWriteBuf != null) {
-            currentWriteBuf.release();
-            currentWriteBuf = null;
-        }
+    private void drainPending() {
+        boolean writeSubmitted = false;
+        synchronized (writeLock) {
+            try {
+                while (true) {
+                    // 处理 currentWrite 的剩余数据（部分写出场景）
+                    if (currentWrite != null) {
+                        if (currentWrite.hasRemaining()) {
+                            continueWrite(currentWrite);
+                            writeSubmitted = true;
+                            break;
+                        }
+                        currentWrite.release();
+                        currentWrite = null;
+                    }
 
-        // 从队列中取出一条待写缓冲区
-        RetainableByteBuffer buf = bufferWriter.poll();
+                    // 交换 pendingWrite
+                    if (pendingWrite == null) {
+                        // 没有更多数据，写出流程结束
+                        break;
+                    }
 
-        if (buf == null) {
-            writeSemaphore.release();
-            // double-check：释放信号量前可能有新数据入队
-            if (bufferWriter.getCount() > 0 && writeSemaphore.tryAcquire()) {
-                buf = bufferWriter.poll();
-                if (buf != null) {
-                    startWrite(buf);
-                    return;
+                    // 将 pending 直接作为 currentWrite
+                    currentWrite = pendingWrite;
+                    pendingWrite = null;
+                    continueWrite(currentWrite);
+                    writeSubmitted = true;
+                    break;
                 }
-                writeSemaphore.release();
+            } catch (Exception e) {
+                logger.error("drainPending error", e);
+
+                // 将 currentWrite 的数据合并回 pendingWrite，等待下次重试
+                if (currentWrite != null) {
+                    if (pendingWrite == null) {
+                        pendingWrite = currentWrite;
+                    } else {
+                        pendingWrite.writeBytes(currentWrite);
+                        currentWrite.release();
+                    }
+                    currentWrite = null;
+                }
+
+                // 若 channel.write() 已成功提交（writeSubmitted=true），
+                // 则 WritePendingException 由 AIO 回调驱动恢复
+                if (!writeSubmitted) {
+                    // 需要主动恢复：调用 drainPending 重新提交剩余数据
+                    // 注意：此处递归调用时当前锁会释放再重入，不会死锁
+                    drainPending();
+                }
             }
-            if (!keepAlive && bufferWriter.getCount() == 0) {
-                close();
-            }
-            return;
         }
-
-        startWrite(buf);
     }
 
     /**
-     * 设置当前写出缓冲区并发起写出。
-     *
-     * @param buf 待写出的 RetainableByteBuffer
-     */
-    private void startWrite(RetainableByteBuffer buf) {
-        currentWriteBuf = buf;
-        // 在真正写出前设置 position/limit，确保值准确
-        buf.getBuffer().position(buf.readerIndex());
-        buf.getBuffer().limit(buf.writerIndex());
-        continueWrite(buf.getBuffer());
-    }
-
-    /**
-     * 写出完成回调。释放已写完的缓冲区，从队列取出下一条消息继续写出。
-     * 当所有数据写完后释放信号量。
+     * 写出完成回调。处理部分写出，并继续 drainPending。
      */
     public void writeCompleted() {
-        // 检查当前消息是否全部写完
-        if (currentWriteBuf != null && currentWriteBuf.hasRemaining()) {
-            // 部分未写完（partial write），继续写出剩余数据
-            continueWrite(currentWriteBuf.getBuffer());
-        } else {
-            // 当前消息写完，进入下一条
-            drainAndWrite();
+        boolean needDrain = false;
+        synchronized (writeLock) {
+            RetainableByteBuffer cw = currentWrite;
+            if (cw != null && cw.hasRemaining()) {
+                // 部分写出，继续提交剩余数据
+                try {
+                    continueWrite(cw);
+                    return;
+                } catch (WritePendingException e) {
+                    logger.warn("WritePendingException on writeCompleted continueWrite", e);
+                    return;
+                }
+            }
+            // 当前写出完成，释放缓冲区
+            if (cw != null) {
+                cw.release();
+                currentWrite = null;
+            }
+            // 检查是否还有 pending 数据
+            if (pendingWrite != null) {
+                needDrain = true;
+            }
+        }
+        if (needDrain) {
+            drainPending();
         }
     }
 
@@ -285,26 +351,22 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
             rBuf.release();
         }
 
-        RetainableByteBuffer curBuf = currentWriteBuf;
-        if (curBuf != null) {
-            currentWriteBuf = null;
-            curBuf.release();
+        // 释放 currentWrite 和 pendingWrite（统一在 writeLock 内操作）
+        synchronized (writeLock) {
+            RetainableByteBuffer cw = currentWrite;
+            if (cw != null) {
+                currentWrite = null;
+                cw.release();
+            }
+            RetainableByteBuffer pw = pendingWrite;
+            if (pw != null) {
+                pendingWrite = null;
+                pw.release();
+            }
         }
 
         if (channelFutureListener != null) {
             channelFutureListener.operationComplete(this);
-        }
-
-        BufferWriter bw = bufferWriter;
-        if (bw != null) {
-            try {
-                if (!bw.isClosed()) {
-                    bw.close();
-                }
-            } catch (IOException e) {
-                logger.error("close bufferWriter failed", e);
-            }
-            bufferWriter = null;
         }
 
         try { channel.shutdownInput(); } catch (IOException e) { logger.error("shutdownInput failed", e); }
@@ -368,18 +430,4 @@ public class AioChannel extends AbstractSocketChannel implements Function<Buffer
         return handshakeListener;
     }
 
-    // ==================== Function 实现（flush 回调） ====================
-
-    @Override
-    public Void apply(BufferWriter input) {
-        if (writeSemaphore.tryAcquire()) {
-            RetainableByteBuffer buf = bufferWriter.poll();
-            if (buf != null) {
-                startWrite(buf);
-            } else {
-                writeSemaphore.release();
-            }
-        }
-        return null;
-    }
 }

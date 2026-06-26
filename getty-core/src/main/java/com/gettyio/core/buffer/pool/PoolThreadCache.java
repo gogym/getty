@@ -197,10 +197,6 @@ public class PoolThreadCache {
             lastOffset = entry.offset;
             ByteBuffer buf = entry.buffer;
             buf.clear();
-            // 限制为实际请求大小（缓存的 ByteBuffer 可能比请求的大）
-            if (buf.capacity() >= capacity) {
-                buf.limit(capacity);
-            }
             return buf;
         }
 
@@ -213,7 +209,6 @@ public class PoolThreadCache {
             lastChunk = arena.getLastAllocChunk();
             lastOffset = arena.getLastAllocOffset();
             buf.clear();
-            buf.limit(capacity);
         }
         return buf;
     }
