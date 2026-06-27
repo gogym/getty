@@ -30,7 +30,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.WritePendingException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -283,6 +285,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
 
     /**
      * 使用 Gathering Write 提交异步写出。
+     * <p>
+     * 直接使用底层 ByteBuffer（{@code getBuffer()}），设置 position/limit 为可读范围。
+     * AIO 写出会推进 ByteBuffer 的 position，{@link #writeCompleted()} 通过
+     * {@code bb.position()} 同步回 {@code readerIndex}，从而支持部分写出的精确追踪。
+     * </p>
      *
      * @param bufs 待写出的缓冲区列表
      */
@@ -294,13 +301,19 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         // 标记写操作进行中，writeCompleted() 回调驱动下次写出
         writeInFlight = true;
 
-        // 为每个缓冲区创建 ByteBuffer 视图（不修改底层 ByteBuffer 的 position/limit）
+        // 直接使用底层 ByteBuffer，设置 position/limit 为可读范围
+        // AIO 写出会推进 position，writeCompleted() 通过 position 同步回 readerIndex
         ByteBuffer[] views = new ByteBuffer[bufs.size()];
         for (int i = 0; i < bufs.size(); i++) {
-            views[i] = bufs.get(i).asByteBuffer();
+            PooledByteBuffer buf = bufs.get(i);
+            ByteBuffer bb = buf.getBuffer();
+            bb.position(buf.readerIndex());
+            bb.limit(buf.writerIndex());
+            views[i] = bb;
         }
         try {
             channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+        }catch (WritePendingException pendingException){
         } catch (Exception e) {
             logger.error("channel write failed", e);
             // 写出失败，重置状态。
@@ -310,17 +323,36 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 写出完成回调。释放已写出的缓冲区。
+     * 写出完成回调。逐个同步 readerIndex，释放已写完的缓冲区。
+     * <p>
+     * AIO 写出会推进底层 ByteBuffer 的 position。此方法通过
+     * {@code bb.position()} 同步回 {@code readerIndex}，
+     * 写完的缓冲区立即释放，未写完的保留在 drainBufs 中重新提交。
+     * </p>
      */
     public void writeCompleted() {
-        // 释放本次提交给 AIO 的缓冲区（内核已接收，全部释放）
-        for (PooledByteBuffer buf : drainBufs) {
+        // 逐个同步 readerIndex，释放已写完的缓冲区
+        Iterator<PooledByteBuffer> it = drainBufs.iterator();
+        while (it.hasNext()) {
+            PooledByteBuffer buf = it.next();
+            ByteBuffer bb = buf.getBuffer();
+            // AIO 已推进 position，同步回 readerIndex
+            buf.readerIndex(bb.position());
+            if (buf.isReadable()) {
+                // 该缓冲区未写完（AIO 顺序写，后面的更没写），停止释放
+                break;
+            }
             buf.release();
+            it.remove();
         }
-        drainBufs.clear();
 
-        writeInFlight = false;
-        notifyFlush();
+        if (!drainBufs.isEmpty()) {
+            // 还有剩余数据，重新提交
+            submitWrite(drainBufs);
+        } else {
+            writeInFlight = false;
+            notifyFlush();
+        }
     }
 
     // ==================== 关闭 ====================
