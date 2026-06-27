@@ -6,6 +6,8 @@ import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
 public class SimpleHandler extends SimpleChannelInboundHandler<String> {
+
+    int i=0;
     @Override
     public void channelAdded(ChannelHandlerContext ctx) {
 
@@ -21,7 +23,8 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void channelRead0(AbstractSocketChannel aioChannel, String str) {
-       //System.out.println("收到客户端消息:" + str);
+        i++;
+       //System.out.println("收到客户端消息:" + i);
        //aioChannel.writeAndFlush("你发的消息是：" + str + "\r\n");
     }
 

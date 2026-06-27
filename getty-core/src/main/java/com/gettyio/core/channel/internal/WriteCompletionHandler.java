@@ -39,9 +39,11 @@ public class WriteCompletionHandler implements CompletionHandler<Long, AioChanne
         try {
             aioChannel.writeCompleted();
         } catch (Exception e) {
-            // writeCompleted() 内部已部分释放缓冲区，不能调用 failed() → close()
-            // 否则 close() 会重复释放已释放的缓冲区，导致 IllegalStateException
+            // writeCompleted() 内部可能已部分释放缓冲区，不能调用 failed() → close()
+            // 否则 close() 会重复释放已释放的缓冲区，导致 IllegalStateException。
+            // 重置 writeInFlight 并唤醒写线程，使其从 BufferWriter 队列重新 drain。
             LOGGER.error("writeCompleted failed", e);
+            aioChannel.writeCompletedFailed();
         }
     }
 

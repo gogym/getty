@@ -21,6 +21,7 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * PoolThreadCache 是内存池三级架构的最顶层，提供线程本地缓存。
@@ -144,6 +145,19 @@ public class PoolThreadCache {
      */
     private long cacheMissCount;
 
+    /**
+     * 此缓存的所属线程。
+     * 只有所属线程才能操作 ArrayDeque（非线程安全），异线程释放时走 crossThreadRecycleQueue。
+     */
+    final Thread ownerThread;
+
+    /**
+     * 跨线程回收中转队列。
+     * 当异线程（如 AIO 回调线程）释放 buffer 时，将条目放入此队列（线程安全）。
+     * 所属线程在下次 allocate 时自动 drain 回 ArrayDeque，恢复缓存命中率。
+     */
+    private final ConcurrentLinkedQueue<CacheEntry> crossThreadRecycleQueue = new ConcurrentLinkedQueue<>();
+
     // ======================== 构造 ========================
 
     /**
@@ -156,6 +170,7 @@ public class PoolThreadCache {
     public PoolThreadCache(PoolArena heapArena, PoolArena directArena) {
         this.heapArena = heapArena;
         this.directArena = directArena;
+        this.ownerThread = Thread.currentThread();
 
         // 初始化 Tiny 缓存：31 个槽位（16B, 32B, ..., 496B）
         this.tinyCaches = new Deque[31];
@@ -189,7 +204,7 @@ public class PoolThreadCache {
         int normCapacity = normalizeCapacity(capacity);
         int cacheIndex = getCacheIndex(normCapacity);
 
-        // 从线程缓存尝试获取
+        // 从线程缓存尝试获取（快速路径，零开销）
         CacheEntry entry = popFromCache(cacheIndex, normCapacity);
         if (entry != null) {
             cacheHitCount++;
@@ -200,7 +215,19 @@ public class PoolThreadCache {
             return buf;
         }
 
-        // 缓存未命中，从 Arena 分配
+        // 缓存未命中，尝试从跨线程中转队列回收 buffer（仅 cache miss 时触发，避免热路径开销）
+        drainCrossThreadQueue();
+        entry = popFromCache(cacheIndex, normCapacity);
+        if (entry != null) {
+            cacheHitCount++;
+            lastChunk = entry.chunk;
+            lastOffset = entry.offset;
+            ByteBuffer buf = entry.buffer;
+            buf.clear();
+            return buf;
+        }
+
+        // 仍未命中，从 Arena 分配
         cacheMissCount++;
         PoolArena arena = direct ? (directArena != null ? directArena : heapArena) : heapArena;
         ByteBuffer buf = arena.allocate(capacity);
@@ -257,6 +284,49 @@ public class PoolThreadCache {
             // 缓存已满，归还给 Arena
             PoolArena arena = buffer.isDirect() ? (directArena != null ? directArena : heapArena) : heapArena;
             arena.free(chunk, offset, normCap);
+        }
+    }
+
+    /**
+     * 跨线程安全回收。
+     * <p>
+     * 由非所属线程调用（如 AIO 回调线程归还 buffer），将条目放入线程安全的中转队列。
+     * 所属线程在下次 {@link #allocate} 时自动 drain 回 ArrayDeque。
+     * </p>
+     *
+     * @param buffer   要归还的 ByteBuffer
+     * @param chunk    所属的 PoolChunk
+     * @param offset   在 Chunk 中的偏移量
+     * @param normCap  规范化容量
+     */
+    void recycleCrossThread(ByteBuffer buffer, PoolChunk chunk, int offset, int normCap) {
+        if (buffer != null) {
+            BufferUtil.reset(buffer);
+        }
+        crossThreadRecycleQueue.offer(new CacheEntry(buffer, chunk, offset, normCap));
+    }
+
+    /**
+     * 将跨线程中转队列中的条目排入对应的 ArrayDeque 缓存。
+     * <p>
+     * 仅由所属线程调用。缓存满的条目直接归还 Arena。
+     * </p>
+     */
+    private void drainCrossThreadQueue() {
+        CacheEntry entry;
+        while ((entry = crossThreadRecycleQueue.poll()) != null) {
+            if (entry.buffer == null) {
+                continue;
+            }
+            int cacheIndex = getCacheIndex(entry.normCapacity);
+            if (!pushToCache(cacheIndex, entry.buffer, entry.chunk, entry.offset, entry.normCapacity)) {
+                // 缓存已满，直接归还 Arena
+                if (entry.chunk != null) {
+                    PoolArena arena = entry.buffer.isDirect()
+                            ? (directArena != null ? directArena : heapArena) : heapArena;
+                    arena.free(entry.chunk, entry.offset, entry.normCapacity);
+                }
+            }
         }
     }
 
@@ -411,6 +481,8 @@ public class PoolThreadCache {
      * </p>
      */
     public void free() {
+        // 先排空中转队列
+        drainCrossThreadQueue();
         // 清空 Tiny 缓存
         for (Deque<CacheEntry> cache : tinyCaches) {
             clearCache(cache);

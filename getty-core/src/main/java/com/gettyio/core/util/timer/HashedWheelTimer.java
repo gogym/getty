@@ -17,7 +17,7 @@ package com.gettyio.core.util.timer;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.queue.LinkedNonReadBlockQueue;
+import com.gettyio.core.util.queue.LinkedBlockQueue;
 import com.gettyio.core.util.queue.LinkedQueue;
 import com.gettyio.core.util.PlatformDependent;
 
@@ -74,11 +74,11 @@ public class HashedWheelTimer implements Timer {
     /**
      * 待执行任务队列
      */
-    private final LinkedQueue<HashedWheelTimeout> timeouts = new LinkedNonReadBlockQueue<>();
+    private final LinkedQueue<HashedWheelTimeout> timeouts = new LinkedBlockQueue<>();
     /**
      * 待取消任务队列
      */
-    private final LinkedQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedNonReadBlockQueue<>();
+    private final LinkedQueue<HashedWheelTimeout> cancelledTimeouts = new LinkedBlockQueue<>();
     /**
      * 等待处理计数器
      */
@@ -505,7 +505,7 @@ public class HashedWheelTimer implements Timer {
             for (; ; ) {
                 HashedWheelTimeout timeout = null;
                 try {
-                    timeout = timeouts.take();
+                    timeout = timeouts.poll();
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted while collecting unprocessed timeouts", e);
                 }
@@ -533,7 +533,7 @@ public class HashedWheelTimer implements Timer {
             for (int i = 0; i < 100000; i++) {
                 HashedWheelTimeout timeout = null;
                 try {
-                    timeout = timeouts.take();
+                    timeout = timeouts.poll();
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted while transferring timeouts to buckets", e);
                 }
@@ -573,7 +573,7 @@ public class HashedWheelTimer implements Timer {
             for (; ; ) {
                 HashedWheelTimeout timeout = null;
                 try {
-                    timeout = cancelledTimeouts.take();
+                    timeout = cancelledTimeouts.poll();
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted while processing cancelled tasks", e);
                 }

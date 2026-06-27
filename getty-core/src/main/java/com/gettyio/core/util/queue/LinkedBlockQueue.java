@@ -192,36 +192,4 @@ public class LinkedBlockQueue<T> implements LinkedQueue<T> {
         return count;
     }
 
-    /**
-     * 排空队列中的所有元素并唤醒所有等待的线程。
-     * <p>
-     * 设置 released 标记使后续 put 操作立即失败。
-     * 如果队列元素类型为 {@link PooledByteBuffer}，则自动调用 release() 释放资源。
-     * 同时通过 signalAll 唤醒因 put/take 而阻塞的线程。
-     * </p>
-     */
-    @Override
-    public void drain() {
-        lock.lock();
-        try {
-            released = true;
-            for (int i = 0; i < count; i++) {
-                T item = items[removeIndex];
-                items[removeIndex] = null;
-                if (item instanceof PooledByteBuffer) {
-                    ((PooledByteBuffer) item).release();
-                }
-                if (++removeIndex == items.length) {
-                    removeIndex = 0;
-                }
-            }
-            count = 0;
-            putIndex = 0;
-            removeIndex = 0;
-            notFull.signalAll();
-            notEmpty.signalAll();
-        } finally {
-            lock.unlock();
-        }
-    }
 }

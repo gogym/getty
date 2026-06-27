@@ -35,15 +35,18 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * AIO（异步 I/O）通道实现。
  * <p>
  * 基于 {@link AsynchronousSocketChannel}，通过 CompletionHandler 回调机制
  * 实现非阻塞的读写操作。写出采用 BufferWriter 链表缓存 + Gathering Write 设计：
- * 业务线程将数据追加到链表后立即返回，由 {@link #drainPending()} 直接通过
- * {@code SocketChannel.write(ByteBuffer[])} 批量写出所有缓冲区，
- * 通过回调 {@link #writeCompleted()} 驱动后续写出。
+ * 业务线程将数据追加到链表后立即返回，由专用写线程 {@link #writeLoop()} 驱动，
+ * 通过 {@code SocketChannel.write(ByteBuffer[])} 批量写出所有缓冲区，
+ * 通过回调 {@link #writeCompleted()} 唤醒写线程驱动后续写出。
+ * 写线程无数据时 {@code park} 阻塞，避免空转。
  * </p>
  *
  * @author gogym
@@ -68,13 +71,20 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 标记 AIO 异步写是否进行中。
      * <p>
+     * CAS 保证全局只有一个执行流进入 drain + submit 路径。
      * false = 可提交新写操作，true = 上一次 write 尚未完成。
      * </p>
      */
-    private boolean writeInFlight;
+    private final AtomicBoolean writeInFlight = new AtomicBoolean(false);
+
+    /**
+     * 专用写线程。无数据时 park 阻塞，有数据或写完成时被 unpark 唤醒。
+     */
+    private final Thread writeThread;
 
     /**
      * 复用的收集列表，用于批量取出 BufferWriter 链表中的缓冲区。
+     * 由写线程独占访问，AIO 回调线程仅在 writeInFlight=true 时访问（写线程已 park）。
      */
     private final List<PooledByteBuffer> drainBufs = new ArrayList<>();
 
@@ -116,6 +126,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         this.byteBufferPool = byteBufferPool;
         this.channelInitializer = channelInitializer;
         this.bufferWriter = new BufferWriter(this);
+
+        // 启动专用写线程
+        this.writeThread = new Thread(this::writeLoop, "aio-write-" + getChannelId());
+        this.writeThread.setDaemon(true);
+        this.writeThread.start();
 
         try {
             channelInitializer.initChannel(this);
@@ -262,24 +277,14 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * FlushNotifier 实现：通知 AIO 提交写出。
+     * FlushNotifier 实现：唤醒写线程提交写出。
      * <p>
-     * AIO 无 OP_WRITE 概念，直接调用 {@link #drainPending()} 尝试提交异步写出。
-     * 若上一次 write 尚未完成，{@code channel.write()} 会抛出
-     * 由 {@link #writeCompleted()} 回调驱动下次写出。
+     * 业务线程仅通过 unpark 通知写线程，不直接执行任何 I/O 操作。
      * </p>
      */
     @Override
     public void notifyFlush() {
-        // 如果上一次 write 尚未完成，数据留在 BufferWriter 链表中，等 writeCompleted() 驱动下次写出
-        if (writeInFlight) {
-            return;
-        }
-
-        drainBufs.clear();
-        bufferWriter.pollAll(drainBufs);
-
-        submitWrite(drainBufs);
+        LockSupport.unpark(writeThread);
     }
 
 
@@ -296,10 +301,10 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     private void submitWrite(List<PooledByteBuffer> bufs) {
 
         if (bufs.isEmpty()) {
+            // 无数据可写，释放写权限
+            writeInFlight.set(false);
             return;
         }
-        // 标记写操作进行中，writeCompleted() 回调驱动下次写出
-        writeInFlight = true;
 
         // 直接使用底层 ByteBuffer，设置 position/limit 为可读范围
         // AIO 写出会推进 position，writeCompleted() 通过 position 同步回 readerIndex
@@ -313,45 +318,102 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         }
         try {
             channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
-        }catch (WritePendingException pendingException){
         } catch (Exception e) {
             logger.error("channel write failed", e);
-            // 写出失败，重置状态。
-            writeInFlight = false;
+            // 写出失败，重置状态
+            writeInFlight.set(false);
             close();
         }
     }
 
     /**
-     * 写出完成回调。逐个同步 readerIndex，释放已写完的缓冲区。
+     * 写出完成回调。由 AIO 回调线程调用，在持有 writeInFlight 的状态下
+     * 完成全部后续处理，避免先释放锁再重新获取的窗口问题。
      * <p>
-     * AIO 写出会推进底层 ByteBuffer 的 position。此方法通过
-     * {@code bb.position()} 同步回 {@code readerIndex}，
-     * 写完的缓冲区立即释放，未写完的保留在 drainBufs 中重新提交。
+     * 处理流程：
+     * 1. 同步 readerIndex，释放已写完的缓冲区
+     * 2. 部分写出 → 直接重新提交（writeInFlight 保持 true）
+     * 3. 全部写完 → 在持有锁的状态下检查 BufferWriter 队列：
+     *    - 有新数据 → 直接 drain + submit（继续持有锁）
+     *    - 无新数据 → 释放锁（set false），再检查一次防止竞争
      * </p>
      */
     public void writeCompleted() {
-        // 逐个同步 readerIndex，释放已写完的缓冲区
-        Iterator<PooledByteBuffer> it = drainBufs.iterator();
-        while (it.hasNext()) {
-            PooledByteBuffer buf = it.next();
-            ByteBuffer bb = buf.getBuffer();
-            // AIO 已推进 position，同步回 readerIndex
-            buf.readerIndex(bb.position());
-            if (buf.isReadable()) {
-                // 该缓冲区未写完（AIO 顺序写，后面的更没写），停止释放
-                break;
+        try {
+            // 1. 逐个同步 readerIndex，释放已写完的缓冲区
+            Iterator<PooledByteBuffer> it = drainBufs.iterator();
+            while (it.hasNext()) {
+                PooledByteBuffer buf = it.next();
+                ByteBuffer bb = buf.getBuffer();
+                buf.readerIndex(bb.position());
+                if (buf.isReadable()) {
+                    break;
+                }
+                buf.release();
+                it.remove();
             }
-            buf.release();
-            it.remove();
-        }
 
-        if (!drainBufs.isEmpty()) {
-            // 还有剩余数据，重新提交
-            submitWrite(drainBufs);
-        } else {
-            writeInFlight = false;
-            notifyFlush();
+            // 2. 部分写出 → 直接重新提交（writeInFlight 保持 true）
+            if (!drainBufs.isEmpty()) {
+                submitWrite(drainBufs);
+                return;
+            }
+
+            // 3. 全部写完，在持有锁的状态下检查队列
+            drainBufs.clear();
+            bufferWriter.pollAll(drainBufs);
+            if (!drainBufs.isEmpty()) {
+                // 有新数据，继续提交（writeInFlight 保持 true）
+                submitWrite(drainBufs);
+                return;
+            }
+
+            // 4. 队列空，释放写权限
+            writeInFlight.set(false);
+            // 5. 释放后再次检查，防止 set(false) 与 pollAll 之间有新数据到达且 notifyFlush 看到 true 而跳过
+            drainBufs.clear();
+            bufferWriter.pollAll(drainBufs);
+            if (!drainBufs.isEmpty() && writeInFlight.compareAndSet(false, true)) {
+                submitWrite(drainBufs);
+            }
+        } finally {
+            // 写链结束后唤醒写线程，确保 BufferWriter 队列中残留的数据不会卡住。
+            // 注意：此处不能重置 writeInFlight！step 2/3 正常 return 时 AIO 写仍在进行中，
+            // writeInFlight 必须保持 true，否则写线程会并发提交导致 WritePendingException。
+            // writeInFlight 的重置已由正常路径（step 4 / submitWrite 空检查）和异常路径（writeCompletedFailed）覆盖。
+            LockSupport.unpark(writeThread);
+        }
+    }
+
+    /**
+     * writeCompleted 异常时的清理操作。
+     * <p>
+     * 由 {@link com.gettyio.core.channel.internal.WriteCompletionHandler} 在
+     * writeCompleted 抛出异常时调用。重置 writeInFlight 并唤醒写线程重新 drain。
+     * </p>
+     */
+    public void writeCompletedFailed() {
+        writeInFlight.set(false);
+        LockSupport.unpark(writeThread);
+    }
+
+    /**
+     * 写线程主循环。单次 park 设计：仅在循环末尾设置一个 park 阻塞点。
+     * <p>
+     * 每次被唤醒后统一处理：从 BufferWriter 拉取数据 → 提交写出 → 无数据则 park。
+     * 业务线程和 AIO 回调线程仅通过 unpark 通知本线程。
+     * </p>
+     */
+    private void writeLoop() {
+        while (status != CHANNEL_STATUS_CLOSED) {
+            // CAS(false→true)：仅一个执行流可进入 drain + submit
+            if (writeInFlight.compareAndSet(false, true)) {
+                drainBufs.clear();
+                bufferWriter.pollAll(drainBufs);
+                submitWrite(drainBufs);
+            }
+            // 单次 park 阻塞点：无数据时阻塞，有新数据时被 unpark 唤醒
+            LockSupport.park(this);
         }
     }
 
@@ -369,6 +431,9 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             readByteBuffer = null;
             rBuf.release();
         }
+
+        // 唤醒写线程使其退出
+        LockSupport.unpark(writeThread);
 
         // 释放残留缓冲区
         for (PooledByteBuffer buf : drainBufs) {
