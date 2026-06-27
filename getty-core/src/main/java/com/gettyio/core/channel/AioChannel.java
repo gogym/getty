@@ -291,14 +291,14 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         if (bufs.isEmpty()) {
             return;
         }
+        // 标记写操作进行中，writeCompleted() 回调驱动下次写出
+        writeInFlight = true;
 
         // 为每个缓冲区创建 ByteBuffer 视图（不修改底层 ByteBuffer 的 position/limit）
         ByteBuffer[] views = new ByteBuffer[bufs.size()];
         for (int i = 0; i < bufs.size(); i++) {
             views[i] = bufs.get(i).asByteBuffer();
         }
-        // 标记写操作进行中，writeCompleted() 回调驱动下次写出
-        writeInFlight = true;
         try {
             channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
         } catch (Exception e) {
@@ -313,14 +313,13 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * 写出完成回调。释放已写出的缓冲区。
      */
     public void writeCompleted() {
-        writeInFlight = false;
-
         // 释放本次提交给 AIO 的缓冲区（内核已接收，全部释放）
         for (PooledByteBuffer buf : drainBufs) {
             buf.release();
         }
         drainBufs.clear();
 
+        writeInFlight = false;
         notifyFlush();
     }
 
