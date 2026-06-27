@@ -205,6 +205,26 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         }
     }
 
+    /**
+     * 管道终点：将 byte[] 包装为 PooledByteBuffer 后追加到 BufferWriter 链表。
+     * <p>
+     * NIO 的 EventLoop 驱动写入，业务线程仅入队，因此无跨线程 buffer 释放问题。
+     * </p>
+     */
+    @Override
+    public void writeToSocket(byte[] bytes) {
+        try {
+            if (bytes == null || bytes.length == 0) {
+                return;
+            }
+            PooledByteBuffer buf = byteBufferPool.acquire(bytes.length);
+            buf.writeBytes(bytes);
+            bufferWriter.write(buf);
+        } catch (Exception e) {
+            logger.error("writeToSocket(byte[]) failed", e);
+        }
+    }
+
     // ==================== 关闭 ====================
 
     @Override

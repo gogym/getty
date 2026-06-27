@@ -16,7 +16,6 @@
 package com.gettyio.expansion.handler.codec.http.response;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpEncodeSerializer;
@@ -40,9 +39,7 @@ public class HttpResponseEncoder extends MessageToByteEncoder {
             HttpEncodeSerializer.encodeHeaders(buffer, httpResponse);
             HttpEncodeSerializer.encodeContent(buffer, httpResponse);
             byte[] bytes = buffer.readableBytesArray();
-            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
-            buf.writeBytes(bytes);
-            obj = buf;
+            obj = bytes;
         }
         super.channelWrite(ctx, obj);
     }

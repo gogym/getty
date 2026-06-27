@@ -200,6 +200,11 @@ public class UdpChannel extends AbstractSocketChannel {
         // UDP 管道传递的是 DatagramPacket，不会到达此处
     }
 
+    @Override
+    public void writeToSocket(byte[] bytes) {
+        // UDP 管道传递的是 DatagramPacket，不会到达此处
+    }
+
     /**
      * 发送 UDP 数据报到目标地址。
      *

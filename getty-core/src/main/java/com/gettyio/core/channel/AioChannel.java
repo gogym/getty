@@ -83,16 +83,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     private final Thread writeThread;
 
     /**
-     * 复用的 byte[] 收集列表，用于批量取出 BufferWriter 中的 byte[] 数据。
-     * 由写线程独占访问，AIO 回调线程仅在 writeInFlight=true 时访问（写线程已 park）。
+     * PooledByteBuffer 列表，由写线程构建。
+     * 写线程分配 PooledByteBuffer（从写线程的 cache），AIO 回调线程释放时回到写线程的 cache（同线程）。
+     * writeLoop / writeCompleted 在 writeInFlight=true 时访问，无并发。
      */
-    private final List<byte[]> drainBytes = new ArrayList<>();
-
-    /**
-     * 包装后的 ByteBuffer 列表，用于 Gathering Write 和部分写出追踪。
-     * writeLoop 中从 drainBytes 构建，submitWrite 使用，writeCompleted 中清理。
-     */
-    private final List<ByteBuffer> drainBufs = new ArrayList<>();
+    private final List<PooledByteBuffer> drainBufs = new ArrayList<>();
 
     /**
      * 读完成回调
@@ -267,11 +262,10 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 将数据追加到 BufferWriter 链表（不触发 flush）。
+     * 管道终点：将 PooledByteBuffer 数据入队（向后兼容仍输出 PooledByteBuffer 的编码器）。
      * <p>
-     * 管道终点调用此方法。提取 PooledByteBuffer 中的可读字节为 byte[] 入队，
-     * 然后立即在业务线程上释放 PooledByteBuffer，避免跨线程 buffer 释放问题。
-     * AIO 写线程仅处理 byte[]（无池化生命周期），彻底消除跨线程回收。
+     * 提取可读字节为 byte[] 入队，然后立即释放 PooledByteBuffer。
+     * 对于方案二（编码器直出 byte[]），使用 {@link #writeToSocket(byte[])} 更高效。
      * </p>
      */
     @Override
@@ -282,15 +276,31 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
                 obj.release();
                 return;
             }
-            // 提取可读字节为 byte[]（1 次拷贝：PooledByteBuffer → byte[]）
             byte[] bytes = new byte[readable];
             obj.readBytes(bytes);
-            // 立即释放 PooledByteBuffer（在业务线程上，同线程分配+释放，无跨线程问题）
             obj.release();
-            // byte[] 入队，无池化生命周期，无需 release
             bufferWriter.write(bytes);
         } catch (Exception e) {
             logger.error("writeToSocket failed", e);
+        }
+    }
+
+    /**
+     * 管道终点：将 byte[] 数据入队（方案二：编码器直出 byte[]）。
+     * <p>
+     * 编码器不分配 PooledByteBuffer，直接产出 byte[]。
+     * PooledByteBuffer 由写线程分配，确保分配和释放在同一线程，彻底消除跨线程回收。
+     * </p>
+     */
+    @Override
+    public void writeToSocket(byte[] bytes) {
+        try {
+            if (bytes == null || bytes.length == 0) {
+                return;
+            }
+            bufferWriter.write(bytes);
+        } catch (Exception e) {
+            logger.error("writeToSocket(byte[]) failed", e);
         }
     }
 
@@ -309,14 +319,14 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 使用 Gathering Write 提交异步写出。
      * <p>
-     * 直接使用 ByteBuffer[]（由 byte[] wrap 而来，无池化生命周期）。
+     * 从 PooledByteBuffer 获取底层 ByteBuffer，设置 position/limit 为可读范围。
      * AIO 写出会推进 ByteBuffer 的 position，{@link #writeCompleted()} 通过
-     * {@code ByteBuffer.hasRemaining()} 检测部分写出，天然支持部分写出追踪。
+     * {@code readerIndex} 同步回 position，支持部分写出追踪。
      * </p>
      *
-     * @param bufs 待写出的 ByteBuffer 列表（由 byte[] wrap 而来）
+     * @param bufs 待写出的 PooledByteBuffer 列表（写线程分配）
      */
-    private void submitWrite(List<ByteBuffer> bufs) {
+    private void submitWrite(List<PooledByteBuffer> bufs) {
 
         if (bufs.isEmpty()) {
             // 无数据可写，释放写权限
@@ -324,12 +334,22 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             return;
         }
 
-        ByteBuffer[] views = bufs.toArray(new ByteBuffer[0]);
+        ByteBuffer[] views = new ByteBuffer[bufs.size()];
+        for (int i = 0; i < bufs.size(); i++) {
+            PooledByteBuffer buf = bufs.get(i);
+            ByteBuffer bb = buf.getBuffer();
+            bb.position(buf.readerIndex());
+            bb.limit(buf.writerIndex());
+            views[i] = bb;
+        }
         try {
             channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
         } catch (Exception e) {
             logger.error("channel write failed", e);
-            // 写出失败，重置状态
+            // 写出失败，释放所有缓冲区
+            for (PooledByteBuffer buf : bufs) {
+                buf.release();
+            }
             writeInFlight.set(false);
             close();
         }
@@ -340,26 +360,26 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * 完成全部后续处理，避免先释放锁再重新获取的窗口问题。
      * <p>
      * 处理流程：
-     * 1. 通过 ByteBuffer.hasRemaining() 检查部分写出，移除已写完的 ByteBuffer
+     * 1. 同步 readerIndex，释放已写完的缓冲区（release 回到写线程的 cache，同线程！）
      * 2. 部分写出 → 直接重新提交（writeInFlight 保持 true）
-     * 3. 全部写完 → 在持有锁的状态下检查 BufferWriter 队列：
-     *    - 有新数据 → 直接 drain + submit（继续持有锁）
-     *    - 无新数据 → 释放锁（set false），再检查一次防止竞争
+     * 3. 全部写完 → 在持有锁的状态下检查 BufferWriter 队列
+     * 4. 队列空 → 释放锁，再检查一次防止竞争
      * </p>
      */
     public void writeCompleted() {
         try {
-            // 1. 移除已写完的 ByteBuffer，保留部分写出的（position 已由 AIO 推进）
-            Iterator<ByteBuffer> it = drainBufs.iterator();
+            // 1. 同步 readerIndex，释放已写完的缓冲区
+            Iterator<PooledByteBuffer> it = drainBufs.iterator();
             while (it.hasNext()) {
-                ByteBuffer bb = it.next();
-                if (!bb.hasRemaining()) {
-                    // 全部写完，移除（byte[] 无池化生命周期，直接 GC）
-                    it.remove();
-                } else {
-                    // 部分写出，保留在列表中等待下次 submit（position 已由 AIO 推进）
-                    break;
+                PooledByteBuffer buf = it.next();
+                ByteBuffer bb = buf.getBuffer();
+                buf.readerIndex(bb.position());
+                if (buf.isReadable()) {
+                    break; // 部分写出，保留在列表中
                 }
+                // 全部写完，释放（回到写线程的 cache，因为 PooledByteBuffer 是写线程分配的）
+                buf.release();
+                it.remove();
             }
 
             // 2. 部分写出 → 直接重新提交（writeInFlight 保持 true）
@@ -370,34 +390,21 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
 
             // 3. 全部写完，在持有锁的状态下检查队列
             drainBufs.clear();
-            drainBytes.clear();
-            bufferWriter.pollAllBytes(drainBytes);
-            for (byte[] b : drainBytes) {
-                drainBufs.add(ByteBuffer.wrap(b));
-            }
+            drainAndAllocate(drainBufs);
             if (!drainBufs.isEmpty()) {
-                // 有新数据，继续提交（writeInFlight 保持 true）
                 submitWrite(drainBufs);
                 return;
             }
 
             // 4. 队列空，释放写权限
             writeInFlight.set(false);
-            // 5. 释放后再次检查，防止 set(false) 与 pollAll 之间有新数据到达且 notifyFlush 看到 true 而跳过
-            drainBytes.clear();
+            // 5. 释放后再次检查
             drainBufs.clear();
-            bufferWriter.pollAllBytes(drainBytes);
-            for (byte[] b : drainBytes) {
-                drainBufs.add(ByteBuffer.wrap(b));
-            }
+            drainAndAllocate(drainBufs);
             if (!drainBufs.isEmpty() && writeInFlight.compareAndSet(false, true)) {
                 submitWrite(drainBufs);
             }
         } finally {
-            // 写链结束后唤醒写线程，确保 BufferWriter 队列中残留的数据不会卡住。
-            // 注意：此处不能重置 writeInFlight！step 2/3 正常 return 时 AIO 写仍在进行中，
-            // writeInFlight 必须保持 true，否则写线程会并发提交导致 WritePendingException。
-            // writeInFlight 的重置已由正常路径（step 4 / submitWrite 空检查）和异常路径（writeCompletedFailed）覆盖。
             LockSupport.unpark(writeThread);
         }
     }
@@ -417,24 +424,32 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 写线程主循环。单次 park 设计：仅在循环末尾设置一个 park 阻塞点。
      * <p>
-     * 每次被唤醒后统一处理：从 BufferWriter 拉取 byte[] → 包装为 ByteBuffer → 提交写出 → 无数据则 park。
-     * 业务线程和 AIO 回调线程仅通过 unpark 通知本线程。
+     * 每次被唤醒后统一处理：从 BufferWriter 拉取 byte[] → 写线程分配 PooledByteBuffer → 拷贝数据 → 提交写出。
+     * PooledByteBuffer 由写线程分配，AIO 回调释放时回到写线程的 cache（同线程，无跨线程问题）。
      * </p>
      */
     private void writeLoop() {
         while (status != CHANNEL_STATUS_CLOSED) {
-            // CAS(false→true)：仅一个执行流可进入 drain + submit
             if (writeInFlight.compareAndSet(false, true)) {
-                drainBytes.clear();
                 drainBufs.clear();
-                bufferWriter.pollAllBytes(drainBytes);
-                for (byte[] b : drainBytes) {
-                    drainBufs.add(ByteBuffer.wrap(b));
-                }
+                drainAndAllocate(drainBufs);
                 submitWrite(drainBufs);
             }
-            // 单次 park 阻塞点：无数据时阻塞，有新数据时被 unpark 唤醒
             LockSupport.park(this);
+        }
+    }
+
+    /**
+     * 从 BufferWriter 拉取所有 byte[]，分配 PooledByteBuffer 并写入目标列表。
+     * 分配在写线程的 PoolThreadCache 上进行，确保 AIO 回调释放时回到同一 cache。
+     */
+    private void drainAndAllocate(List<PooledByteBuffer> target) {
+        List<byte[]> bytesList = new ArrayList<>();
+        bufferWriter.pollAllBytes(bytesList);
+        for (byte[] b : bytesList) {
+            PooledByteBuffer buf = byteBufferPool.acquire(b.length);
+            buf.writeBytes(b);
+            target.add(buf);
         }
     }
 
@@ -456,9 +471,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         // 唤醒写线程使其退出
         LockSupport.unpark(writeThread);
 
-        // 清空 drainBufs（byte[] 无池化生命周期，无需 release）
+        // 释放 drainBufs 中残留的 PooledByteBuffer
+        for (PooledByteBuffer buf : drainBufs) {
+            buf.release();
+        }
         drainBufs.clear();
-        drainBytes.clear();
 
         try {
             bufferWriter.close();

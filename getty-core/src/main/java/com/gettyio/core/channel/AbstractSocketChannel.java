@@ -168,6 +168,18 @@ public abstract class AbstractSocketChannel {
     public abstract void writeToSocket(PooledByteBuffer obj) throws IOException;
 
     /**
+     * 直接写出 byte[] 数据，跳过责任链。
+     * <p>
+     * 用于方案二（编码器直出 byte[]）场景，避免编码器分配 PooledByteBuffer。
+     * PooledByteBuffer 由写线程分配，确保分配和释放在同一线程，消除跨线程回收问题。
+     * </p>
+     *
+     * @param bytes 待写出的字节数组
+     * @throws IOException 写出失败时抛出
+     */
+    public abstract void writeToSocket(byte[] bytes) throws IOException;
+
+    /**
      * 获取本地地址。
      *
      * @return 本地 Socket 地址

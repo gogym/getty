@@ -35,15 +35,9 @@ public class StringEncoder extends MessageToByteEncoder {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof String) {
-            byte[] bytes = ((String) obj).getBytes(CharsetUtil.UTF_8);
-            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
-            buf.writeBytes(bytes);
-            obj = buf;
-        } else if (obj instanceof byte[]) {
-            byte[] bytes = (byte[]) obj;
-            PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
-            buf.writeBytes(bytes);
-            obj = buf;
+            // 方案二：编码器直出 byte[]，不分配 PooledByteBuffer
+            // PooledByteBuffer 由写线程分配，确保分配和释放在同一线程
+            obj = ((String) obj).getBytes(CharsetUtil.UTF_8);
         }
         super.channelWrite(ctx, obj);
     }
