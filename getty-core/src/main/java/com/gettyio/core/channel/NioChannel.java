@@ -68,6 +68,11 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      */
     private List<PooledByteBuffer> pendingWriteBufs;
 
+    /**
+     * 复用的收集列表，避免每次 doWrite 分配。
+     */
+    private final List<PooledByteBuffer> drainBufs = new ArrayList<>();
+
     /** SSL 处理器 */
     private SSLHandler sslHandler;
 
@@ -339,7 +344,8 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
 
         try {
             // 1. 收集所有待写出的缓冲区
-            List<PooledByteBuffer> bufs = new ArrayList<>();
+            drainBufs.clear();
+            List<PooledByteBuffer> bufs = drainBufs;
 
             // 优先使用部分写出残留的缓冲区
             if (pendingWriteBufs != null && !pendingWriteBufs.isEmpty()) {
@@ -399,7 +405,6 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
                 List<PooledByteBuffer> remaining = new ArrayList<>();
                 for (PooledByteBuffer buf : bufs) {
                     ByteBuffer bb = buf.getBuffer();
-                    // 将 ByteBuffer.position 同步回 readerIndex
                     buf.readerIndex(bb.position());
                     if (buf.hasRemaining()) {
                         remaining.add(buf);

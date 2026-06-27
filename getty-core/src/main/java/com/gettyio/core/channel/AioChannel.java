@@ -48,13 +48,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
 
-    /** 底层异步 Socket 通道 */
+    /**
+     * 底层异步 Socket 通道
+     */
     private final AsynchronousSocketChannel channel;
 
-    /** 读缓冲区（每次读取时从池中获取，读完释放） */
+    /**
+     * 读缓冲区（每次读取时从池中获取，读完释放）
+     */
     private PooledByteBuffer readByteBuffer;
 
-    /** 数据输出组件（单向链表缓存待写出缓冲区） */
+    /**
+     * 数据输出组件（单向链表缓存待写出缓冲区）
+     */
     private final BufferWriter bufferWriter;
 
     /**
@@ -66,30 +72,38 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     private boolean writeInFlight;
 
     /**
-     * 当前提交给 AIO 的缓冲区列表，写出完成后统一释放。
+     * 复用的收集列表，用于批量取出 BufferWriter 链表中的缓冲区。
      */
-    private List<PooledByteBuffer> pendingWriteBufs;
+    private final List<PooledByteBuffer> drainBufs = new ArrayList<>();
 
-    /** 读完成回调 */
+    /**
+     * 读完成回调
+     */
     private final ReadCompletionHandler readCompletionHandler;
 
-    /** Gathering Write 完成回调 */
+    /**
+     * Gathering Write 完成回调
+     */
     private final WriteCompletionHandler writeCompletionHandler = new WriteCompletionHandler();
 
-    /** SSL 处理器 */
+    /**
+     * SSL 处理器
+     */
     private SSLHandler sslHandler;
 
-    /** SSL 握手监听器 */
+    /**
+     * SSL 握手监听器
+     */
     private IHandshakeListener handshakeListener;
 
     /**
      * 构造 AIO 通道。
      *
-     * @param channel                底层异步通道
-     * @param config                 通道配置
-     * @param readCompletionHandler  读回调处理器
-     * @param byteBufferPool         内存池
-     * @param channelInitializer     管道初始化器
+     * @param channel               底层异步通道
+     * @param config                通道配置
+     * @param readCompletionHandler 读回调处理器
+     * @param byteBufferPool        内存池
+     * @param channelInitializer    管道初始化器
      */
     public AioChannel(AsynchronousSocketChannel channel, BaseConfig config,
                       ReadCompletionHandler readCompletionHandler,
@@ -104,7 +118,9 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         try {
             channelInitializer.initChannel(this);
         } catch (Exception e) {
-            try { channel.close(); } catch (IOException ex) { /* ignore */ }
+            try {
+                channel.close();
+            } catch (IOException ex) { /* ignore */ }
             throw new RuntimeException("channelPipeline init exception", e);
         }
 
@@ -159,7 +175,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
                 logger.error("pipeline read handler error", e);
                 this.readByteBuffer = null;
                 readBuf.release();
-                try { invokePipeline(ChannelState.CHANNEL_EXCEPTION, null); } catch (Exception ex) { logger.error("invoke CHANNEL_EXCEPTION failed", ex); }
+                try {
+                    invokePipeline(ChannelState.CHANNEL_EXCEPTION, null);
+                } catch (Exception ex) {
+                    logger.error("invoke CHANNEL_EXCEPTION failed", ex);
+                }
                 close();
                 return;
             }
@@ -180,7 +200,6 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * 管道处理后触发写出。
      * <p>
      * 数据已由 {@link #writeToSocket} 追加到 BufferWriter 链表，
-     * 此处调用 {@link #drainPending()} 尝试提交写出。
      * </p>
      */
     @Override
@@ -245,37 +264,22 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * <p>
      * AIO 无 OP_WRITE 概念，直接调用 {@link #drainPending()} 尝试提交异步写出。
      * 若上一次 write 尚未完成，{@code channel.write()} 会抛出
-     * {@link WritePendingException}，数据留在 BufferWriter 链表中，
      * 由 {@link #writeCompleted()} 回调驱动下次写出。
      * </p>
      */
     @Override
     public void notifyFlush() {
-        drainPending();
-    }
-
-    /**
-     * 从 BufferWriter 链表取数据，使用 Gathering Write 批量写出。
-     * <p>
-     * 将链表中所有 {@link PooledByteBuffer} 通过 {@code asByteBuffer()} 创建视图，
-     * 组成 {@code ByteBuffer[]} 数组，调用 {@code channel.write(ByteBuffer[])} 一次性写出。
-     * 无需合并拷贝，零额外内存分配。
-     * </p>
-     */
-    private void drainPending() {
         // 如果上一次 write 尚未完成，数据留在 BufferWriter 链表中，等 writeCompleted() 驱动下次写出
         if (writeInFlight) {
             return;
         }
 
-        List<PooledByteBuffer> bufs = new ArrayList<>();
-        bufferWriter.pollAll(bufs);
-        if (bufs.isEmpty()) {
-            return;
-        }
+        drainBufs.clear();
+        bufferWriter.pollAll(drainBufs);
 
-        submitWrite(bufs);
+        submitWrite(drainBufs);
     }
+
 
     /**
      * 使用 Gathering Write 提交异步写出。
@@ -283,20 +287,25 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * @param bufs 待写出的缓冲区列表
      */
     private void submitWrite(List<PooledByteBuffer> bufs) {
+
+        if (bufs.isEmpty()) {
+            return;
+        }
+
         // 为每个缓冲区创建 ByteBuffer 视图（不修改底层 ByteBuffer 的 position/limit）
         ByteBuffer[] views = new ByteBuffer[bufs.size()];
         for (int i = 0; i < bufs.size(); i++) {
             views[i] = bufs.get(i).asByteBuffer();
         }
-        pendingWriteBufs = bufs;
-        // 标记写操作进行中，drainPending() 看到 true 会跳过，数据留在 BufferWriter 链表
+        // 标记写操作进行中，writeCompleted() 回调驱动下次写出
         writeInFlight = true;
         try {
             channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
         } catch (Exception e) {
-            // 写出失败，重置状态，缓冲区保留在 pendingWriteBufs 等待下次重试
-            writeInFlight = false;
             logger.error("channel write failed", e);
+            // 写出失败，重置状态。
+            writeInFlight = false;
+            close();
         }
     }
 
@@ -307,13 +316,12 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         writeInFlight = false;
 
         // 释放本次提交给 AIO 的缓冲区（内核已接收，全部释放）
-        List<PooledByteBuffer> bufs = pendingWriteBufs;
-        if (bufs != null) {
-            for (PooledByteBuffer buf : bufs) {
-                buf.release();
-            }
+        for (PooledByteBuffer buf : drainBufs) {
+            buf.release();
         }
-        pendingWriteBufs = null;
+        drainBufs.clear();
+
+        notifyFlush();
     }
 
     // ==================== 关闭 ====================
@@ -331,7 +339,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             rBuf.release();
         }
 
-        pendingWriteBufs = null;
+        // 释放残留缓冲区
+        for (PooledByteBuffer buf : drainBufs) {
+            buf.release();
+        }
+        drainBufs.clear();
 
         try {
             bufferWriter.close();
@@ -343,9 +355,21 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             channelFutureListener.operationComplete(this);
         }
 
-        try { channel.shutdownInput(); } catch (IOException e) { logger.error("shutdownInput failed", e); }
-        try { channel.shutdownOutput(); } catch (IOException e) { logger.error("shutdownOutput failed", e); }
-        try { channel.close(); } catch (IOException e) { logger.error("close channel failed", e); }
+        try {
+            channel.shutdownInput();
+        } catch (IOException e) {
+            logger.error("shutdownInput failed", e);
+        }
+        try {
+            channel.shutdownOutput();
+        } catch (IOException e) {
+            logger.error("shutdownOutput failed", e);
+        }
+        try {
+            channel.close();
+        } catch (IOException e) {
+            logger.error("close channel failed", e);
+        }
 
         try {
             invokePipeline(ChannelState.CHANNEL_CLOSED, null);
