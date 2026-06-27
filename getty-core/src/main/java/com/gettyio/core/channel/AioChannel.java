@@ -22,6 +22,8 @@ import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
+import com.gettyio.core.channel.loop.AioWriteThread;
+import com.gettyio.core.channel.loop.AioWriteThreadGroup;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -36,15 +38,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * AIO（异步 I/O）通道实现。
  * <p>
  * 基于 {@link AsynchronousSocketChannel}，通过 CompletionHandler 回调机制
  * 实现非阻塞的读写操作。写出采用 BufferWriter 链表缓存 + Gathering Write 设计：
- * 业务线程将数据追加到链表后立即返回，由专用写线程 {@link #writeLoop()} 驱动，
- * 通过 {@code SocketChannel.write(ByteBuffer[])} 批量写出所有缓冲区，
+ * 业务线程将数据追加到链表后立即返回，由共享写线程 {@link AioWriteThread} 驱动，
+ * 通过 {@code channel.write(ByteBuffer[])} 批量写出所有缓冲区，
  * 通过回调 {@link #writeCompleted()} 唤醒写线程驱动后续写出。
  * 写线程无数据时 {@code park} 阻塞，避免空转。
  * </p>
@@ -78,14 +79,19 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     private final AtomicBoolean writeInFlight = new AtomicBoolean(false);
 
     /**
-     * 专用写线程。无数据时 park 阻塞，有数据或写完成时被 unpark 唤醒。
+     * 共享写线程。多个 Channel 共享同一写线程，通过 wakeup 唤醒。
      */
-    private final Thread writeThread;
+    private final AioWriteThread writeThread;
+
+    /**
+     * 写线程组。用于重连等场景复用同一线程组。
+     */
+    private final AioWriteThreadGroup writeThreadGroup;
 
     /**
      * PooledByteBuffer 列表，由写线程构建。
      * 写线程分配 PooledByteBuffer（从写线程的 cache），AIO 回调线程释放时回到写线程的 cache（同线程）。
-     * writeLoop / writeCompleted 在 writeInFlight=true 时访问，无并发。
+     * tryDrainAndSubmit / writeCompleted 在 writeInFlight=true 时访问，无并发。
      */
     private final List<PooledByteBuffer> drainBufs = new ArrayList<>();
 
@@ -120,18 +126,19 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      */
     public AioChannel(AsynchronousSocketChannel channel, BaseConfig config,
                       ReadCompletionHandler readCompletionHandler,
-                      ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
+                      ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer,
+                      AioWriteThread writeThread, AioWriteThreadGroup writeThreadGroup) {
         this.channel = channel;
         this.readCompletionHandler = readCompletionHandler;
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.channelInitializer = channelInitializer;
+        this.writeThread = writeThread;
+        this.writeThreadGroup = writeThreadGroup;
         this.bufferWriter = new BufferWriter(this);
 
-        // 启动专用写线程
-        this.writeThread = new Thread(this::writeLoop, "aio-write-" + getChannelId());
-        this.writeThread.setDaemon(true);
-        this.writeThread.start();
+        // 注册到共享写线程
+        writeThread.register(this);
 
         try {
             channelInitializer.initChannel(this);
@@ -307,12 +314,12 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * FlushNotifier 实现：唤醒写线程提交写出。
      * <p>
-     * 业务线程仅通过 unpark 通知写线程，不直接执行任何 I/O 操作。
+     * 业务线程仅通过 wakeup 通知写线程，不直接执行任何 I/O 操作。
      * </p>
      */
     @Override
     public void notifyFlush() {
-        LockSupport.unpark(writeThread);
+        writeThread.wakeup();
     }
 
 
@@ -388,24 +395,10 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
                 return;
             }
 
-            // 3. 全部写完，在持有锁的状态下检查队列
-            drainBufs.clear();
-            drainAndAllocate(drainBufs);
-            if (!drainBufs.isEmpty()) {
-                submitWrite(drainBufs);
-                return;
-            }
-
-            // 4. 队列空，释放写权限
+            // 3. 全部写完，释放写权限
             writeInFlight.set(false);
-            // 5. 释放后再次检查
-            drainBufs.clear();
-            drainAndAllocate(drainBufs);
-            if (!drainBufs.isEmpty() && writeInFlight.compareAndSet(false, true)) {
-                submitWrite(drainBufs);
-            }
         } finally {
-            LockSupport.unpark(writeThread);
+            writeThread.wakeup();
         }
     }
 
@@ -418,25 +411,41 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      */
     public void writeCompletedFailed() {
         writeInFlight.set(false);
-        LockSupport.unpark(writeThread);
+        writeThread.wakeup();
     }
 
     /**
-     * 写线程主循环。单次 park 设计：仅在循环末尾设置一个 park 阻塞点。
+     * 尝试 drain 并提交 AIO 写出。由共享写线程遍历调用。
      * <p>
-     * 每次被唤醒后统一处理：从 BufferWriter 拉取 byte[] → 写线程分配 PooledByteBuffer → 拷贝数据 → 提交写出。
-     * PooledByteBuffer 由写线程分配，AIO 回调释放时回到写线程的 cache（同线程，无跨线程问题）。
+     * CAS 保证同一 Channel 只有一个执行流进入 drain + submit 路径。
+     * 如果 AIO 正在写出（writeInFlight=true），则跳过，等待 AIO 回调唤醒写线程。
      * </p>
      */
-    private void writeLoop() {
-        while (status != CHANNEL_STATUS_CLOSED) {
-            if (writeInFlight.compareAndSet(false, true)) {
-                drainBufs.clear();
-                drainAndAllocate(drainBufs);
+    public void tryDrainAndSubmit() {
+        if (writeInFlight.compareAndSet(false, true)) {
+            drainBufs.clear();
+            drainAndAllocate(drainBufs);
+            if (drainBufs.isEmpty()) {
+                // 无数据，释放写权限
+                writeInFlight.set(false);
+            } else {
                 submitWrite(drainBufs);
             }
-            LockSupport.park(this);
         }
+    }
+
+    /**
+     * 获取本 Channel 所属的写线程。
+     */
+    public AioWriteThread getWriteThread() {
+        return writeThread;
+    }
+
+    /**
+     * 获取写线程组。用于重连等场景复用同一线程组。
+     */
+    public AioWriteThreadGroup getWriteThreadGroup() {
+        return writeThreadGroup;
     }
 
     /**
@@ -468,8 +477,8 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             rBuf.release();
         }
 
-        // 唤醒写线程使其退出
-        LockSupport.unpark(writeThread);
+        // 从共享写线程注销
+        writeThread.unregister(this);
 
         // 释放 drainBufs 中残留的 PooledByteBuffer
         for (PooledByteBuffer buf : drainBufs) {

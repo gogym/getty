@@ -15,10 +15,12 @@
  */
 package com.gettyio.core.channel.starter;
 
+import com.gettyio.core.channel.loop.AioWriteThreadGroup;
+
 import java.nio.channels.AsynchronousChannelGroup;
 
 /**
- * AIO Starter 基类。持有异步通道线程组。
+ * AIO Starter 基类。持有异步通道线程组和写线程组。
  *
  * @author gogym
  */
@@ -26,4 +28,7 @@ public abstract class AioStarter extends Starter {
 
     /** AIO 线程组，管理异步 I/O 操作的回调线程 */
     protected AsynchronousChannelGroup asynchronousChannelGroup;
+
+    /** AIO 共享写线程组，管理多个 Channel 的写出操作 */
+    protected AioWriteThreadGroup writeThreadGroup;
 }

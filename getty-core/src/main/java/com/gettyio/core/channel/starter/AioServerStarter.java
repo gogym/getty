@@ -20,6 +20,7 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ServerConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
+import com.gettyio.core.channel.loop.AioWriteThreadGroup;
 import com.gettyio.core.constant.Banner;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
@@ -56,6 +57,9 @@ public class AioServerStarter extends AioStarter {
     /** 读回调处理器（所有连接共享） */
     protected ReadCompletionHandler readCompletionHandler;
 
+    /** 写线程数（默认 4，足以支撑万级连接） */
+    private int writeThreadNum = 4;
+
     /** 服务端 Socket 通道 */
     private AsynchronousServerSocketChannel serverSocketChannel;
 
@@ -75,6 +79,14 @@ public class AioServerStarter extends AioStarter {
     /** 指定配置构造 */
     public AioServerStarter(ServerConfig config) {
         this.config = config;
+    }
+
+    /** 设置写线程数 */
+    public AioServerStarter writeThreadNum(int writeThreadNum) {
+        if (writeThreadNum > 0) {
+            this.writeThreadNum = writeThreadNum;
+        }
+        return this;
     }
 
     /** 设置管道初始化器 */
@@ -101,6 +113,7 @@ public class AioServerStarter extends AioStarter {
         startCheck(config, true);
 
         byteBufferPool = new GettyByteBufferPool(config.isDirect());
+        writeThreadGroup = new AioWriteThreadGroup(writeThreadNum);
         bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
         startTcp();
     }
@@ -201,6 +214,10 @@ public class AioServerStarter extends AioStarter {
             }
         }
 
+        if (writeThreadGroup != null) {
+            writeThreadGroup.shutdown();
+        }
+
         LOGGER.info("getty server shutdown");
     }
 
@@ -211,7 +228,8 @@ public class AioServerStarter extends AioStarter {
         try {
             AbstractSocketChannel aioChannel = new AioChannel(channel, config,
                     readCompletionHandler,
-                    byteBufferPool, channelInitializer);
+                    byteBufferPool, channelInitializer,
+                    writeThreadGroup.next(), writeThreadGroup);
             aioChannel.starRead();
         } catch (Exception e) {
             LOGGER.error("create AioChannel failed", e);

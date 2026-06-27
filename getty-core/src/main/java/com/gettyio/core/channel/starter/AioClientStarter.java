@@ -20,6 +20,7 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.config.ClientConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
+import com.gettyio.core.channel.loop.AioWriteThreadGroup;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLException;
 import com.gettyio.core.logging.InternalLogger;
@@ -119,6 +120,7 @@ public class AioClientStarter extends AioStarter {
     private void start0(ConnectHandler connectHandler) throws Exception {
         startCheck(config);
         byteBufferPool = new GettyByteBufferPool(config.isDirect());
+        writeThreadGroup = new AioWriteThreadGroup(1); // 客户端默认 1 个写线程
 
         asynchronousChannelGroup = AsynchronousChannelGroup.withFixedThreadPool(1, new ThreadFactory() {
             @Override
@@ -158,7 +160,8 @@ public class AioClientStarter extends AioStarter {
                         try {
                             aioChannel = new AioChannel(ch, config,
                                     new ReadCompletionHandler(),
-                                    byteBufferPool, channelInitializer);
+                                    byteBufferPool, channelInitializer,
+                                    writeThreadGroup.next(), writeThreadGroup);
                             aioChannel.starRead();
 
                             if (connectHandler != null) {
@@ -219,6 +222,10 @@ public class AioClientStarter extends AioStarter {
         if (asynchronousChannelGroup != null) {
             asynchronousChannelGroup.shutdown();
             asynchronousChannelGroup = null;
+        }
+        if (writeThreadGroup != null) {
+            writeThreadGroup.shutdown();
+            writeThreadGroup = null;
         }
         LOGGER.info("getty client shutdown");
     }
