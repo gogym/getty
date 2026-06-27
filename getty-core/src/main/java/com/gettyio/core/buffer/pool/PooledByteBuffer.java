@@ -184,19 +184,12 @@ public class PooledByteBuffer extends RetainableByteBuffer {
     private void recycle() {
         ByteBuffer buf = getBuffer();
         if (buf != null) {
-            // 重置 ByteBuffer 状态
             BufferUtil.reset(buf);
         }
 
         if (threadCache != null) {
-            if (Thread.currentThread() == threadCache.ownerThread) {
-                // 同线程释放：走 ArrayDeque 快速路径（无锁）
-                threadCache.recycle(buf, chunk, chunkOffset, normCapacity);
-            } else {
-                // 跨线程释放：走 ConcurrentLinkedQueue 中转站（线程安全）
-                // 所属线程下次 allocate 时自动 drain 回 ArrayDeque
-                threadCache.recycleCrossThread(buf, chunk, chunkOffset, normCapacity);
-            }
+            // 归还给线程缓存（快速路径）
+            threadCache.recycle(buf, chunk, chunkOffset, normCapacity);
         } else if (chunk != null && chunk.parent != null) {
             // 无线程缓存，直接归还给 Arena（慢速路径）
             chunk.parent.free(chunk, chunkOffset, normCapacity);

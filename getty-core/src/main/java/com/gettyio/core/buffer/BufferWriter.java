@@ -39,9 +39,14 @@ public final class BufferWriter extends AbstractBufferWriter {
     private final FlushNotifier flushNotifier;
 
     /**
-     * 无界锁队列，缓存待写出的缓冲区
+     * 无界锁队列，缓存待写出的缓冲区（用于 NIO 通道）
      */
     private final ConcurrentLinkedQueue<PooledByteBuffer> bufferQueue = new ConcurrentLinkedQueue<>();
+
+    /**
+     * 无界锁队列，缓存待写出的 byte[]（用于 AIO 通道，避免跨线程 buffer 释放）
+     */
+    private final ConcurrentLinkedQueue<byte[]> byteQueue = new ConcurrentLinkedQueue<>();
 
     /**
      * 构造方法
@@ -50,6 +55,26 @@ public final class BufferWriter extends AbstractBufferWriter {
      */
     public BufferWriter(FlushNotifier flushNotifier) {
         this.flushNotifier = flushNotifier;
+    }
+
+    @Override
+    public void writeAndFlush(byte[] bytes) throws IOException {
+        write(bytes);
+        flush();
+    }
+
+    @Override
+    public void write(byte[] bytes) throws IOException {
+        if (closed) {
+            throw new IOException("BufferWriter is closed");
+        }
+        if (bytes == null) {
+            throw new NullPointerException("bytes is null");
+        }
+        if (closed) {
+            return;
+        }
+        byteQueue.offer(bytes);
     }
 
     /**
@@ -117,6 +142,7 @@ public final class BufferWriter extends AbstractBufferWriter {
         while ((buf = bufferQueue.poll()) != null) {
             buf.release();
         }
+        byteQueue.clear();
     }
 
     @Override
@@ -169,13 +195,21 @@ public final class BufferWriter extends AbstractBufferWriter {
         }
     }
 
+    @Override
+    public void pollAllBytes(List<byte[]> list) {
+        byte[] bytes;
+        while ((bytes = byteQueue.poll()) != null) {
+            list.add(bytes);
+        }
+    }
+
     /**
-     * 获取队列中待写出的缓冲区数量。
+     * 获取队列中待写出的缓冲区数量（包含 PooledByteBuffer 和 byte[]）。
      *
      * @return 待写出数量
      */
     @Override
     public int getCount() {
-        return bufferQueue.size();
+        return bufferQueue.size() + byteQueue.size();
     }
 }

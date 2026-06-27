@@ -94,6 +94,29 @@ public abstract class AbstractBufferWriter {
     public abstract void pollAll(List<PooledByteBuffer> list, int maxCount);
 
     /**
+     * 写入 byte[] 数据并立即刷新。
+     *
+     * @param bytes 待写出的字节数组
+     * @throws IOException 写入或刷新异常
+     */
+    public abstract void writeAndFlush(byte[] bytes) throws IOException;
+
+    /**
+     * 写入 byte[] 数据（不触发 flush）。
+     *
+     * @param bytes 待写出的字节数组
+     * @throws IOException 写入异常
+     */
+    public abstract void write(byte[] bytes) throws IOException;
+
+    /**
+     * 从队列中批量弹出所有可用 byte[]。
+     *
+     * @param list 用于接收弹出元素的列表（调用方传入，避免每次分配）
+     */
+    public abstract void pollAllBytes(List<byte[]> list);
+
+    /**
      * 获取队列中缓冲区数量
      *
      * @return 队列大小

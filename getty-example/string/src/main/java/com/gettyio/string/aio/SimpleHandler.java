@@ -24,7 +24,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
     @Override
     public void channelRead0(AbstractSocketChannel aioChannel, String str) {
         i++;
-       //System.out.println("收到客户端消息:" + i);
+       System.out.println("收到客户端消息:" + i);
        //aioChannel.writeAndFlush("你发的消息是：" + str + "\r\n");
     }
 
