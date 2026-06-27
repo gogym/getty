@@ -140,7 +140,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             if (buffer.hasRemaining()) {
                 PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(buffer.remaining());
                 buf.writeBytes(buffer);
-                channelHandlerContext().channel().writeToChannel(buf);
+                channelHandlerContext().channel().writeToSocket(buf);
             }
         } catch (Exception e) {
             logger.error("SSL handshake data processing failed", e);
@@ -241,7 +241,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(wrappedBytes.remaining());
             // 单次拷贝：直接从 ByteBuffer 写入 PooledByteBuffer
             buf.writeBytes(wrappedBytes);
-            channelHandlerContext().channel().writeToChannel(buf);
+            channelHandlerContext().channel().writeToSocket(buf);
         } catch (Exception e) {
             logger.error("Failed to write SSL wrapped data to channel", e);
         }

@@ -26,7 +26,7 @@ import com.gettyio.core.channel.AbstractSocketChannel;
  *   <li><b>tail</b>：哨兵尾节点，是出站事件的起点，其 next 为 null</li>
  * </ul>
  * 当写事件传播到 head（prev == null）时，框架自动调用
- * {@code channel().writeToChannel(obj)} 将数据写入底层通道。
+ * {@code channel().writeToSocket(obj)} 将数据写入底层通道。
  * </p>
  */
 public class DefaultChannelPipeline implements ChannelPipeline {

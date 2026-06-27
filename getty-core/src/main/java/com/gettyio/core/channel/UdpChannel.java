@@ -185,8 +185,19 @@ public class UdpChannel extends AbstractSocketChannel {
     }
 
     @Override
-    public void writeToChannel(Object obj) {
+    public void write(Object obj) {
+        // UDP 无连接，write 与 writeAndFlush 语义相同
         writeAndFlush(obj);
+    }
+
+    @Override
+    public void flush() {
+        // UDP 通过 writeQueue 异步发送，无需额外 flush 操作
+    }
+
+    @Override
+    public void writeToSocket(PooledByteBuffer obj) {
+        // UDP 管道传递的是 DatagramPacket，不会到达此处
     }
 
     /**

@@ -161,25 +161,42 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
                 }
             }
             reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+            flush();
         } catch (Exception e) {
             logger.error("writeAndFlush failed", e);
         }
         return true;
     }
 
+    /**
+     * 经过责任链编码后追加到 BufferWriter 链表，不触发实际写出。
+     */
     @Override
-    public void writeToChannel(Object obj) {
-        // 通道已关闭，静默释放缓冲区，避免大量 ERROR 日志
+    public void write(Object obj) {
+        try {
+            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        } catch (Exception e) {
+            logger.error("write failed", e);
+        }
+    }
+
+    @Override
+    public void flush() {
         if (status == CHANNEL_STATUS_CLOSED) {
-            if (obj instanceof PooledByteBuffer) {
-                ((PooledByteBuffer) obj).release();
-            }
             return;
         }
+        notifyFlush();
+    }
+
+    /**
+     * 管道终点：数据仅追加到 BufferWriter 链表。
+     */
+    @Override
+    public void writeToSocket(PooledByteBuffer obj) {
         try {
-            bufferWriter.writeAndFlush((PooledByteBuffer) obj);
+            bufferWriter.write(obj);
         } catch (Exception e) {
-            logger.error("writeToChannel failed", e);
+            logger.error("writeToSocket failed", e);
         }
     }
 

@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.pipeline;
 
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.ChannelState;
 
 /**
@@ -25,7 +26,7 @@ import com.gettyio.core.channel.ChannelState;
  *   <li><b>入站事件</b>（NEW_CHANNEL / CHANNEL_CLOSED / CHANNEL_READ / CHANNEL_EVENT / CHANNEL_EXCEPTION）：
  *       沿 next 方向向尾传播</li>
  *   <li><b>出站事件</b>（CHANNEL_WRITE）：沿 prev 方向向头传播，
- *       到达头节点时自动调用 {@code channel().writeToChannel(obj)} 写入底层通道</li>
+ *       到达头节点时自动调用 {@code channel().writeToSocket(obj)} 写入底层通道</li>
  * </ul>
  * </p>
  *
@@ -63,7 +64,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext {
             if (p == null) {
                 // 已到达头哨兵，直接写入底层通道（核心性能优化：内联 isFirst 检查，
                 // 避免每次写操作都遍历链表调用 pipeline.isFirst()）
-                channel().writeToChannel(in);
+                channel().writeToSocket((PooledByteBuffer) in);
             } else {
                 p.invokeChannelProcess(channelState, in);
             }

@@ -16,6 +16,7 @@
 package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -139,11 +140,32 @@ public abstract class AbstractSocketChannel {
     public abstract boolean writeAndFlush(Object obj);
 
     /**
-     * 直接写到输出器，跳过责任链。
+     * 经过责任链编码后追加到写缓冲区链表，不触发实际写出。
+     * <p>
+     * 数据经管道编码后到达 {@link #writeToSocket(PooledByteBuffer)}，
+     * 仅追加到 BufferWriter 链表，需配合 {@link #flush()} 使用才能实际发出。
+     * </p>
      *
-     * @param obj 待写出的数据（通常是 byte[]）
+     * @param obj 待写出的数据
      */
-    public abstract void writeToChannel(Object obj);
+    public abstract void write(Object obj);
+
+    /**
+     * 刷新写缓冲区，触发实际写出。
+     * <p>
+     * 将 {@link #write(Object)} 或 {@link #writeAndFlush(Object)} 累积的数据
+     * 从链表取出并提交给底层通道写出。
+     * </p>
+     */
+    public abstract void flush();
+
+    /**
+     * 直接写到输出器，跳过责任链。仅追加到 BufferWriter 链表。
+     *
+     * @param obj 待写出的池化缓冲区
+     * @throws IOException 写出失败时抛出
+     */
+    public abstract void writeToSocket(PooledByteBuffer obj) throws IOException;
 
     /**
      * 获取本地地址。

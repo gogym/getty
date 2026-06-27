@@ -40,6 +40,16 @@ public abstract class AbstractBufferWriter {
      */
     public abstract void writeAndFlush(PooledByteBuffer byteBuf) throws IOException;
 
+
+    /**
+     * 零拷贝写入：将 PooledByteBuffer 直接入队
+     *
+     * @param byteBuf 待写出的缓冲区
+     * @throws IOException 写入或刷新异常
+     */
+    public abstract void write(PooledByteBuffer byteBuf) throws IOException;
+
+
     /**
      * 刷新缓冲区
      *

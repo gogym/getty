@@ -38,7 +38,9 @@ public final class BufferWriter extends AbstractBufferWriter {
      */
     private final FlushNotifier flushNotifier;
 
-    /** 单向链表，缓存待写出的缓冲区 */
+    /**
+     * 单向链表，缓存待写出的缓冲区
+     */
     private final LinkedBufferList bufferList = new LinkedBufferList();
 
     /**
@@ -63,6 +65,12 @@ public final class BufferWriter extends AbstractBufferWriter {
      */
     @Override
     public void writeAndFlush(PooledByteBuffer byteBuf) throws IOException {
+        write(byteBuf);
+        flush();
+    }
+
+    @Override
+    public void write(PooledByteBuffer byteBuf) throws IOException {
         if (closed) {
             byteBuf.release();
             throw new IOException("BufferWriter is closed");
@@ -79,7 +87,6 @@ public final class BufferWriter extends AbstractBufferWriter {
             // 追加到链表尾部，O(1)
             bufferList.offer(byteBuf);
         }
-        flush();
     }
 
     /**

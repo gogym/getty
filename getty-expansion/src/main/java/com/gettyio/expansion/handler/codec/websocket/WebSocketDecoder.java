@@ -84,7 +84,7 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
             PooledByteBuffer responseBuf = ctx.channel().getByteBufferPool().acquire(response.length);
             responseBuf.writeBytes(response);
             if (ctx.channel().getSslHandler() == null) {
-                ctx.channel().writeToChannel(responseBuf);
+                ctx.channel().writeToSocket(responseBuf);
             } else {
                 // SSL 模式下，握手信息需经 SSL 编码后直接发送，避免经过其他 encoder
                 ctx.channel().getSslHandler().channelWrite(ctx, responseBuf);

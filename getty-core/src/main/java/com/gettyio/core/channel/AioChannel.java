@@ -179,14 +179,15 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 管道处理后触发写出。
      * <p>
-     * 数据已由 {@link #writeToChannel} 追加到 BufferWriter 链表，
+     * 数据已由 {@link #writeToSocket} 追加到 BufferWriter 链表，
      * 此处调用 {@link #drainPending()} 尝试提交写出。
      * </p>
      */
     @Override
     public boolean writeAndFlush(Object obj) {
         try {
-            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+            write(obj);
+            flush();
         } catch (Exception e) {
             logger.error("writeAndFlush failed", e);
         }
@@ -194,25 +195,48 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 将数据追加到 BufferWriter 链表。
+     * 经过责任链编码后追加到 BufferWriter 链表，不触发实际写出。
      * <p>
-     * 业务线程加锁追加后立即返回，永不阻塞。
-     * 由 {@link BufferWriter#writeAndFlush} 内部触发 {@link #notifyFlush()}。
+     * 数据经管道编码后到达 {@link #writeToSocket(PooledByteBuffer)}，
+     * 仅追加到 BufferWriter 链表，需配合 {@link #flush()} 使用才能实际发出。
      * </p>
      */
     @Override
-    public void writeToChannel(Object obj) {
-        // 通道已关闭，静默释放缓冲区，避免大量 ERROR 日志
+    public void write(Object obj) {
+        try {
+            reverseInvokePipeline(ChannelState.CHANNEL_WRITE, obj);
+        } catch (Exception e) {
+            logger.error("write failed", e);
+        }
+    }
+
+    /**
+     * 刷新写缓冲区，触发实际写出。
+     * <p>
+     * 调用 {@link #notifyFlush()} 从 BufferWriter 链表取数据并提交给 AIO 通道写出。
+     * </p>
+     */
+    @Override
+    public void flush() {
         if (status == CHANNEL_STATUS_CLOSED) {
-            if (obj instanceof PooledByteBuffer) {
-                ((PooledByteBuffer) obj).release();
-            }
             return;
         }
+        notifyFlush();
+    }
+
+    /**
+     * 将数据追加到 BufferWriter 链表（不触发 flush）。
+     * <p>
+     * 管道终点调用此方法，数据仅入链表。
+     * 由 {@link #flush()} 触发 {@link #notifyFlush()} 实际写出。
+     * </p>
+     */
+    @Override
+    public void writeToSocket(PooledByteBuffer obj) {
         try {
-            bufferWriter.writeAndFlush((PooledByteBuffer) obj);
+            bufferWriter.write(obj);
         } catch (Exception e) {
-            logger.error("writeToChannel failed", e);
+            logger.error("writeToSocket failed", e);
         }
     }
 
@@ -267,9 +291,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         pendingWriteBufs = bufs;
         // 标记写操作进行中，drainPending() 看到 true 会跳过，数据留在 BufferWriter 链表
         writeInFlight = true;
-        try{
-        channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
-        }catch (Exception e){
+        try {
+            channel.write(views, 0, views.length, 0L, TimeUnit.MILLISECONDS, this, writeCompletionHandler);
+        } catch (Exception e) {
+            // 写出失败，重置状态，缓冲区保留在 pendingWriteBufs 等待下次重试
+            writeInFlight = false;
             logger.error("channel write failed", e);
         }
     }
@@ -282,12 +308,12 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
 
         // 释放本次提交给 AIO 的缓冲区（内核已接收，全部释放）
         List<PooledByteBuffer> bufs = pendingWriteBufs;
-        pendingWriteBufs = null;
         if (bufs != null) {
             for (PooledByteBuffer buf : bufs) {
                 buf.release();
             }
         }
+        pendingWriteBufs = null;
     }
 
     // ==================== 关闭 ====================
