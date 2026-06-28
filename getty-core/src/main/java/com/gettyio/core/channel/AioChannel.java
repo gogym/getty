@@ -34,7 +34,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.WritePendingException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -355,26 +354,34 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     public void writeCompleted() {
         try {
             // 1. 同步 readerIndex，释放已写完的缓冲区
-            Iterator<PooledByteBuffer> it = drainBufs.iterator();
-            while (it.hasNext()) {
-                PooledByteBuffer buf = it.next();
+            int firstRemaining = -1;
+            for (int i = 0; i < drainBufs.size(); i++) {
+                PooledByteBuffer buf = drainBufs.get(i);
                 ByteBuffer bb = buf.getBuffer();
                 buf.readerIndex(bb.position());
                 if (buf.isReadable()) {
-                    break; // 部分写出，保留在列表中
+                    firstRemaining = i;
+                    break;
                 }
-                // 全部写完，释放（走 MPSC 队列回到业务线程缓存）
+                // 已完全写出，释放（走 MPSC 队列回到业务线程缓存）
                 buf.release();
-                it.remove();
             }
 
-            // 2. 部分写出 → 直接重新提交（writeInFlight 保持 true）
-            if (!drainBufs.isEmpty()) {
+            if (firstRemaining >= 0) {
+                // 2. 部分写出 → 一次性前移 + 尾部截断，O(n) 完成
+                int remaining = drainBufs.size() - firstRemaining;
+                for (int j = 0; j < remaining; j++) {
+                    drainBufs.set(j, drainBufs.get(firstRemaining + j));
+                }
+                while (drainBufs.size() > remaining) {
+                    drainBufs.remove(drainBufs.size() - 1);
+                }
                 submitWrite(drainBufs);
                 return;
             }
 
             // 3. 全部写完，释放写权限
+            drainBufs.clear();
             writeInFlight.set(false);
         } finally {
             writeThread.wakeup();
@@ -436,9 +443,7 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * </p>
      */
     private void drainAndAllocate(List<PooledByteBuffer> target) {
-        List<PooledByteBuffer> msgList = new ArrayList<>();
-        bufferWriter.pollAll(msgList);
-        target.addAll(msgList);
+        bufferWriter.pollAll(target);
     }
 
     // ==================== 关闭 ====================

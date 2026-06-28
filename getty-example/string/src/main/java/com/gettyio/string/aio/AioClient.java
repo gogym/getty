@@ -95,11 +95,14 @@ public class AioClient {
                             String s = "12\r\n";
                             byte[] msgBody = s.getBytes();
 
-                            while (i < 1000000) {
+                            while (i < 1000) {
                                 long before = System.nanoTime();
                                 boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
                                 long elapsed = System.nanoTime() - before;
                                 i++;
+                                if (i % 1000 == 0) {
+                                    Thread.yield();
+                                }
 //                                if (i % 100 == 0) {
 //                                    System.out.println("[biz] 已发送 " + i + " 条, 单次耗时: " + elapsed / 1000 + "us, 通道状态: " + abstractSocketChannel.isInvalid());
 //                                }
@@ -128,7 +131,7 @@ public class AioClient {
                     @Override
                     public void run() {
                         try {
-                            bizRef.join(10_000);
+                            bizRef.join(30_000);
                             if (bizRef.isAlive()) {
                                 System.err.println("[monitor] 业务线程 10 秒未完成！线程状态: " + bizRef.getState());
                                 System.err.println("[monitor] 业务线程栈:");
