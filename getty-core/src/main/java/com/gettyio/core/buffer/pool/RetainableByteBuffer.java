@@ -556,6 +556,24 @@ class RetainableByteBuffer {
     }
 
     /**
+     * 获取底层堆内存数组，并将 readerIndex 推进到 writerIndex（消费全部可读数据）。
+     * <p>
+     * 等价于 {@code array()} + {@code skipBytes(readableBytes())}，但保证原子性，
+     * 避免调用方忘记推进 readerIndex。适用于需要一次性拷贝全部可读数据到目标缓冲区的场景。
+     * </p>
+     * <p>
+     * 调用方通过 {@code readerIndex()}（调用前的值）和 {@code readableBytes()}（调用前的值）
+     * 确定数组中可读数据的起始偏移和长度。
+     * </p>
+     *
+     * @return 底层 byte[]
+     */
+    public byte[] readArray() {
+        readerIndex = writerIndex;
+        return buffer.array();
+    }
+
+    /**
      * 底层数组偏移量。
      *
      * @return 数组偏移

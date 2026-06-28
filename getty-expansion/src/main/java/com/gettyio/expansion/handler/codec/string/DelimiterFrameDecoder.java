@@ -66,11 +66,17 @@ public class DelimiterFrameDecoder extends ByteToMessageDecoder {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) in;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
+        // 零分配：通过 readArray() 一次性获取底层数组并消费全部可读数据
+        int len = buf.readableBytes();
+        int offset = buf.readerIndex();
+        preBuffer.writeBytes(buf.readArray(), offset, len);
+
+        // 锁定原始数据边界：后续 writeByte 回写分隔符字节会增大 readableBytes，
+        // 必须用固定值防止循环越界。分隔符匹配后 clear 时需重新计算。
+        int dataLen = preBuffer.readableBytes();
         int index = 0;
-        while (index < bytes.length) {
-            byte data = bytes[index];
+        while (index < dataLen) {
+            byte data = preBuffer.array()[preBuffer.readerIndex() + index];
             if (data == delimiter[matchIndex]) {
                 matchIndex++;
                 if (matchIndex == delimiter.length) {
@@ -78,6 +84,9 @@ public class DelimiterFrameDecoder extends ByteToMessageDecoder {
                     super.channelRead(ctx, preBuffer.allWriteBytesArray());
                     preBuffer.clear();
                     matchIndex = 0;
+                    // clear 后原始数据已清空，重新计算数据边界
+                    dataLen = preBuffer.readableBytes();
+                    index = 0;
                 }
             } else {
                 // 匹配失败：将之前已匹配的分隔符字节写入缓冲区

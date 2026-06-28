@@ -52,9 +52,10 @@ public class FixedLengthFrameDecoder extends ByteToMessageDecoder {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) in;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
-        cumulation.writeBytes(bytes);
+        // 零分配：通过 readArray() 一次性获取底层数组并消费全部可读数据
+        int len = buf.readableBytes();
+        int offset = buf.readerIndex();
+        cumulation.writeBytes(buf.readArray(), offset, len);
 
         while (cumulation.readableBytes() >= frameLength) {
             byte[] frame = new byte[frameLength];
