@@ -19,7 +19,7 @@ import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.FlushNotifier;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.PooledByteBuffer;
-import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.pipeline.ChannelInitializer;
 
@@ -77,7 +77,7 @@ public class UdpChannel extends AbstractSocketChannel implements FlushNotifier {
      * @param workerThreadNum    工作线程数（保留参数兼容性，未使用）
      */
     public UdpChannel(DatagramChannel datagramChannel, SelectedSelector selector,
-                      BaseConfig config, ByteBufferPool byteBufferPool,
+                      GettyConfig config, ByteBufferPool byteBufferPool,
                       ChannelInitializer channelInitializer, int workerThreadNum) {
         this.datagramChannel = datagramChannel;
         this.selector = selector;

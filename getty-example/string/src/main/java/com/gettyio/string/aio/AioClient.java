@@ -1,7 +1,7 @@
 package com.gettyio.string.aio;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
-import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.handler.ssl.SSLConfig;
@@ -31,7 +31,7 @@ public class AioClient {
     private void test(int port) {
 
 
-        ClientConfig aioConfig = new ClientConfig();
+        GettyConfig aioConfig = new GettyConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
         aioConfig.setFlowControl(false);

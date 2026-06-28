@@ -17,7 +17,7 @@ package com.gettyio.core.channel;
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.PooledByteBuffer;
-import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.group.ChannelFutureListener;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLHandler;
@@ -78,7 +78,7 @@ public abstract class AbstractSocketChannel {
     protected ByteBufferPool byteBufferPool;
 
     /** 通道配置 */
-    protected BaseConfig config;
+    protected GettyConfig config;
 
     /** 管道（责任链），惰性初始化 */
     protected ChannelPipeline channelPipeline;
@@ -270,7 +270,7 @@ public abstract class AbstractSocketChannel {
 
     // ==================== 配置与属性 ====================
 
-    public BaseConfig getConfig() {
+    public GettyConfig getConfig() {
         return config;
     }
 

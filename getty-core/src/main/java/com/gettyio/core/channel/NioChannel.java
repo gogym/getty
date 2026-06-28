@@ -19,8 +19,7 @@ import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.FlushNotifier;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.PooledByteBuffer;
-import com.gettyio.core.channel.config.BaseConfig;
-import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
 import com.gettyio.core.handler.ssl.SSLHandler;
@@ -97,7 +96,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      * @param byteBufferPool     内存池
      * @param channelInitializer 管道初始化器
      */
-    public NioChannel(BaseConfig config, SocketChannel channel, NioEventLoop nioEventLoop,
+    public NioChannel(GettyConfig config, SocketChannel channel, NioEventLoop nioEventLoop,
                       ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer) {
         this.config = config;
         this.channel = channel;
@@ -246,7 +245,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         }
 
         // 仅客户端连接的 EventLoop 需要关闭（服务端的 EventLoop 是共享的）
-        if (nioEventLoop != null && config instanceof ClientConfig) {
+        if (nioEventLoop != null && config.isClient()) {
             try {
                 nioEventLoop.shutdown();
             } catch (Exception e) {

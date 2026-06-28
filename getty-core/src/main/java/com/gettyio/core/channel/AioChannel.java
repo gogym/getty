@@ -19,7 +19,7 @@ import com.gettyio.core.buffer.BufferWriter;
 import com.gettyio.core.buffer.FlushNotifier;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.PooledByteBuffer;
-import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.internal.WriteCompletionHandler;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.loop.AioWriteThread;
@@ -130,7 +130,7 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * @param byteBufferPool        内存池
      * @param channelInitializer    管道初始化器
      */
-    public AioChannel(AsynchronousSocketChannel channel, BaseConfig config,
+    public AioChannel(AsynchronousSocketChannel channel, GettyConfig config,
                       ReadCompletionHandler readCompletionHandler,
                       ByteBufferPool byteBufferPool, ChannelInitializer channelInitializer,
                       AioWriteThread writeThread, AioWriteThreadGroup writeThreadGroup) {

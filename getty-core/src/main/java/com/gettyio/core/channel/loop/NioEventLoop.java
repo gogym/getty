@@ -18,7 +18,7 @@ package com.gettyio.core.channel.loop;
 import com.gettyio.core.buffer.pool.ByteBufferPool;
 import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.NioChannel;
-import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 
@@ -46,7 +46,7 @@ public class NioEventLoop implements EventLoop {
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
     /** 通道配置 */
-    private final BaseConfig config;
+    private final GettyConfig config;
 
     /** 包装后的 Selector（含空轮询检测） */
     private final SelectedSelector selector;
@@ -64,7 +64,7 @@ public class NioEventLoop implements EventLoop {
      * @param byteBufferPool 内存池
      * @throws IOException Selector 创建失败时抛出
      */
-    public NioEventLoop(BaseConfig config, ByteBufferPool byteBufferPool) throws IOException {
+    public NioEventLoop(GettyConfig config, ByteBufferPool byteBufferPool) throws IOException {
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.thread = new Thread(this::eventLoop, "nio-event-loop");

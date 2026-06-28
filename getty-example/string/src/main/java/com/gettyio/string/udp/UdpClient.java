@@ -2,7 +2,7 @@ package com.gettyio.string.udp;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -35,7 +35,7 @@ public class UdpClient {
 
     private static void test(int port) {
 
-        ClientConfig aioConfig = new ClientConfig();
+        GettyConfig aioConfig = new GettyConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
         //aioConfig.setBufferWriterQueueSize(2 * 1024 * 1024);

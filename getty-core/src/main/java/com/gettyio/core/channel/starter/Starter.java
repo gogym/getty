@@ -16,7 +16,7 @@
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.ByteBufferPool;
-import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
@@ -61,7 +61,7 @@ public abstract class Starter {
     /**
      * 启动前参数校验（需要 host 的版本）。
      */
-    protected void startCheck(BaseConfig config) {
+    protected void startCheck(GettyConfig config) {
         startCheck(config, false);
     }
 
@@ -71,7 +71,7 @@ public abstract class Starter {
      * @param config       配置
      * @param ignoreHost   是否忽略 host 校验（服务端可忽略）
      */
-    protected void startCheck(BaseConfig config, boolean ignoreHost) {
+    protected void startCheck(GettyConfig config, boolean ignoreHost) {
         if (config == null) {
             throw new NullPointerException("config can't be null");
         }

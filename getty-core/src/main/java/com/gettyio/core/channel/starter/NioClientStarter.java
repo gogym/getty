@@ -20,7 +20,7 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.UdpChannel;
-import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -53,7 +53,7 @@ public class NioClientStarter extends NioStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioClientStarter.class);
 
     /** 客户端配置 */
-    private final ClientConfig config;
+    private final GettyConfig config;
 
     /** 已建立的通道 */
     private AbstractSocketChannel nioChannel;
@@ -65,12 +65,13 @@ public class NioClientStarter extends NioStarter {
     private SelectedSelector connectSelector;
 
     public NioClientStarter(String host, int port) {
-        this.config = new ClientConfig();
+        this.config = new GettyConfig();
+        this.config.setClient(true);
         this.config.setHost(host);
         this.config.setPort(port);
     }
 
-    public NioClientStarter(ClientConfig config) {
+    public NioClientStarter(GettyConfig config) {
         if (config.getHost() == null || config.getHost().isEmpty()) {
             throw new NullPointerException("host can't be null");
         }
@@ -78,6 +79,7 @@ public class NioClientStarter extends NioStarter {
             throw new NullPointerException("port can't be 0");
         }
         this.config = config;
+        this.config.setClient(true);
     }
 
     public NioClientStarter channelInitializer(ChannelInitializer channelInitializer) {

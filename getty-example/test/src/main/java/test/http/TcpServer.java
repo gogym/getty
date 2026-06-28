@@ -2,7 +2,7 @@ package test.http;
 
 
 import com.gettyio.core.channel.AbstractSocketChannel;
-import com.gettyio.core.channel.config.ServerConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -16,7 +16,7 @@ public class TcpServer {
         try {
 
             //初始化配置对象
-            ServerConfig aioServerConfig = new ServerConfig();
+            GettyConfig aioServerConfig = new GettyConfig();
             //设置host,不设置默认localhost
             aioServerConfig.setHost("127.0.0.1");
             //设置端口号

@@ -18,7 +18,7 @@ package com.gettyio.core.channel.starter;
 import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.config.ServerConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.loop.AioWriteThreadGroup;
 import com.gettyio.core.constant.Banner;
@@ -52,7 +52,7 @@ public class AioServerStarter extends AioStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioServerStarter.class);
 
     /** 服务端配置 */
-    protected final ServerConfig config;
+    protected final GettyConfig config;
 
     /** 读回调处理器（所有连接共享） */
     protected ReadCompletionHandler readCompletionHandler;
@@ -65,19 +65,19 @@ public class AioServerStarter extends AioStarter {
 
     /** 简单构造 */
     public AioServerStarter(int port) {
-        this.config = new ServerConfig();
+        this.config = new GettyConfig();
         this.config.setPort(port);
     }
 
     /** 指定 host 构造 */
     public AioServerStarter(String host, int port) {
-        this.config = new ServerConfig();
+        this.config = new GettyConfig();
         this.config.setHost(host);
         this.config.setPort(port);
     }
 
     /** 指定配置构造 */
-    public AioServerStarter(ServerConfig config) {
+    public AioServerStarter(GettyConfig config) {
         this.config = config;
     }
 

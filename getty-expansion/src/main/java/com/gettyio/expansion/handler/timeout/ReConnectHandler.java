@@ -18,7 +18,7 @@ package com.gettyio.expansion.handler.timeout;
 import com.gettyio.core.channel.AioChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.AbstractSocketChannel;
-import com.gettyio.core.channel.config.BaseConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.loop.AioWriteThread;
 import com.gettyio.core.channel.loop.AioWriteThreadGroup;
@@ -137,7 +137,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        final BaseConfig clientConfig = channel.getConfig();
+        final GettyConfig clientConfig = channel.getConfig();
 
         if (channel instanceof AioChannel) {
             reconnectAio(clientConfig);
@@ -149,7 +149,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     /**
      * AIO 模式重连。
      */
-    private void reconnectAio(final BaseConfig clientConfig) throws Exception {
+    private void reconnectAio(final GettyConfig clientConfig) throws Exception {
         AsynchronousSocketChannel socketChannel = AsynchronousSocketChannel.open(
                 AsynchronousChannelGroup.withFixedThreadPool(1, r -> new Thread(r)));
 
@@ -183,7 +183,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
     /**
      * NIO 模式重连。
      */
-    private void reconnectNio(final BaseConfig clientConfig) {
+    private void reconnectNio(final GettyConfig clientConfig) {
         try {
             final java.nio.channels.SocketChannel socketChannel = java.nio.channels.SocketChannel.open();
             applySocketOptions(socketChannel, clientConfig);
@@ -221,7 +221,7 @@ public class ReConnectHandler extends ChannelInboundHandlerAdapter implements Ti
      * 应用 Socket 配置选项。
      */
     @SuppressWarnings("unchecked")
-    private void applySocketOptions(java.nio.channels.NetworkChannel socketChannel, BaseConfig config) throws Exception {
+    private void applySocketOptions(java.nio.channels.NetworkChannel socketChannel, GettyConfig config) throws Exception {
         if (config.getSocketOptions() != null) {
             for (Map.Entry<SocketOption<Object>, Object> entry : config.getSocketOptions().entrySet()) {
                 socketChannel.setOption(entry.getKey(), entry.getValue());

@@ -2,7 +2,7 @@ package com.gettyio.string.nio;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
@@ -42,7 +42,7 @@ public class NioClient {
 
         final ConnectHandler ch = new ConnectHandlerImp();
 
-        ClientConfig aioConfig = new ClientConfig();
+        GettyConfig aioConfig = new GettyConfig();
         aioConfig.setHost("127.0.0.1");
         aioConfig.setPort(port);
         //aioConfig.setBufferWriterQueueSize(1024 * 1024);

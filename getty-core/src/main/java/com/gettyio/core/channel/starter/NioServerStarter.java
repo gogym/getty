@@ -20,7 +20,7 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.UdpChannel;
-import com.gettyio.core.channel.config.ServerConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.loop.NioEventLoop;
 import com.gettyio.core.channel.loop.SelectedSelector;
 import com.gettyio.core.constant.Banner;
@@ -53,7 +53,7 @@ public class NioServerStarter extends NioStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioServerStarter.class);
 
     /** 服务端配置 */
-    protected final ServerConfig config;
+    protected final GettyConfig config;
 
     /** 服务线程运行标志 */
     private volatile boolean running = true;
@@ -74,17 +74,17 @@ public class NioServerStarter extends NioStarter {
     private final FastArrayList<NioEventLoop> eventLoops = new FastArrayList<>(NioEventLoop.class);
 
     public NioServerStarter(int port) {
-        this.config = new ServerConfig();
+        this.config = new GettyConfig();
         this.config.setPort(port);
     }
 
     public NioServerStarter(String host, int port) {
-        this.config = new ServerConfig();
+        this.config = new GettyConfig();
         this.config.setHost(host);
         this.config.setPort(port);
     }
 
-    public NioServerStarter(ServerConfig config) {
+    public NioServerStarter(GettyConfig config) {
         this.config = config;
     }
 

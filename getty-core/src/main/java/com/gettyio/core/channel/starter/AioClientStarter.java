@@ -18,7 +18,7 @@ package com.gettyio.core.channel.starter;
 import com.gettyio.core.buffer.pool.GettyByteBufferPool;
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.AioChannel;
-import com.gettyio.core.channel.config.ClientConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.internal.ReadCompletionHandler;
 import com.gettyio.core.channel.loop.AioWriteThreadGroup;
 import com.gettyio.core.handler.ssl.IHandshakeListener;
@@ -50,7 +50,7 @@ public class AioClientStarter extends AioStarter {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(AioClientStarter.class);
 
     /** 客户端配置 */
-    private final ClientConfig config;
+    private final GettyConfig config;
 
     /** 已建立的通道 */
     private AbstractSocketChannel aioChannel;
@@ -62,7 +62,8 @@ public class AioClientStarter extends AioStarter {
      * @param port 服务器端口
      */
     public AioClientStarter(String host, int port) {
-        this.config = new ClientConfig();
+        this.config = new GettyConfig();
+        this.config.setClient(true);
         this.config.setHost(host);
         this.config.setPort(port);
     }
@@ -72,8 +73,9 @@ public class AioClientStarter extends AioStarter {
      *
      * @param config 客户端配置
      */
-    public AioClientStarter(ClientConfig config) {
+    public AioClientStarter(GettyConfig config) {
         this.config = config;
+        this.config.setClient(true);
     }
 
     /**

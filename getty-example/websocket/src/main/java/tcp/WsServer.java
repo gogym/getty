@@ -2,7 +2,7 @@ package tcp;
 
 
 import com.gettyio.core.channel.AbstractSocketChannel;
-import com.gettyio.core.channel.config.ServerConfig;
+import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
 import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.handler.ssl.SSLHandler;
@@ -17,7 +17,7 @@ public class WsServer {
     public static void main(String[] args) {
         try {
             //初始化配置对象
-            ServerConfig aioServerConfig = new ServerConfig();
+            GettyConfig aioServerConfig = new GettyConfig();
             //设置host,不设置默认localhost
             //aioServerConfig.setHost("127.0.0.1");
             //设置端口号
