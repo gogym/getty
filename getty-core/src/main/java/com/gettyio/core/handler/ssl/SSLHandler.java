@@ -96,14 +96,12 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) obj;
-        // 提取可读字节到正确大小的 byte[]，确保 ByteBuffer.wrap 生成正确 limit
         byte[] bytes = new byte[buf.readableBytes()];
         buf.readBytes(bytes);
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         if (!ssl.isHandshakeCompleted()) {
             processHandshake(bytes);
         } else {
-            // 标记为非握手阶段，emitToChannel 不会自动 flush
             ssl.encrypt(byteBuffer);
         }
     }
@@ -113,8 +111,6 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) obj;
-        // 提取可读字节到正确大小的 byte[]，确保 ByteBuffer.wrap 生成正确 limit
-        // 与原始实现一致：byte[] → ByteBuffer.wrap(bytes) → ssl.decrypt
         byte[] bytes = new byte[buf.readableBytes()];
         buf.readBytes(bytes);
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
