@@ -65,6 +65,13 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      */
     private final List<PooledByteBuffer> pendingBufs = new ArrayList<>();
 
+    /**
+     * Gathering Write 的 ByteBuffer 视图数组，预分配复用。
+     * 仅 EventLoop 线程访问，无并发。
+     * 不够大时双倍扩容，避免每次 doWrite 都 new 数组。
+     */
+    private ByteBuffer[] writeViews = new ByteBuffer[16];
+
     /** SSL 处理器 */
     private SSLHandler sslHandler;
 
@@ -357,23 +364,26 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
             }
 
             // 2. 从 PooledByteBuffer 获取底层 ByteBuffer 视图
-            ByteBuffer[] bbArray = new ByteBuffer[pendingBufs.size()];
-            for (int i = 0; i < pendingBufs.size(); i++) {
+            int size = pendingBufs.size();
+            if (writeViews.length < size) {
+                writeViews = new ByteBuffer[Integer.highestOneBit(size) << 1];
+            }
+            for (int i = 0; i < size; i++) {
                 PooledByteBuffer pBuf = pendingBufs.get(i);
                 ByteBuffer bb = pBuf.getBuffer();
                 bb.position(pBuf.readerIndex());
                 bb.limit(pBuf.writerIndex());
-                bbArray[i] = bb;
+                writeViews[i] = bb;
             }
 
             // 3. Gathering Write
-            channel.write(bbArray);
+            channel.write(writeViews, 0, size);
 
             // 4. 同步 readerIndex，释放已完全写出的缓冲区
             int remaining = 0;
-            for (int i = 0; i < pendingBufs.size(); i++) {
+            for (int i = 0; i < size; i++) {
                 PooledByteBuffer pBuf = pendingBufs.get(i);
-                pBuf.readerIndex(bbArray[i].position());
+                pBuf.readerIndex(writeViews[i].position());
                 if (pBuf.isReadable()) {
                     remaining = pendingBufs.size() - i;
                     // 将未写完的缓冲区前移

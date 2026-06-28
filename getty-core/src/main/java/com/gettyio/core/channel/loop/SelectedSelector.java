@@ -52,6 +52,15 @@ public class SelectedSelector extends Selector {
     /** 注册操作进行中标志，用于与 select 线程同步 */
     private volatile boolean registering;
 
+    /**
+     * wakeup 标志，区分正常唤醒与 epoll 空轮询 bug。
+     * <p>
+     * {@link #wakeup()} 被调用时置 true，{@code select()} 返回 0 时检查：
+     * 如果为 true 则不计入空轮询（因为 wakeup 是正常 API 调用，不是 epoll bug）。
+     * </p>
+     */
+    private volatile boolean wakenUp;
+
     /** 连续空轮询计数器 */
     private int emptySelectCount;
 
@@ -154,6 +163,7 @@ public class SelectedSelector extends Selector {
 
     @Override
     public Selector wakeup() {
+        wakenUp = true;
         return delegate.wakeup();
     }
 
@@ -178,16 +188,22 @@ public class SelectedSelector extends Selector {
     private int selectWithRebuild(long timeout) throws IOException {
         long startTimeNanos = System.nanoTime();
         emptySelectCount = 0;
+        wakenUp = false;
 
         for (; ; ) {
             int selected = delegate.select(timeout);
             if (selected >= 1) {
                 emptySelectCount = 0;
+                wakenUp = false;
                 return selected;
             }
 
-            // selected == 0：如果是 register() 的 wakeup 导致的假阳性，跳过计数
-            if (!registering) {
+            // selected == 0：检查是否是正常 wakeup 导致的（非 epoll bug）
+            if (wakenUp) {
+                // 正常 wakeup（如 notifyFlush），不计入空轮询
+                wakenUp = false;
+                emptySelectCount = 0;
+            } else if (!registering) {
                 emptySelectCount++;
             }
 
@@ -196,7 +212,7 @@ public class SelectedSelector extends Selector {
                 // 正常超时，重置计数器
                 emptySelectCount = 0;
             } else if (emptySelectCount >= REBUILD_THRESHOLD) {
-                // 极短时间内大量空轮询 → 触发 bug，重建 Selector
+                // 极短时间内大量空轮询且无 wakeup → 真正的 epoll bug，重建 Selector
                 LOGGER.warn("Selector empty poll detected ({} times), rebuilding...", emptySelectCount);
                 rebuildSelector();
                 startTimeNanos = System.nanoTime();
