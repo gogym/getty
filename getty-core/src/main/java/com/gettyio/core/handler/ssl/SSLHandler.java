@@ -96,15 +96,14 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) obj;
-        // 零拷贝：直接获取底层 ByteBuffer 视图，不分配中间 byte[]
-        ByteBuffer bb = buf.asByteBuffer();
+        // 提取可读字节到正确大小的 byte[]，确保 ByteBuffer.wrap 生成正确 limit
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
+        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         if (!ssl.isHandshakeCompleted()) {
-            // 握手阶段需要完整 byte[]（SSLEngine 会消费 position）
-            byte[] bytes = new byte[bb.remaining()];
-            bb.get(bytes);
             processHandshake(bytes);
         } else {
-            ssl.encrypt(bb);
+            ssl.encrypt(byteBuffer);
         }
     }
 
@@ -113,14 +112,15 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) obj;
-        // 零拷贝：直接获取底层 ByteBuffer 视图，不分配中间 byte[]
-        ByteBuffer bb = buf.asByteBuffer();
+        // 提取可读字节到正确大小的 byte[]，确保 ByteBuffer.wrap 生成正确 limit
+        // 与原始实现一致：byte[] → ByteBuffer.wrap(bytes) → ssl.decrypt
+        byte[] bytes = new byte[buf.readableBytes()];
+        buf.readBytes(bytes);
+        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         if (!ssl.isHandshakeCompleted()) {
-            byte[] bytes = new byte[bb.remaining()];
-            bb.get(bytes);
             processHandshake(bytes);
         } else {
-            ssl.decrypt(bb);
+            ssl.decrypt(byteBuffer);
         }
     }
 
@@ -136,13 +136,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
         ByteBuffer buffer = ByteBuffer.wrap(tlsData);
         try {
             ssl.decrypt(buffer);
-            // 解密后 buffer 中可能包含握手响应数据
-            if (buffer.hasRemaining()) {
-                int len = buffer.remaining();
-                PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(len);
-                buf.writeBytes(buffer);
-                channelHandlerContext().channel().writeToSocket(buf);
-            }
+            // 握手响应数据已通过 onWrappedData 回调 → emitToChannel 发送，无需额外处理
         } catch (Exception e) {
             logger.error("SSL handshake data processing failed", e);
             ssl.close();
@@ -236,7 +230,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
         }
     }
 
-    /** 将加密数据写入底层通道（使用 PooledByteBuffer 零拷贝传递） */
+    /** 将加密数据写入底层通道并刷新，确保握手数据立即发出 */
     private void emitToChannel(ByteBuffer wrappedBytes) {
         try {
             int len = wrappedBytes.remaining();
@@ -244,6 +238,8 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(len);
             buf.writeBytes(wrappedBytes);
             channelHandlerContext().channel().writeToSocket(buf);
+            // 必须 flush 唤醒写线程，否则握手数据停留在 BufferWriter 队列中永远不会发出
+            channelHandlerContext().channel().flush();
         } catch (Exception e) {
             logger.error("Failed to write SSL wrapped data to channel", e);
         }

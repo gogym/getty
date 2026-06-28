@@ -122,37 +122,36 @@ class Worker {
     SSLEngineResult unwrap(ByteBuffer encryptedData) throws SSLException {
         ByteBuffer allData = buffers.prependCached(encryptedData);
         buffers.prepareForUnwrap(allData);
-
         SSLEngineResult result = engine.unwrap(
                 buffers.get(BufferType.IN_CIPHER),
                 buffers.get(BufferType.IN_PLAIN));
 
-        // 保存未处理的密文数据
         allData.position(result.bytesConsumed());
         ByteBuffer unprocessed = BufferUtils.slice(allData);
 
         emitPlainData(result);
 
-        SSLEngineResult.Status status = result.getStatus();
-        if (status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-            // 数据不足，缓存未处理数据等待更多输入
-            buffers.cache(unprocessed);
-        } else if (status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
-            buffers.grow(BufferType.IN_PLAIN);
-            if (unprocessed == null) {
-                throw new SSLException("BUFFER_OVERFLOW but all data consumed");
-            }
-            unwrap(unprocessed);
-        } else if (status == SSLEngineResult.Status.OK) {
-            if (unprocessed == null) {
-                buffers.clearCache();
-            } else {
+        switch (result.getStatus()) {
+            case BUFFER_UNDERFLOW:
                 buffers.cache(unprocessed);
-            }
+                break;
+            case BUFFER_OVERFLOW:
+                buffers.grow(BufferType.IN_PLAIN);
+                if (unprocessed == null) {
+                    throw new SSLException("BUFFER_OVERFLOW but all data consumed");
+                }
+                unwrap(unprocessed);
+                break;
+            case OK:
+                if (unprocessed == null) {
+                    buffers.clearCache();
+                } else {
+                    buffers.cache(unprocessed);
+                }
+                break;
+            case CLOSED:
+                break;
         }
-        // CLOSED 状态不需要特殊处理
-
-        // 如果缓存中还有数据且上次操作成功消费了数据，继续处理
         if (!buffers.isCacheEmpty()
                 && result.getStatus() == SSLEngineResult.Status.OK
                 && result.bytesConsumed() > 0) {

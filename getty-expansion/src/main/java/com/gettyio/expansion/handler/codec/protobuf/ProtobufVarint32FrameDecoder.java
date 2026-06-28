@@ -16,6 +16,7 @@
 package com.gettyio.expansion.handler.codec.protobuf;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
+import com.gettyio.core.buffer.AutoByteBuffer.ByteBufferException;
 import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
@@ -38,23 +39,28 @@ public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) in;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
-        cumulation.writeBytes(bytes);
+        // 零分配：通过 readArray() 直接拷贝到 cumulation，跳过中间 byte[]
+        int len = buf.readableBytes();
+        int offset = buf.arrayOffset();
+        cumulation.writeBytes(buf.readArray(), offset, len);
 
         while (cumulation.hasRemaining()) {
             int preIndex = cumulation.readerIndex();
             int length = readRawVarint32(cumulation);
 
-            // 没有读取到任何新字节，说明数据不足
+            // readerIndex 未推进，说明 varint 数据不足
             if (preIndex == cumulation.readerIndex()) {
                 return;
             }
             if (length < 0) {
                 throw new RuntimeException("negative length: " + length);
             }
+            if (length == 0) {
+                cumulation.discardReadBytes();
+                continue;
+            }
             if (cumulation.readableBytes() < length) {
-                // 数据不足以组成一帧，回退等待更多数据
+                // 数据不足以组成一帧，整体回退等待更多数据
                 cumulation.readerIndex(preIndex);
                 break;
             }
@@ -68,13 +74,17 @@ public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
 
     /**
      * 从缓冲区读取 Protobuf Varint32 编码的整数。
+     * <p>
+     * 数据不足时回退 readerIndex 到调用前的位置并返回 0，
+     * 调用方通过 {@code preIndex == readerIndex} 判断数据不足。
+     * </p>
      *
      * @param buffer 数据缓冲区
-     * @return 解码后的整数值
+     * @return 解码后的整数值；数据不足时返回 0 且 readerIndex 不变
      * @throws RuntimeException 如果 Varint 格式不合法
-     * @throws Exception 读取缓冲区数据时可能抛出异常
+     * @throws ByteBufferException 缓冲区读取异常
      */
-    private static int readRawVarint32(AutoByteBuffer buffer) throws Exception {
+    private static int readRawVarint32(AutoByteBuffer buffer) throws ByteBufferException {
         if (!buffer.hasRemaining()) {
             return 0;
         }

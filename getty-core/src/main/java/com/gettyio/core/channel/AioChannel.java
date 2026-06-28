@@ -191,7 +191,9 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
      * @param eof 是否已到达流末尾（read 返回 -1）
      */
     public void readFromChannel(boolean eof) {
+        // 立即置空字段引用，防止 close() 并发调用导致双重释放
         PooledByteBuffer readBuf = this.readByteBuffer;
+        this.readByteBuffer = null;
         if (readBuf == null) {
             return;
         }
@@ -204,7 +206,6 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
                 invokePipeline(ChannelState.CHANNEL_READ, readBuf);
             } catch (Exception e) {
                 logger.error("pipeline read handler error", e);
-                this.readByteBuffer = null;
                 readBuf.release();
                 try {
                     invokePipeline(ChannelState.CHANNEL_EXCEPTION, null);
@@ -217,6 +218,7 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
         }
 
         if (eof) {
+            readBuf.release();
             close();
             return;
         }

@@ -57,6 +57,10 @@ class Handshaker {
      * @param result SSLEngine.unwrap() 的返回结果
      */
     void handleDecrypt(SSLEngineResult result) throws SSLException {
+        // 优先检查：握手可能已在递归 unwrap 中完成（processHandshake 内部触发了 finishHandshake）
+        if (isFinished()) {
+            return;
+        }
         if (result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED) {
             finishHandshake();
         } else {

@@ -34,9 +34,10 @@ public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer input = (PooledByteBuffer) obj;
-        byte[] body = new byte[input.readableBytes()];
-        input.readBytes(body);
-        int bodyLen = body.length;
+        int bodyLen = input.readableBytes();
+        int offset = input.arrayOffset();
+        // 零分配：通过 readArray() 获取底层数组，跳过中间 byte[] 拷贝
+        byte[] body = input.readArray();
         int headerLen = computeRawVarint32Size(bodyLen);
         PooledByteBuffer output = ctx.channel().getByteBufferPool().acquire(headerLen + bodyLen);
 
@@ -52,7 +53,7 @@ public class ProtobufVarint32LengthFieldPrepender extends MessageToByteEncoder {
             }
         }
         // 写入消息体
-        output.writeBytes(body);
+        output.writeBytes(body, offset, bodyLen);
 
         super.channelWrite(ctx, output);
     }

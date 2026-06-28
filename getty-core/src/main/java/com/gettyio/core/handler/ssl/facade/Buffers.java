@@ -196,12 +196,13 @@ class Buffers {
 
     /**
      * 如果缓冲区剩余空间不足，则扩容。
+     * <p>调用前缓冲区已通过 clear() 处于写模式（pos=0, limit=capacity），
+     * 因此扩容后新缓冲区也应保持写模式，不使用 {@link BufferUtils#copy}（其内部 flip 会破坏写模式）。</p>
      */
     private ByteBuffer growIfNecessary(BufferType type, int dataSize) {
         ByteBuffer buf = get(type);
-        if (buf.position() + dataSize > buf.capacity()) {
-            ByteBuffer resized = ByteBuffer.allocate(buf.limit() + dataSize);
-            BufferUtils.copy(buf, resized);
+        if (buf.remaining() < dataSize) {
+            ByteBuffer resized = ByteBuffer.allocate(Math.max(buf.capacity() * 2, dataSize));
             assign(type, resized);
             return resized;
         }
