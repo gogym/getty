@@ -103,6 +103,7 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
         if (!ssl.isHandshakeCompleted()) {
             processHandshake(bytes);
         } else {
+            // 标记为非握手阶段，emitToChannel 不会自动 flush
             ssl.encrypt(byteBuffer);
         }
     }
@@ -230,7 +231,11 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
         }
     }
 
-    /** 将加密数据写入底层通道并刷新，确保握手数据立即发出 */
+    /**
+     * 将加密数据写入底层通道。
+     * <p>握手阶段自动 flush 以确保握手数据立即发出；应用数据阶段仅写入不 flush，
+     * 由用户显式调用 flush 或 writeAndFlush 触发实际发送。</p>
+     */
     private void emitToChannel(ByteBuffer wrappedBytes) {
         try {
             int len = wrappedBytes.remaining();
@@ -238,8 +243,10 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(len);
             buf.writeBytes(wrappedBytes);
             channelHandlerContext().channel().writeToSocket(buf);
-            // 必须 flush 唤醒写线程，否则握手数据停留在 BufferWriter 队列中永远不会发出
-            channelHandlerContext().channel().flush();
+            // 握手未完成时必须立即 flush，否则握手数据停留在 BufferWriter 队列中不会发出
+            if (!ssl.isHandshakeCompleted()) {
+                channelHandlerContext().channel().flush();
+            }
         } catch (Exception e) {
             logger.error("Failed to write SSL wrapped data to channel", e);
         }
