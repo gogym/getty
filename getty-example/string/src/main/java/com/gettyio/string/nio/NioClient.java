@@ -99,10 +99,10 @@ public class NioClient {
 
 
                         int i = 0;
-                        for (; i < 1000000; i++) {
-                            if (!channel.isInvalid()) {
+                        for (; i < 100; i++) {
+//                            if (!channel.isInvalid()) {
                                 channel.writeAndFlush(msgBody);
-                            }
+                          //  }
                         }
 
                         long lt = System.currentTimeMillis();

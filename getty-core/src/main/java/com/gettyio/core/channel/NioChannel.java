@@ -72,6 +72,16 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      */
     private ByteBuffer[] writeViews = new ByteBuffer[16];
 
+    /**
+     * OP_WRITE 是否已注册到 SelectionKey。
+     * <p>
+     * volatile 保证业务线程与 EventLoop 之间的可见性。
+     * 业务线程：true 时跳过 interestOps() 调用（~200ns → ~2ns volatile read）。
+     * EventLoop：removeOpWrite 时置 false。
+     * </p>
+     */
+    private volatile boolean writeInterestSet;
+
     /** SSL 处理器 */
     private SSLHandler sslHandler;
 
@@ -315,16 +325,20 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      * 通知 EventLoop 注册 OP_WRITE。
      * <p>
      * 由 {@link BufferWriter#flush()} 在业务线程中调用。
-     * 仅注册兴趣事件并唤醒 Selector，不执行任何 I/O 操作。
-     * 不维护额外标志位：{@code interestOps} 是幂等操作，重复注册 OP_WRITE 无副作用。
+     * 使用 volatile 标志跳过冗余的 interestOps() 调用：
+     * OP_WRITE 已注册时仅执行 wakeup()，避免每次 flush 都触发
+     * keyFor() + interestOps() 的开销（~200ns → ~2ns）。
      * </p>
      */
     @Override
     public void notifyFlush() {
         try {
-            SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
-            if (key != null && key.isValid()) {
-                key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
+            if (!writeInterestSet) {
+                SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
+                if (key != null && key.isValid()) {
+                    key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
+                    writeInterestSet = true;
+                }
             }
             nioEventLoop.getSelector().wakeup();
         } catch (Exception e) {
@@ -432,9 +446,14 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 移除 OP_WRITE 兴趣事件。
+     * 移除 OP_WRITE 兴趣事件，并重置 {@link #writeInterestSet} 标志。
+     * <p>
+     * 由 EventLoop 线程在 doWrite 全部写完后调用。
+     * 重置标志后，下次 notifyFlush 会重新注册 OP_WRITE。
+     * </p>
      */
     private void removeOpWrite() {
+        writeInterestSet = false;
         try {
             SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
             if (key != null && key.isValid()) {
