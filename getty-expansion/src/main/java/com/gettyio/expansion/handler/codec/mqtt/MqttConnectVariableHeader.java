@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * MQTT CONNECT 消息的可变头部。
@@ -88,7 +88,7 @@ public final class MqttConnectVariableHeader {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
             .append('[')
             .append("name=").append(name)
             .append(", version=").append(version)

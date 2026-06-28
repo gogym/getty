@@ -16,7 +16,6 @@
 package com.gettyio.core.channel.starter;
 
 import com.gettyio.core.buffer.pool.GettyByteBufferPool;
-import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.UdpChannel;
@@ -27,7 +26,7 @@ import com.gettyio.core.constant.Banner;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.util.FastArrayList;
+import com.gettyio.core.util.list.FastArrayList;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -71,7 +70,7 @@ public class NioServerStarter extends NioStarter {
     private Thread acceptThread;
 
     /** EventLoop 列表（轮询分配） */
-    private final FastArrayList<NioEventLoop> eventLoops = new FastArrayList<>(NioEventLoop.class);
+    private final FastArrayList<NioEventLoop> eventLoops = new FastArrayList<>();
 
     public NioServerStarter(int port) {
         this.config = new GettyConfig();

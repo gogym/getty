@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,7 +77,7 @@ public class MqttSubAckPayload {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
             .append('[')
             .append("grantedQoSLevels=").append(grantedQoSLevels)
             .append(']')

@@ -16,7 +16,7 @@
 package com.gettyio.core.buffer;
 
 import com.gettyio.core.util.CharsetUtil;
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -535,7 +535,7 @@ public class AutoByteBuffer {
      */
     public String decodeString(AutoByteBuffer src, int readerIndex, int len, Charset charset) {
         if (len == 0) {
-            return StringUtil.EMPTY_STRING;
+            return ObjectUtil.EMPTY_STRING;
         }
         byte[] srcArray = src.data;
         if (CharsetUtil.US_ASCII.equals(charset)) {

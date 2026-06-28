@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * MQTT 主题订阅。
@@ -43,7 +43,7 @@ public final class MqttTopicSubscription {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
             .append('[')
             .append("topicFilter=").append(topicFilter)
             .append(", qualityOfService=").append(qualityOfService)

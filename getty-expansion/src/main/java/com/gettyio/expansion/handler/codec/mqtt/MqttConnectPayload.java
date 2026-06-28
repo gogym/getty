@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * MQTT CONNECT 消息的负载部分。
@@ -97,7 +97,7 @@ public final class MqttConnectPayload {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
                 .append('[')
                 .append("clientIdentifier=").append(clientIdentifier)
                 .append(", willTopic=").append(willTopic)

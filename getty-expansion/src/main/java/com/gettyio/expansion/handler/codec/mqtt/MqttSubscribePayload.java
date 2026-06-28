@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +42,7 @@ public final class MqttSubscribePayload {
 
     @Override
     public String toString() {
-        StringBuilder builder = new StringBuilder(StringUtil.simpleClassName(this)).append('[');
+        StringBuilder builder = new StringBuilder(ObjectUtil.simpleClassName(this)).append('[');
         int size = topicSubscriptions.size();
         for (int i = 0; i < size; i++) {
             if (i > 0) {

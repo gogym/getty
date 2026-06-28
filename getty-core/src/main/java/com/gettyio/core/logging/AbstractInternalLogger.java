@@ -15,7 +15,7 @@
  */
 package com.gettyio.core.logging;
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * {@link InternalLogger} 的抽象基类。
@@ -43,6 +43,6 @@ public abstract class AbstractInternalLogger implements InternalLogger {
 
     @Override
     public String toString() {
-        return StringUtil.simpleClassName(this) + '(' + name + ')';
+        return ObjectUtil.simpleClassName(this) + '(' + name + ')';
     }
 }

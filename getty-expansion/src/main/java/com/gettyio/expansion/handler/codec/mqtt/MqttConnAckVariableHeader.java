@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * MQTT CONNACK 消息的可变头部。
@@ -46,7 +46,7 @@ public final class MqttConnAckVariableHeader {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
                 .append('[')
                 .append("connectReturnCode=").append(connectReturnCode)
                 .append(", sessionPresent=").append(sessionPresent)

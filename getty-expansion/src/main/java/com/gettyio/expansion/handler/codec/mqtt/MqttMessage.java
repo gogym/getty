@@ -18,7 +18,7 @@ package com.gettyio.expansion.handler.codec.mqtt;
 
 
 import com.gettyio.core.handler.codec.DecoderResult;
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * MQTT 消息基类。
@@ -104,7 +104,7 @@ public class MqttMessage {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
             .append('[')
             .append("fixedHeader=").append(fixedHeader() != null ? fixedHeader().toString() : "")
             .append(", variableHeader=").append(variableHeader() != null ? variableHeader.toString() : "")

@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.gettyio.core.util.StringUtil.simpleClassName;
+import static com.gettyio.core.util.ObjectUtil.simpleClassName;
 
 
 /**
@@ -543,6 +543,11 @@ public class HashedWheelTimer implements Timer {
                 }
                 //还没有放入到格子中就取消了，直接略过
                 if (timeout.state() == HashedWheelTimeout.ST_CANCELLED) {
+                    // cancel() 可能已经递减了计数器（CAS 成功但任务未进入 bucket），
+                    // 通过守卫确保恰好递减一次
+                    if (timeout.counterDecrementGuard.compareAndSet(false, true)) {
+                        timeout.timer.pendingTimeouts.decrementAndGet();
+                    }
                     continue;
                 }
 
@@ -718,8 +723,10 @@ public class HashedWheelTimer implements Timer {
             timeout.prev = null;
             timeout.next = null;
             timeout.bucket = null;
-            //计数器减一
-            timeout.timer.pendingTimeouts.decrementAndGet();
+            // 通过守卫确保 pendingTimeouts 只递减一次，防止与 cancel() 路径双重递减
+            if (timeout.counterDecrementGuard.compareAndSet(false, true)) {
+                timeout.timer.pendingTimeouts.decrementAndGet();
+            }
 
             return next;
         }
@@ -803,6 +810,16 @@ public class HashedWheelTimer implements Timer {
         //定时任务所在的格子
         HashedWheelBucket bucket;
 
+        /**
+         * 计数器递减守卫。
+         * <p>
+         * 确保 pendingTimeouts 对每个任务全局只递减一次。
+         * cancel()、bucket.remove()、expire() 等多条路径都可能触发递减，
+         * 通过 CAS 保证仅第一条执行路径完成递减，消除竞态下的双重递减。
+         * </p>
+         */
+        private final AtomicBoolean counterDecrementGuard = new AtomicBoolean(false);
+
         HashedWheelTimeout(HashedWheelTimer timer, TimerTask task, long deadline) {
             this.timer = timer;
             this.task = task;
@@ -824,7 +841,15 @@ public class HashedWheelTimer implements Timer {
         public boolean cancel() {
             //这里只是修改状态为 ST_CANCELLED，会在下次 tick 时，在格子中移除
             if (!compareAndSetState(ST_INIT, ST_CANCELLED)) {
-                return false;
+                // CAS 失败：任务可能已过期执行（ST_EXPIRED）或已被取消（ST_CANCELLED）。
+                // 若已过期，说明任务已完成，返回 true 表示无需进一步操作。
+                return state == ST_EXPIRED;
+            }
+            // CAS 成功，状态从 INIT→CANCELLED，递减计数器。
+            // 若任务后续从 bucket 中移除或由 processCancelledTasks 处理，
+            // counterDecrementGuard 会阻止重复递减。
+            if (counterDecrementGuard.compareAndSet(false, true)) {
+                timer.pendingTimeouts.decrementAndGet();
             }
             //加入到时间轮的待取消队列，并在每次 tick 的时候，从相应格子中移除
             //因此，这意味着我们将有最大的 GC 延迟。1 tick 时间足够好。这样我们可以再次使用我们的 MpscLinkedQueue 队列，尽可能减少锁定/开销。
@@ -868,10 +893,14 @@ public class HashedWheelTimer implements Timer {
         void remove() {
             HashedWheelBucket bucket = this.bucket;
             if (bucket != null) {
+                // bucket.remove() 内部通过 counterDecrementGuard 保证只递减一次
                 bucket.remove(this);
             } else {
-                //计数器减一
-                timer.pendingTimeouts.decrementAndGet();
+                // 任务尚未进入 bucket（仍在 timeouts 队列中就被取消）。
+                // 通过守卫确保不与其他路径（cancel/expire）重复递减。
+                if (counterDecrementGuard.compareAndSet(false, true)) {
+                    timer.pendingTimeouts.decrementAndGet();
+                }
             }
         }
 
@@ -879,6 +908,11 @@ public class HashedWheelTimer implements Timer {
         public void expire() {
             if (!compareAndSetState(ST_INIT, ST_EXPIRED)) {
                 return;
+            }
+            // 状态从 INIT→EXPIRED 成功，需递减计数器。
+            // 若 cancel() 已递减过，守卫会阻止此次递减。
+            if (counterDecrementGuard.compareAndSet(false, true)) {
+                timer.pendingTimeouts.decrementAndGet();
             }
 
             try {

@@ -17,7 +17,7 @@
 package com.gettyio.expansion.handler.codec.mqtt;
 
 
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 
 /**
  * MQTT 可变头部（仅包含消息ID）。
@@ -46,7 +46,7 @@ public final class MqttMessageIdVariableHeader {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
             .append('[')
             .append("messageId=").append(messageId)
             .append(']')

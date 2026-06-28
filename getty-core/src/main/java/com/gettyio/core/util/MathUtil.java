@@ -16,7 +16,14 @@
 package com.gettyio.core.util;
 
 /**
- * Math utility methods.
+ * 数学运算工具类。
+ * <p>
+ * 提供位运算级别的高性能数学计算，适用于内存池、哈希表等
+ * 需要快速计算 2 的幂次的场景。
+ * </p>
+ *
+ * @author gogym
+ * @date 2020/4/9
  */
 public final class MathUtil {
 
@@ -24,79 +31,29 @@ public final class MathUtil {
     }
 
     /**
-     * Fast method of finding the next power of 2 greater than or equal to the supplied value.
-     * 求大于或等于2的下一个幂的快速方法
-     * <p>If the value is {@code <= 0} then 1 will be returned.
-     * This method is not suitable for {@link Integer#MIN_VALUE} or numbers greater than 2^30.
-     * 如果值是{@code <= 0}，则返回1。
-     * 此方法不适合{@link Integer#MIN_VALUE}或大于2^30的数字
+     * 求大于或等于 {@code value} 的最小的 2 的幂。
+     * <p>
+     * 利用 {@link Integer#numberOfLeadingZeros(int)} 实现，
+     * 该方法在 HotSpot JVM 中会被内联为 CPU 指令（LZCNT/BSR），
+     * 时间复杂度 O(1)，无分支。
+     * </p>
+     * <p>
+     * 示例：
+     * <ul>
+     *   <li>{@code value = 5} → {@code 8}</li>
+     *   <li>{@code value = 8} → {@code 8}</li>
+     *   <li>{@code value = 9} → {@code 16}</li>
+     * </ul>
+     * </p>
+     * <p>
+     * 限制：不适用于 {@link Integer#MIN_VALUE} 或大于 2^30 的值。
+     * </p>
      *
-     * @param value from which to search for next power of 2
-     * @return The next power of 2 or the value itself if it is a power of 2
+     * @param value 搜索起点
+     * @return 大于或等于 {@code value} 的最小的 2 的幂
      */
     public static int findNextPositivePowerOfTwo(final int value) {
         assert value > Integer.MIN_VALUE && value < 0x40000000;
         return 1 << (32 - Integer.numberOfLeadingZeros(value - 1));
-    }
-
-    /**
-     * 求2的下一个幂值大于或等于提供值的快速方法。
-     * Fast method of finding the next power of 2 greater than or equal to the supplied value.
-     * <p>This method will do runtime bounds checking and call {@link #findNextPositivePowerOfTwo(int)} if within a
-     * valid range.
-     *
-     * @param value from which to search for next power of 2
-     * @return The next power of 2 or the value itself if it is a power of 2.
-     * <p>Special cases for return values are as follows:
-     * <ul>
-     *     <li>{@code <= 0} -> 1</li>
-     *     <li>{@code >= 2^30} -> 2^30</li>
-     * </ul>
-     */
-    public static int safeFindNextPositivePowerOfTwo(final int value) {
-        return value <= 0 ? 1 : value >= 0x40000000 ? 0x40000000 : findNextPositivePowerOfTwo(value);
-    }
-
-    /**
-     * 确定请求的{索引}和{长度}是否适合{容量}
-     * Determine if the requested {@code index} and {@code length} will fit within {@code capacity}.
-     *
-     * @param index    The starting index.
-     * @param length   The length which will be utilized (starting from {@code index}).
-     * @param capacity The capacity that {@code index + length} is allowed to be within.
-     * @return {@code true} if the requested {@code index} and {@code length} will fit within {@code capacity}.
-     * {@code false} if this would result in an index out of bounds exception.
-     */
-    public static boolean isOutOfBounds(int index, int length, int capacity) {
-        return (index | length | (index + length) | (capacity - (index + length))) < 0;
-    }
-
-    /**
-     * Compares two {@code int} values.
-     *比较两个值
-     * @param x the first {@code int} to compare
-     * @param y the second {@code int} to compare
-     * @return the value {@code 0} if {@code x == y};
-     * {@code -1} if {@code x < y}; and
-     * {@code 1} if {@code x > y}
-     */
-    public static int compare(final int x, final int y) {
-        // do not subtract for comparison, it could overflow
-        return x < y ? -1 : (x > y ? 1 : 0);
-    }
-
-    /**
-     * Compare two {@code long} values.
-     *
-     * @param x the first {@code long} to compare.
-     * @param y the second {@code long} to compare.
-     * @return <ul>
-     * <li>0 if {@code x == y}</li>
-     * <li>{@code > 0} if {@code x > y}</li>
-     * <li>{@code < 0} if {@code x < y}</li>
-     * </ul>
-     */
-    public static int compare(long x, long y) {
-        return (x < y) ? -1 : (x > y) ? 1 : 0;
     }
 }

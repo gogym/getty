@@ -16,7 +16,7 @@
 package com.gettyio.expansion.handler.codec.http;
 
 import com.gettyio.core.buffer.AutoByteBuffer;
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.expansion.handler.codec.http.request.HttpRequest;
 import com.gettyio.expansion.handler.codec.http.response.HttpResponse;
 import com.gettyio.expansion.handler.codec.http.response.HttpResponseStatus;
@@ -233,7 +233,7 @@ public class HttpDecodeSerializer {
         int valueStart;
         int valueEnd;
 
-        nameStart = StringUtil.findNonWhitespace(sb, 0);
+        nameStart = ObjectUtil.findNonWhitespace(sb, 0);
         for (nameEnd = nameStart; nameEnd < length; nameEnd++) {
             char ch = sb.charAt(nameEnd);
             if (ch == ':' || Character.isWhitespace(ch)) {
@@ -248,7 +248,7 @@ public class HttpDecodeSerializer {
             }
         }
 
-        valueStart = StringUtil.findNonWhitespace(sb, colonEnd);
+        valueStart = ObjectUtil.findNonWhitespace(sb, colonEnd);
         if (valueStart == length) {
             return new String[]{
                     sb.substring(nameStart, nameEnd),
@@ -256,7 +256,7 @@ public class HttpDecodeSerializer {
             };
         }
 
-        valueEnd = StringUtil.findEndOfString(sb);
+        valueEnd = ObjectUtil.findEndOfString(sb);
         return new String[]{
                 sb.substring(nameStart, nameEnd),
                 sb.substring(valueStart, valueEnd)

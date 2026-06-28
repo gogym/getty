@@ -18,7 +18,6 @@ package com.gettyio.expansion.handler.codec.mqtt;
 
 
 import com.gettyio.core.util.ObjectUtil;
-import com.gettyio.core.util.StringUtil;
 
 /**
  * MQTT 固定头部。
@@ -69,7 +68,7 @@ public final class MqttFixedHeader {
 
     @Override
     public String toString() {
-        return new StringBuilder(StringUtil.simpleClassName(this))
+        return new StringBuilder(ObjectUtil.simpleClassName(this))
             .append('[')
             .append("messageType=").append(messageType)
             .append(", isDup=").append(isDup)

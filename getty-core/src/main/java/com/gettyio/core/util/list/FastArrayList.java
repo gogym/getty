@@ -13,9 +13,8 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.gettyio.core.util;
+package com.gettyio.core.util.list;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -60,52 +59,35 @@ public class FastArrayList<T> implements Iterable<T> {
     }
 
     /**
-     * 指定元素类型和初始容量构造
-     *
-     * @param type            元素 Class
-     * @param initialCapacity 初始容量
-     */
-    public FastArrayList(Class<T> type, int initialCapacity) {
-        if (initialCapacity < 0) {
-            throw new IllegalArgumentException("Illegal capacity: " + initialCapacity);
-        }
-        this.data = (T[]) Array.newInstance(type, initialCapacity);
-    }
-
-    /**
      * 默认容量构造
      */
     public FastArrayList() {
         this(DEFAULT_CAPACITY);
     }
 
-    /**
-     * 指定元素类型，默认容量构造
-     *
-     * @param type 元素 Class
-     */
-    public FastArrayList(Class<T> type) {
-        this(type, DEFAULT_CAPACITY);
-    }
-
     // ===================== 容量管理 =====================
 
     /**
-     * 检查是否需要扩容。如果当前 size 已达数组上限，则扩容为 2 倍。
+     * 确保底层数组至少有 minCapacity 个槽位。
+     * <p>
+     * 扩容策略：1.5 倍增长（{@code oldCap + oldCap >> 1}），
+     * 相比 2 倍增长，内存利用率更高，减少过度分配。
+     * </p>
      *
-     * @param index 插入位置（-1 表示仅扩容不插入）
-     * @param obj   要插入的元素（扩容不插入时为 null）
+     * @param minCapacity 期望的最小容量
      */
-    public void checkIncrease(int index, T obj) {
-        if (size >= data.length) {
-            int newCapacity = Math.max(size * 2, DEFAULT_CAPACITY);
+    private void ensureCapacity(int minCapacity) {
+        if (minCapacity > data.length) {
+            int oldCapacity = data.length;
+            int newCapacity = oldCapacity + (oldCapacity >> 1);
+            if (newCapacity < minCapacity) {
+                newCapacity = minCapacity;
+            }
+            if (newCapacity < DEFAULT_CAPACITY) {
+                newCapacity = DEFAULT_CAPACITY;
+            }
             T[] newData = (T[]) new Object[newCapacity];
             System.arraycopy(data, 0, newData, 0, size);
-            if (index >= 0 && obj != null) {
-                // 将插入位置之后的元素后移，空出指定位置
-                System.arraycopy(data, index, newData, index + 1, size - index);
-                newData[index] = obj;
-            }
             data = newData;
         }
     }
@@ -172,7 +154,9 @@ public class FastArrayList<T> implements Iterable<T> {
      * @return 始终返回 {@code true}
      */
     public boolean add(T obj) {
-        checkIncrease(-1, null);
+        if (size >= data.length) {
+            ensureCapacity(size + 1);
+        }
         data[size++] = obj;
         return true;
     }
@@ -184,17 +168,25 @@ public class FastArrayList<T> implements Iterable<T> {
      * @return 始终返回 {@code true}
      */
     public boolean addFirst(T obj) {
-        return add(0, obj);
+        ensureCapacity(size + 1);
+        if (size > 0) {
+            System.arraycopy(data, 0, data, 1, size);
+        }
+        data[0] = obj;
+        size++;
+        return true;
     }
 
     /**
-     * 在尾部添加元素（等价于 {@link #add(Object)}）
+     * 在尾部添加元素（快速路径）。
      *
      * @param obj 要添加的元素
      * @return 始终返回 {@code true}
      */
     public boolean addLast(T obj) {
-        return add(size, obj);
+        ensureCapacity(size + 1);
+        data[size++] = obj;
+        return true;
     }
 
     /**
@@ -206,17 +198,17 @@ public class FastArrayList<T> implements Iterable<T> {
      */
     public boolean add(int index, T obj) {
         if (index == size) {
-            // 尾部直接追加
-            add(obj);
-        } else if (checkIndexOut(index)) {
-            if (size < data.length) {
-                // 无需扩容，直接后移
-                System.arraycopy(data, index, data, index + 1, size - index);
-                data[index] = obj;
-            } else {
-                // 需要扩容，checkIncrease 会处理后移和插入
-                checkIncrease(index, obj);
+            // 尾部追加快速路径
+            ensureCapacity(size + 1);
+            data[size++] = obj;
+        } else {
+            if (index < 0 || index > size) {
+                throw new IndexOutOfBoundsException(
+                        "Index: " + index + ", Size: " + size);
             }
+            ensureCapacity(size + 1);
+            System.arraycopy(data, index, data, index + 1, size - index);
+            data[index] = obj;
             size++;
         }
         return true;
@@ -228,15 +220,13 @@ public class FastArrayList<T> implements Iterable<T> {
      * 校验索引是否越界（允许 index == size，用于尾部追加）
      *
      * @param index 待校验的索引
-     * @return 始终返回 {@code true}
      * @throws IndexOutOfBoundsException 如果索引越界
      */
-    public boolean checkIndexOut(int index) {
-        if (index > size || index < 0) {
+    public void checkIndex(int index) {
+        if (index >= size || index < 0) {
             throw new IndexOutOfBoundsException(
                     "Index: " + index + ", Size: " + size);
         }
-        return true;
     }
 
     // ===================== 获取 =====================
@@ -248,7 +238,7 @@ public class FastArrayList<T> implements Iterable<T> {
      * @return 对应元素
      */
     public T get(int index) {
-        checkIndexOut(index);
+        checkIndex(index);
         return data[index];
     }
 
@@ -292,10 +282,7 @@ public class FastArrayList<T> implements Iterable<T> {
      * @return 被移除的元素
      */
     public T remove(int index) {
-        if (index >= size || index < 0) {
-            throw new IndexOutOfBoundsException(
-                    "Index: " + index + ", Size: " + size);
-        }
+        checkIndex(index);
         T obj = data[index];
         int numMoved = size - index - 1;
         if (numMoved > 0) {
@@ -330,21 +317,10 @@ public class FastArrayList<T> implements Iterable<T> {
      * @return 旧元素
      */
     public T set(int index, T obj) {
-        checkIndexOut(index);
+        checkIndex(index);
         T oldObj = data[index];
         data[index] = obj;
         return oldObj;
-    }
-
-    /**
-     * 替换指定位置的元素（别名方法）
-     *
-     * @param index 索引
-     * @param obj   新元素
-     * @return 旧元素
-     */
-    public T change(int index, T obj) {
-        return set(index, obj);
     }
 
     // ===================== 数组访问 =====================
@@ -383,8 +359,11 @@ public class FastArrayList<T> implements Iterable<T> {
         if (size == 0) {
             throw new IndexOutOfBoundsException("List is empty");
         }
-        roundIndex = (roundIndex + 1) % size;
-        return data[roundIndex];
+        int idx = roundIndex;
+        if (++roundIndex >= size) {
+            roundIndex = 0;
+        }
+        return data[idx];
     }
 
     // ===================== 迭代器 =====================

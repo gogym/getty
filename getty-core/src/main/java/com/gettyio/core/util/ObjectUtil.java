@@ -21,13 +21,13 @@ import com.gettyio.core.logging.InternalLoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.Collection;
+import java.util.Formatter;
 
 /**
- * 对象工具类。
+ * 通用对象与字符串工具类。
  * <p>
- * 提供参数校验（非空、正数、非空集合）、数值类型拆箱、
- * 字节数组与数值类型互转、对象序列化等常用功能。
+ * 提供参数校验、字节数组与数值互转、对象序列化、
+ * 简单类名获取、空白字符查找等常用功能。
  * </p>
  *
  * @author gogym.ggj
@@ -36,6 +36,22 @@ import java.util.Collection;
 public final class ObjectUtil {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(ObjectUtil.class);
+
+    /** 当前平台的换行符 */
+    public static final String NEWLINE;
+
+    /** 空字符串常量 */
+    public static final String EMPTY_STRING = "";
+
+    static {
+        String newLine;
+        try {
+            newLine = new Formatter().format("%n").toString();
+        } catch (Exception e) {
+            newLine = "\n";
+        }
+        NEWLINE = newLine;
+    }
 
     private ObjectUtil() {
     }
@@ -58,126 +74,7 @@ public final class ObjectUtil {
         return arg;
     }
 
-    /**
-     * 检查 int 值为正数（> 0）
-     *
-     * @param i    待检查的值
-     * @param name 参数名（用于异常信息）
-     * @return 原值
-     * @throws IllegalArgumentException 如果 i <= 0
-     */
-    public static int checkPositive(int i, String name) {
-        if (i <= 0) {
-            throw new IllegalArgumentException(name + ": " + i + " (expected: > 0)");
-        }
-        return i;
-    }
-
-    /**
-     * 检查 long 值为正数（> 0）
-     *
-     * @param i    待检查的值
-     * @param name 参数名
-     * @return 原值
-     */
-    public static long checkPositive(long i, String name) {
-        if (i <= 0) {
-            throw new IllegalArgumentException(name + ": " + i + " (expected: > 0)");
-        }
-        return i;
-    }
-
-    /**
-     * 检查 int 值非负（>= 0）
-     *
-     * @param i    待检查的值
-     * @param name 参数名
-     * @return 原值
-     */
-    public static int checkPositiveOrZero(int i, String name) {
-        if (i < 0) {
-            throw new IllegalArgumentException(name + ": " + i + " (expected: >= 0)");
-        }
-        return i;
-    }
-
-    /**
-     * 检查 long 值非负（>= 0）
-     *
-     * @param i    待检查的值
-     * @param name 参数名
-     * @return 原值
-     */
-    public static long checkPositiveOrZero(long i, String name) {
-        if (i < 0) {
-            throw new IllegalArgumentException(name + ": " + i + " (expected: >= 0)");
-        }
-        return i;
-    }
-
-    /**
-     * 检查数组非 null 且非空
-     *
-     * @param array 待检查的数组
-     * @param name  参数名
-     * @param <T>   数组元素类型
-     * @return 原数组
-     */
-    public static <T> T[] checkNonEmpty(T[] array, String name) {
-        checkNotNull(array, name);
-        checkPositive(array.length, name + ".length");
-        return array;
-    }
-
-    /**
-     * 检查集合非 null 且非空
-     *
-     * @param collection 待检查的集合
-     * @param name       参数名
-     * @param <T>        集合类型
-     * @return 原集合
-     */
-    public static <T extends Collection<?>> T checkNonEmpty(T collection, String name) {
-        checkNotNull(collection, name);
-        checkPositive(collection.size(), name + ".size");
-        return collection;
-    }
-
-    // ===================== 数值拆箱 =====================
-
-    /**
-     * Integer 安全拆箱，null 时返回默认值
-     *
-     * @param wrapper      Integer 包装对象
-     * @param defaultValue 默认值
-     * @return int 值
-     */
-    public static int intValue(Integer wrapper, int defaultValue) {
-        return wrapper != null ? wrapper : defaultValue;
-    }
-
-    /**
-     * Long 安全拆箱，null 时返回默认值
-     *
-     * @param wrapper      Long 包装对象
-     * @param defaultValue 默认值
-     * @return long 值
-     */
-    public static long longValue(Long wrapper, long defaultValue) {
-        return wrapper != null ? wrapper : defaultValue;
-    }
-
     // ===================== 字节与数值互转 =====================
-
-    /**
-     * 字节数组转 int（大端序）
-     *
-     * @param b 字节数组（最多 8 字节）
-     * @return int 值
-     */
-    public static int toInt(byte... b) {
-        return (int) toLong(b);
-    }
 
     /**
      * 字节数组转 long（大端序）
@@ -197,41 +94,6 @@ public final class ObjectUtil {
         return res;
     }
 
-    /**
-     * 数值转字节数组（大端序，内部方法）
-     *
-     * @param l      数值
-     * @param length 字节数组长度
-     * @return 字节数组
-     */
-    private static byte[] numberToBytes(long l, int length) {
-        byte[] bts = new byte[length];
-        for (int i = 0; i < length; i++) {
-            bts[i] = (byte) (l >> ((length - i - 1) * 8));
-        }
-        return bts;
-    }
-
-    /**
-     * short/int 值转 2 字节数组（大端序）
-     *
-     * @param i 数值
-     * @return 2 字节数组
-     */
-    public static byte[] shortToByte(int i) {
-        return numberToBytes(i, 2);
-    }
-
-    /**
-     * long 值转 8 字节数组（大端序）
-     *
-     * @param i 数值
-     * @return 8 字节数组
-     */
-    public static byte[] longToByte(long i) {
-        return numberToBytes(i, 8);
-    }
-
     // ===================== 对象序列化 =====================
 
     /**
@@ -244,7 +106,7 @@ public final class ObjectUtil {
      * @param obj 可序列化对象
      * @return 序列化后的字节数组，异常时返回 null
      */
-    public static byte[] objectToByteArray(Object obj) {
+    public static byte[] ObjToByteArray(Object obj) {
         if (obj == null) {
             return null;
         }
@@ -259,15 +121,67 @@ public final class ObjectUtil {
         }
     }
 
+    // ===================== 字符串操作 =====================
+
     /**
-     * 将可序列化对象转为字节数组（旧方法名，保留兼容性）。
+     * 获取对象的简单类名（不含包名）
      *
-     * @param obj 可序列化对象
-     * @return 序列化后的字节数组
-     * @deprecated 使用 {@link #objectToByteArray(Object)} 代替
+     * @param o 对象实例
+     * @return 简单类名，null 对象返回 "null_object"
      */
-    @Deprecated
-    public static byte[] ObjToByteArray(Object obj) {
-        return objectToByteArray(obj);
+    public static String simpleClassName(Object o) {
+        if (o == null) {
+            return "null_object";
+        }
+        return simpleClassName(o.getClass());
+    }
+
+    /**
+     * 获取 Class 的简单类名（不含包名）
+     *
+     * @param clazz Class 对象
+     * @return 简单类名，null 返回 "null_class"
+     */
+    public static String simpleClassName(Class<?> clazz) {
+        if (clazz == null) {
+            return "null_class";
+        }
+        Package pkg = clazz.getPackage();
+        if (pkg != null) {
+            return clazz.getName().substring(pkg.getName().length() + 1);
+        }
+        return clazz.getName();
+    }
+
+    /**
+     * 从指定位置开始向后查找第一个非空白字符的索引
+     *
+     * @param sb     待查找的字符串
+     * @param offset 起始偏移量
+     * @return 第一个非空白字符的索引，如全部为空白则返回字符串长度
+     */
+    public static int findNonWhitespace(String sb, int offset) {
+        int len = sb.length();
+        for (int i = offset; i < len; i++) {
+            if (!Character.isWhitespace(sb.charAt(i))) {
+                return i;
+            }
+        }
+        return len;
+    }
+
+    /**
+     * 从末尾向前查找最后一个非空白字符的位置
+     *
+     * @param sb 待查找的字符串
+     * @return 最后一个非空白字符之后的位置（即 trim 后的长度）
+     */
+    public static int findEndOfString(String sb) {
+        for (int i = sb.length(); i > 0; i--) {
+            if (!Character.isWhitespace(sb.charAt(i - 1))) {
+                return i;
+            }
+        }
+        return 0;
     }
 }

@@ -20,7 +20,7 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.util.Base64;
-import com.gettyio.core.util.StringUtil;
+import com.gettyio.core.util.ObjectUtil;
 import com.gettyio.core.util.MD5;
 import com.gettyio.expansion.handler.codec.http.HttpConstants;
 import com.gettyio.expansion.handler.codec.http.HttpException;
@@ -339,7 +339,7 @@ public class WebSocketHandShake {
      */
     private static String[] splitHeader(String header) {
         final int length = header.length();
-        int nameStart = StringUtil.findNonWhitespace(header, 0);
+        int nameStart = ObjectUtil.findNonWhitespace(header, 0);
         int nameEnd;
         for (nameEnd = nameStart; nameEnd < length; nameEnd++) {
             char ch = header.charAt(nameEnd);
@@ -356,12 +356,12 @@ public class WebSocketHandShake {
             }
         }
 
-        int valueStart = StringUtil.findNonWhitespace(header, colonEnd);
+        int valueStart = ObjectUtil.findNonWhitespace(header, colonEnd);
         if (valueStart == length) {
             return new String[]{header.substring(nameStart, nameEnd), ""};
         }
 
-        int valueEnd = StringUtil.findEndOfString(header);
+        int valueEnd = ObjectUtil.findEndOfString(header);
         return new String[]{
                 header.substring(nameStart, nameEnd),
                 header.substring(valueStart, valueEnd)
