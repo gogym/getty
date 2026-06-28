@@ -146,7 +146,7 @@ public class NioServerStarter extends NioStarter {
         serverSocketChannel.register(acceptSelector.getSelector(), SelectionKey.OP_ACCEPT);
 
         acceptThread = new Thread(this::acceptLoop, "nio-accept");
-        acceptThread.setDaemon(true);
+        // 非 daemon：作为服务端生命线，保持 JVM 存活直到 shutdown() 被调用
         acceptThread.start();
 
         LOGGER.info("getty server started TCP on port {}, workerThreadNum:{}",
@@ -155,7 +155,7 @@ public class NioServerStarter extends NioStarter {
     }
 
     /**
-     * accept 循环。在 daemon 线程中运行，接受新连接并分配到 EventLoop。
+     * accept 循环。接受新连接并分配到 EventLoop。
      */
     private void acceptLoop() {
         while (running) {

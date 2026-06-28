@@ -69,7 +69,7 @@ public class NioClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                 defaultChannelPipeline.addLast(new StringEncoder());
                 //指定结束符解码器

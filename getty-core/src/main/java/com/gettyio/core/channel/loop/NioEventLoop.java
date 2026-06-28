@@ -68,7 +68,7 @@ public class NioEventLoop implements EventLoop {
         this.config = config;
         this.byteBufferPool = byteBufferPool;
         this.thread = new Thread(this::eventLoop, "nio-event-loop");
-        this.thread.setDaemon(true);
+        // 非 daemon：作为 I/O 生命线，保持 JVM 存活直到 shutdown() 被调用
         try {
             this.selector = new SelectedSelector(Selector.open());
         } catch (IOException e) {
@@ -83,7 +83,7 @@ public class NioEventLoop implements EventLoop {
     }
 
     /**
-     * 事件循环主体。在 daemon 线程中运行，复用读缓冲区直到关闭。
+     * 事件循环主体。复用读缓冲区直到关闭。
      */
     private void eventLoop() {
         // 长生命周期读缓冲区：整个事件循环复用，避免每次 read 都 acquire/release
