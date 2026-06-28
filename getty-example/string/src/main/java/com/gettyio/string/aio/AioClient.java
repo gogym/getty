@@ -95,7 +95,7 @@ public class AioClient {
                             String s = "12\r\n";
                             byte[] msgBody = s.getBytes();
 
-                            while (i < 1000) {
+                            while (i < 1000000) {
                                 long before = System.nanoTime();
                                 boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
                                 long elapsed = System.nanoTime() - before;
