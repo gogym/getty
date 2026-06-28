@@ -39,8 +39,12 @@ import java.util.List;
  * NIO（非阻塞 I/O）通道实现。
  * <p>
  * 基于 {@link SocketChannel} 配合 Selector 实现非阻塞读写。
- * 写出操作由 EventLoop 驱动：业务线程仅将数据追加到 {@link BufferWriter} 链表，
- * 然后通知 EventLoop 注册 OP_WRITE，由 EventLoop 使用 Gathering Write 批量写出。
+ * 写出采用 BufferWriter 队列缓存 + Gathering Write 设计：
+ * 业务线程将编码器产出的 byte[] 追加到队列后立即返回，
+ * EventLoop 在 OP_WRITE 就绪时拉取 byte[]，通过
+ * {@code ByteBuffer.wrap(byte[])} 零拷贝构建 ByteBuffer 数组，
+ * 使用 {@code channel.write(ByteBuffer[])} 批量写出。
+ * 整个过程无 PooledByteBuffer 中转，零额外内存拷贝。
  * </p>
  *
  * @author gogym
@@ -57,21 +61,10 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     private final BufferWriter bufferWriter;
 
     /**
-     * OP_WRITE 是否已注册到 Selector。
-     * volatile 保证业务线程与 EventLoop 线程间的可见性。
+     * 部分写出时残留的 byte[] 列表（仅 EventLoop 线程访问）。
+     * 全部写出后清空，等待下一轮 drain。
      */
-    private volatile boolean writeRegistered;
-
-    /**
-     * 部分写出时暂存的缓冲区列表（仅 EventLoop 线程访问）。
-     * 下次 doWrite 时优先写出这些缓冲区中的剩余数据。
-     */
-    private List<PooledByteBuffer> pendingWriteBufs;
-
-    /**
-     * 复用的收集列表，避免每次 doWrite 分配。
-     */
-    private final List<PooledByteBuffer> drainBufs = new ArrayList<>();
+    private final List<byte[]> pendingBytes = new ArrayList<>();
 
     /** SSL 处理器 */
     private SSLHandler sslHandler;
@@ -194,21 +187,35 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 管道终点：数据仅追加到 BufferWriter 链表。
+     * 管道终点：将 PooledByteBuffer 数据转为 byte[] 入队（向后兼容仍输出 PooledByteBuffer 的编码器）。
+     * <p>
+     * 提取可读字节为 byte[] 入队，然后立即释放 PooledByteBuffer。
+     * 对于方案二（编码器直出 byte[]），使用 {@link #writeToSocket(byte[])} 更高效。
+     * </p>
      */
     @Override
     public void writeToSocket(PooledByteBuffer obj) {
         try {
-            bufferWriter.write(obj);
+            int readable = obj.readableBytes();
+            if (readable <= 0) {
+                obj.release();
+                return;
+            }
+            byte[] bytes = new byte[readable];
+            obj.readBytes(bytes);
+            obj.release();
+            bufferWriter.write(bytes);
         } catch (Exception e) {
             logger.error("writeToSocket failed", e);
         }
     }
 
     /**
-     * 管道终点：将 byte[] 包装为 PooledByteBuffer 后追加到 BufferWriter 链表。
+     * 管道终点：将 byte[] 数据入队（方案二：编码器直出 byte[]）。
      * <p>
-     * NIO 的 EventLoop 驱动写入，业务线程仅入队，因此无跨线程 buffer 释放问题。
+     * 编码器不分配 PooledByteBuffer，直接产出 byte[]。
+     * PooledByteBuffer 由 EventLoop 在 {@link #doWrite()} 中分配，
+     * 确保分配和释放在同一线程，彻底消除跨线程回收。
      * </p>
      */
     @Override
@@ -217,9 +224,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
             if (bytes == null || bytes.length == 0) {
                 return;
             }
-            PooledByteBuffer buf = byteBufferPool.acquire(bytes.length);
-            buf.writeBytes(bytes);
-            bufferWriter.write(buf);
+            bufferWriter.write(bytes);
         } catch (Exception e) {
             logger.error("writeToSocket(byte[]) failed", e);
         }
@@ -321,24 +326,19 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      * <p>
      * 由 {@link BufferWriter#flush()} 在业务线程中调用。
      * 仅注册兴趣事件并唤醒 Selector，不执行任何 I/O 操作。
-     * 通过 {@link #writeRegistered} 标志避免重复注册。
+     * 不维护额外标志位：{@code interestOps} 是幂等操作，重复注册 OP_WRITE 无副作用。
      * </p>
      */
     @Override
     public void notifyFlush() {
-        if (!writeRegistered) {
-            writeRegistered = true;
-            try {
-                SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
-                if (key != null && key.isValid()) {
-                    key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
-                }
-                // 唤醒 Selector，使其立即处理新注册的 OP_WRITE
-                nioEventLoop.getSelector().wakeup();
-            } catch (Exception e) {
-                // 通道可能已关闭，忽略
-                writeRegistered = false;
+        try {
+            SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
+            if (key != null && key.isValid()) {
+                key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
             }
+            nioEventLoop.getSelector().wakeup();
+        } catch (Exception e) {
+            // 通道可能已关闭，忽略
         }
     }
 
@@ -347,14 +347,14 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 由 EventLoop 在 OP_WRITE 就绪时调用，使用 Gathering Write 批量写出。
      * <p>
-     * 写出策略：
+     * 处理流程：
      * <ol>
-     *   <li>优先写出上次部分写出残留的缓冲区</li>
-     *   <li>再从 BufferWriter 链表批量取出新缓冲区</li>
-     *   <li>使用 {@code SocketChannel.write(ByteBuffer[])} 一次性写出</li>
-     *   <li>部分写出时保留剩余缓冲区，等待下次 OP_WRITE 继续写出</li>
-     *   <li>全部写出完成后移除 OP_WRITE 兴趣</li>
+     *   <li>从 BufferWriter 拉取所有 byte[]，直接用 {@code ByteBuffer.wrap()} 零拷贝构建数组</li>
+     *   <li>使用 {@code SocketChannel.write(ByteBuffer[])} Gathering Write 一次性写出</li>
+     *   <li>部分写出时保留剩余 byte[] 在 pendingBytes 中，等待下次 OP_WRITE 继续写出</li>
+     *   <li>全部写完后再次检查新数据，有数据则继续写出，无数据才移除 OP_WRITE</li>
      * </ol>
+     * 整个过程不涉及 PooledByteBuffer 分配/释放，零额外内存拷贝。
      * </p>
      */
     public void doWrite() {
@@ -363,94 +363,81 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         }
 
         try {
-            // 1. 收集所有待写出的缓冲区
-            drainBufs.clear();
-            List<PooledByteBuffer> bufs = drainBufs;
-
-            // 优先使用部分写出残留的缓冲区
-            if (pendingWriteBufs != null && !pendingWriteBufs.isEmpty()) {
-                bufs.addAll(pendingWriteBufs);
-                pendingWriteBufs = null;
+            // 1. 从 BufferWriter 拉取新数据
+            if (pendingBytes.isEmpty()) {
+                bufferWriter.pollAllBytes(pendingBytes);
             }
 
-            // 从 BufferWriter 链表批量取出新缓冲区
-            bufferWriter.pollAll(bufs);
+            if (pendingBytes.isEmpty()) {
+                removeOpWrite();
+                return;
+            }
 
-            if (bufs.isEmpty()) {
-                // 无数据，移除 OP_WRITE
-                writeRegistered = false;
-                SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
-                if (key != null && key.isValid()) {
-                    key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
+            // 2. 零拷贝构建 ByteBuffer 数组
+            ByteBuffer[] bbArray = new ByteBuffer[pendingBytes.size()];
+            for (int i = 0; i < pendingBytes.size(); i++) {
+                bbArray[i] = ByteBuffer.wrap(pendingBytes.get(i));
+            }
+
+            // 3. Gathering Write
+            channel.write(bbArray);
+
+            // 4. 检查写出状态，移除已完全写出的 byte[]
+            int remaining = 0;
+            for (int i = 0; i < bbArray.length; i++) {
+                if (bbArray[i].hasRemaining()) {
+                    remaining = bbArray.length - i;
+                    // 保留未写完的 byte[]（从当前位置开始）
+                    for (int j = 0; j < remaining; j++) {
+                        pendingBytes.set(j, pendingBytes.get(i + j));
+                    }
+                    break;
+                }
+            }
+
+            if (remaining > 0) {
+                // 部分写出 → 保留 pendingBytes，保持 OP_WRITE
+                while (pendingBytes.size() > remaining) {
+                    pendingBytes.remove(pendingBytes.size() - 1);
+                }
+                if (!keepAlive) {
+                    close();
                 }
                 return;
             }
 
-            // 2. 准备 ByteBuffer 数组，设置 position/limit 为可读范围
-            ByteBuffer[] bbArray = new ByteBuffer[bufs.size()];
-            for (int i = 0; i < bufs.size(); i++) {
-                ByteBuffer bb = bufs.get(i).getBuffer();
-                bb.position(bufs.get(i).readerIndex());
-                bb.limit(bufs.get(i).writerIndex());
-                bbArray[i] = bb;
+            pendingBytes.clear();
+
+            // 5. 全部写完，再检查一次新数据（防止竞争窗口）
+            bufferWriter.pollAllBytes(pendingBytes);
+            if (!pendingBytes.isEmpty()) {
+                return; // 有新数据，保持 OP_WRITE
             }
 
-            // 3. Gathering Write：一次性写出所有缓冲区
-            long totalBefore = 0;
-            for (ByteBuffer bb : bbArray) {
-                totalBefore += bb.remaining();
-            }
-            long written = channel.write(bbArray);
-
-            // 4. 计算实际写出量，判断是否全部写出
-            long totalAfter = 0;
-            for (ByteBuffer bb : bbArray) {
-                totalAfter += bb.remaining();
-            }
-
-            if (totalAfter == 0) {
-                // 全部写出完成，同步 BufferWriter 的 readerIndex，释放缓冲区
-                for (PooledByteBuffer buf : bufs) {
-                    buf.readerIndex(buf.writerIndex());
-                    buf.release();
-                }
-                // 移除 OP_WRITE
-                writeRegistered = false;
-                SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
-                if (key != null && key.isValid()) {
-                    key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
-                }
-            } else {
-                // 部分写出：更新 readerIndex，保留剩余数据供下次写出
-                List<PooledByteBuffer> remaining = new ArrayList<>();
-                for (PooledByteBuffer buf : bufs) {
-                    ByteBuffer bb = buf.getBuffer();
-                    buf.readerIndex(bb.position());
-                    if (buf.hasRemaining()) {
-                        remaining.add(buf);
-                    } else {
-                        buf.release();
-                    }
-                }
-                if (!remaining.isEmpty()) {
-                    pendingWriteBufs = remaining;
-                }
-                // 保留 OP_WRITE，等待下次可写时继续
-            }
+            removeOpWrite();
 
             if (!keepAlive) {
                 close();
             }
         } catch (IOException e) {
             logger.error("doWrite gathering write failed", e);
-            // 释放残留缓冲区
-            if (pendingWriteBufs != null) {
-                for (PooledByteBuffer buf : pendingWriteBufs) {
-                    buf.release();
-                }
-                pendingWriteBufs = null;
-            }
+            pendingBytes.clear();
             close();
         }
     }
+
+    /**
+     * 移除 OP_WRITE 兴趣事件。
+     */
+    private void removeOpWrite() {
+        try {
+            SelectionKey key = channel.keyFor(nioEventLoop.getSelector().getSelector());
+            if (key != null && key.isValid()) {
+                key.interestOps(key.interestOps() & ~SelectionKey.OP_WRITE);
+            }
+        } catch (Exception e) {
+            // 通道可能已关闭，忽略
+        }
+    }
+
 }

@@ -20,7 +20,7 @@ public class AioClient {
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
         int i = 0;
-        while (i < 1) {
+        while (i < 100) {
             AioClient ac = new AioClient();
             ac.test(8888);
             i++;
@@ -86,30 +86,70 @@ public class AioClient {
             @Override
             public void onCompleted(final AbstractSocketChannel abstractSocketChannel) {
 
-                new Thread(new Runnable() {
+                Thread bizThread = new Thread(new Runnable() {
                     @Override
                     public void run() {
+                        long ct = System.currentTimeMillis();
+                        int i = 0;
                         try {
                             String s = "12\r\n";
                             byte[] msgBody = s.getBytes();
-                            long ct = System.currentTimeMillis();
 
-                            int i = 0;
                             while (i < 1000) {
+                                long before = System.nanoTime();
                                 boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
-                                //if (flag) {
+                                long elapsed = System.nanoTime() - before;
                                 i++;
-                                //}
+//                                if (i % 100 == 0) {
+//                                    System.out.println("[biz] 已发送 " + i + " 条, 单次耗时: " + elapsed / 1000 + "us, 通道状态: " + abstractSocketChannel.isInvalid());
+//                                }
+//                                // 如果单次 writeAndFlush 超过 100ms，打印告警
+//                                if (elapsed > 100_000_000L) {
+//                                    System.out.println("[biz] 警告: 第 " + i + " 次 writeAndFlush 耗时 " + elapsed / 1_000_000 + "ms，疑似阻塞！");
+//                                }
                             }
 
-                            long lt = System.currentTimeMillis();
-                            System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                            System.out.printf("发送消息数量：" + i + "条\r\n");
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
+                            System.err.println("Thread-0 异常退出，已发送: " + i);
                             e.printStackTrace();
+                        } finally {
+                            long lt = System.currentTimeMillis();
+                            System.out.println("总耗时(ms)：" + (lt - ct));
+                            System.out.println("发送消息数量：" + i + "条");
+                            System.out.flush();
                         }
                     }
-                }).start();
+                });
+                bizThread.start();
+
+                // 监控线程：如果业务线程 10 秒内未完成，dump 线程栈
+                final Thread bizRef = bizThread;
+                Thread monitor = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            bizRef.join(10_000);
+                            if (bizRef.isAlive()) {
+                                System.err.println("[monitor] 业务线程 10 秒未完成！线程状态: " + bizRef.getState());
+                                System.err.println("[monitor] 业务线程栈:");
+                                for (StackTraceElement ste : bizRef.getStackTrace()) {
+                                    System.err.println("  at " + ste);
+                                }
+                                System.err.println("[monitor] 所有线程:");
+                                for (java.util.Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
+                                    Thread t = entry.getKey();
+                                    System.err.println("  [" + t.getName() + "] state=" + t.getState());
+                                    for (StackTraceElement ste : entry.getValue()) {
+                                        System.err.println("    at " + ste);
+                                    }
+                                }
+                                System.err.flush();
+                            }
+                        } catch (InterruptedException ignored) {}
+                    }
+                }, "biz-monitor");
+                monitor.setDaemon(true);
+                monitor.start();
             }
 
             @Override

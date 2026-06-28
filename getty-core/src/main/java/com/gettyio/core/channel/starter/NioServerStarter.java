@@ -28,7 +28,6 @@ import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.util.FastArrayList;
-import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -67,6 +66,9 @@ public class NioServerStarter extends NioStarter {
 
     /** 接受连接用的选择器 */
     private SelectedSelector acceptSelector;
+
+    /** accept 循环线程 */
+    private Thread acceptThread;
 
     /** EventLoop 列表（轮询分配） */
     private final FastArrayList<NioEventLoop> eventLoops = new FastArrayList<>(NioEventLoop.class);
@@ -112,7 +114,6 @@ public class NioServerStarter extends NioStarter {
         Banner.printBanner();
         startCheck(config, true);
         byteBufferPool = new GettyByteBufferPool(config.isDirect());
-        bossThreadPool = new ThreadPool(ThreadPool.FixedThread, bossThreadNum);
 
         // 创建 EventLoop 池
         for (int i = 0; i < workerThreadNum; i++) {
@@ -144,37 +145,43 @@ public class NioServerStarter extends NioStarter {
         acceptSelector = new SelectedSelector(Selector.open());
         serverSocketChannel.register(acceptSelector.getSelector(), SelectionKey.OP_ACCEPT);
 
-        bossThreadPool.execute(new Runnable() {
-            @Override
-            public void run() {
-                while (running) {
-                    try {
-                        if (acceptSelector.select(0) <= 0) {
-                            continue;
-                        }
+        acceptThread = new Thread(this::acceptLoop, "nio-accept");
+        acceptThread.setDaemon(true);
+        acceptThread.start();
 
-                        Iterator<SelectionKey> it = acceptSelector.selectedKeys().iterator();
-                        while (it.hasNext()) {
-                            SelectionKey key = it.next();
-                            it.remove();
+        LOGGER.info("getty server started TCP on port {}, workerThreadNum:{}",
+                config.getPort(), workerThreadNum);
+        LOGGER.info("getty server config: {}", config);
+    }
 
-                            if (key.isAcceptable()) {
-                                java.nio.channels.SocketChannel socketChannel =
-                                        ((ServerSocketChannel) key.channel()).accept();
-                                socketChannel.configureBlocking(false);
-                                createTcpChannel(socketChannel);
-                            }
-                        }
-                    } catch (IOException e) {
-                        LOGGER.error("accept error", e);
+    /**
+     * accept 循环。在 daemon 线程中运行，接受新连接并分配到 EventLoop。
+     */
+    private void acceptLoop() {
+        while (running) {
+            try {
+                if (acceptSelector.select(0) <= 0) {
+                    continue;
+                }
+
+                Iterator<SelectionKey> it = acceptSelector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey key = it.next();
+                    it.remove();
+
+                    if (key.isAcceptable()) {
+                        java.nio.channels.SocketChannel socketChannel =
+                                ((ServerSocketChannel) key.channel()).accept();
+                        socketChannel.configureBlocking(false);
+                        createTcpChannel(socketChannel);
                     }
                 }
+            } catch (Exception e) {
+                if (running) {
+                    LOGGER.error("accept error", e);
+                }
             }
-        });
-
-        LOGGER.info("getty server started TCP on port {}, bossThreadNum:{}, workerThreadNum:{}",
-                config.getPort(), bossThreadNum, workerThreadNum);
-        LOGGER.info("getty server config: {}", config);
+        }
     }
 
     /**
@@ -224,6 +231,11 @@ public class NioServerStarter extends NioStarter {
      */
     public final void shutdown() {
         running = false;
+
+        // 先 wakeup 使 accept 线程退出阻塞
+        if (acceptSelector != null) {
+            acceptSelector.wakeup();
+        }
 
         if (serverSocketChannel != null) {
             try { serverSocketChannel.close(); } catch (IOException e) { LOGGER.error("close serverSocketChannel failed", e); }

@@ -180,21 +180,18 @@ public class SelectedSelector extends Selector {
         emptySelectCount = 0;
 
         for (; ; ) {
-            // 如果有注册操作正在进行，跳过本轮 select
-            if (registering) {
-                continue;
-            }
-
             int selected = delegate.select(timeout);
             if (selected >= 1) {
                 emptySelectCount = 0;
                 return selected;
             }
 
-            // 空轮询计数 +1
-            emptySelectCount++;
-            long elapsed = System.nanoTime() - startTimeNanos;
+            // selected == 0：如果是 register() 的 wakeup 导致的假阳性，跳过计数
+            if (!registering) {
+                emptySelectCount++;
+            }
 
+            long elapsed = System.nanoTime() - startTimeNanos;
             if (elapsed >= TimeUnit.MILLISECONDS.toNanos(timeout)) {
                 // 正常超时，重置计数器
                 emptySelectCount = 0;
@@ -202,7 +199,6 @@ public class SelectedSelector extends Selector {
                 // 极短时间内大量空轮询 → 触发 bug，重建 Selector
                 LOGGER.warn("Selector empty poll detected ({} times), rebuilding...", emptySelectCount);
                 rebuildSelector();
-                // 重建后重置起始时间和计数器
                 startTimeNanos = System.nanoTime();
                 emptySelectCount = 0;
             }

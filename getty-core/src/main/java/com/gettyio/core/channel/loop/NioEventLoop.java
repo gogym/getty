@@ -21,17 +21,18 @@ import com.gettyio.core.channel.NioChannel;
 import com.gettyio.core.channel.config.BaseConfig;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.thread.ThreadPool;
 
 import java.io.IOException;
+import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * NIO 事件循环。
  * <p>
- * 负责在单线程中轮询 Selector，处理连接建立（OP_CONNECT）和数据读取（OP_READ）事件。
+ * 负责在单线程中轮询 Selector，处理连接建立（OP_CONNECT）、读取（OP_READ）和写入（OP_WRITE）事件。
  * 每个 NioEventLoop 持有一个 Selector，管理多个 NioChannel 的 I/O 事件。
  * </p>
  *
@@ -41,17 +42,17 @@ public class NioEventLoop implements EventLoop {
 
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(NioEventLoop.class);
 
-    /** 关闭标志 */
-    private volatile boolean shutdown;
+    /** 关闭标志（CAS 保证 wakeup 只调用一次） */
+    private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
     /** 通道配置 */
     private final BaseConfig config;
 
     /** 包装后的 Selector（含空轮询检测） */
-    private SelectedSelector selector;
+    private final SelectedSelector selector;
 
-    /** 单线程池，负责运行事件循环 */
-    private final ThreadPool workerThreadPool;
+    /** 事件循环线程 */
+    private final Thread thread;
 
     /** 内存池 */
     private final ByteBufferPool byteBufferPool;
@@ -66,7 +67,8 @@ public class NioEventLoop implements EventLoop {
     public NioEventLoop(BaseConfig config, ByteBufferPool byteBufferPool) throws IOException {
         this.config = config;
         this.byteBufferPool = byteBufferPool;
-        this.workerThreadPool = new ThreadPool(ThreadPool.FixedThread, 1);
+        this.thread = new Thread(this::eventLoop, "nio-event-loop");
+        this.thread.setDaemon(true);
         try {
             this.selector = new SelectedSelector(Selector.open());
         } catch (IOException e) {
@@ -77,45 +79,58 @@ public class NioEventLoop implements EventLoop {
 
     @Override
     public void run() {
-        workerThreadPool.execute(new Runnable() {
-            @Override
-            public void run() {
-                // 长生命周期读缓冲区：整个事件循环复用，避免每次 read 都 acquire/release
-                PooledByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+        thread.start();
+    }
+
+    /**
+     * 事件循环主体。在 daemon 线程中运行，复用读缓冲区直到关闭。
+     */
+    private void eventLoop() {
+        // 长生命周期读缓冲区：整个事件循环复用，避免每次 read 都 acquire/release
+        PooledByteBuffer readBuffer = byteBufferPool.acquire(config.getReadBufferSize());
+        try {
+            while (!shutdown.get()) {
                 try {
-                    while (!shutdown) {
-                        try {
-                            selector.select(); // 使用内置超时，确保空轮询检测生效
-                        } catch (IOException e) {
-                            LOGGER.error("select() error", e);
-                        }
+                    selector.select();
+                } catch (IOException e) {
+                    LOGGER.error("select() error", e);
+                }
 
-                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                        while (it.hasNext()) {
-                            SelectionKey sk = it.next();
-                            it.remove();
+                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    SelectionKey sk = it.next();
+                    it.remove();
 
-                            Object attachment = sk.attachment();
-                            if (!(attachment instanceof NioChannel)) {
-                                continue;
-                            }
-
-                            NioChannel nioChannel = (NioChannel) attachment;
-
-                            if (sk.isConnectable()) {
-                                handleConnect(sk, nioChannel);
-                            } else if (sk.isReadable()) {
-                                handleRead(sk, nioChannel, readBuffer);
-                            } else if (sk.isWritable()) {
-                                handleWrite(sk, nioChannel);
-                            }
-                        }
+                    Object attachment = sk.attachment();
+                    if (!(attachment instanceof NioChannel)) {
+                        continue;
                     }
-                } finally {
-                    readBuffer.release();
+
+                    NioChannel nioChannel = (NioChannel) attachment;
+
+                    try {
+                        if (sk.isConnectable()) {
+                            handleConnect(sk, nioChannel);
+                        } else {
+                            // 独立检查：单次 select 可同时处理读和写
+                            if (sk.isReadable()) {
+                                handleRead(sk, nioChannel, readBuffer);
+                            }
+                            if (sk.isWritable()) {
+                                nioChannel.doWrite();
+                            }
+                        }
+                    } catch (CancelledKeyException e) {
+                        // Key 已取消，忽略
+                    } catch (Exception e) {
+                        LOGGER.error("event dispatch error for channel", e);
+                        nioChannel.close();
+                    }
                 }
             }
-        });
+        } finally {
+            readBuffer.release();
+        }
     }
 
     /**
@@ -171,29 +186,13 @@ public class NioEventLoop implements EventLoop {
         }
     }
 
-    /**
-     * 处理写事件。由 EventLoop 在 OP_WRITE 就绪时调用。
-     * <p>
-     * 委托给 {@link NioChannel#doWrite()} 执行 Gathering Write，
-     * 将 BufferWriter 链表中的所有缓冲区一次性写入 Socket。
-     * </p>
-     */
-    private void handleWrite(SelectionKey sk, NioChannel nioChannel) {
-        try {
-            nioChannel.doWrite();
-        } catch (Exception e) {
-            LOGGER.error("channel write error", e);
-            nioChannel.close();
-        }
-    }
-
     @Override
     public void shutdown() {
-        shutdown = true;
-        if (!workerThreadPool.isShutDown()) {
-            workerThreadPool.shutdown();
+        // CAS 保证 wakeup 只调用一次，避免重复唤醒
+        if (shutdown.compareAndSet(false, true)) {
+            selector.wakeup();
         }
-        if (selector != null && selector.isOpen()) {
+        if (selector.isOpen()) {
             try {
                 selector.close();
             } catch (IOException e) {

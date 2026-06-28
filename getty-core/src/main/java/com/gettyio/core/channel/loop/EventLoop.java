@@ -16,9 +16,9 @@
 package com.gettyio.core.channel.loop;
 
 /**
- * 事件循环接口。
+ * NIO 事件循环接口。
  * <p>
- * 负责在独立线程中轮询 Selector，处理 I/O 事件（连接、读取等）。
+ * 负责在独立线程中轮询 Selector，处理 I/O 事件（连接、读取、写入）。
  * </p>
  *
  * @author gogym
