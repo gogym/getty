@@ -29,17 +29,20 @@ import com.gettyio.core.channel.ChannelState;
  * </ul>
  * </p>
  *
- * <p><b>性能优化说明：</b>写路径在 {@link #fireChannelProcess} 中直接检查 {@code prev == null}
- * 来判断是否到达头节点，避免了原先每次写操作都要调用 {@code pipeline.isFirst(this)}
- * 进行链表遍历的开销。这是管道写路径的核心热路径优化。</p>
+ * <p><b>异常传播机制：</b>当处理器抛出异常时，{@link #invokeChannelProcess} 会自动捕获，
+ * 并将异常作为 {@code CHANNEL_EXCEPTION} 事件向后续处理器传播。
+ * 异常最终到达尾部哨兵时，由 {@link DefaultChannelHandler#exceptionCaught} 记录日志并终止传播链。</p>
+ *
+ * <p><b>性能优化：</b>写路径在 {@link #fireChannelProcess} 中直接检查 {@code prev == null}
+ * 来判断是否到达头节点，避免了每次写操作都要遍历链表的开销。</p>
  */
 abstract class AbstractChannelHandlerContext implements ChannelHandlerContext {
 
     /** 链表后继节点（入站方向下一个处理器） */
-    volatile AbstractChannelHandlerContext next;
+    AbstractChannelHandlerContext next;
 
     /** 链表前驱节点（出站方向上一个处理器） */
-    volatile AbstractChannelHandlerContext prev;
+    AbstractChannelHandlerContext prev;
 
     /**
      * 将事件传播到下一个处理器。
@@ -80,13 +83,36 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext {
      * 调用绑定的处理器处理方法。
      * <p>
      * 标记为 final 以允许 JIT 内联优化，这是管道事件分发的热路径。
+     * 如果处理器抛出异常，自动捕获并向后续处理器传播 CHANNEL_EXCEPTION 事件。
      * </p>
      *
      * @param channelState 通道状态
      * @param in           事件数据
-     * @throws Exception 处理过程中发生错误时抛出
      */
-    private void invokeChannelProcess(ChannelState channelState, Object in) throws Exception {
-        handler().channelProcess(this, channelState, in);
+    private void invokeChannelProcess(ChannelState channelState, Object in) {
+        try {
+            handler().channelProcess(this, channelState, in);
+        } catch (Exception e) {
+            propagateException(e);
+        }
+    }
+
+    /**
+     * 向管道中后续处理器传播异常。
+     * <p>
+     * 异常始终沿 next 方向（入站方向）传播，使后续处理器有机会通过
+     * {@code exceptionCaught} 处理异常。异常到达尾部哨兵时，
+     * 由 {@link DefaultChannelHandler#exceptionCaught} 记录日志并终止传播链。
+     * </p>
+     *
+     * @param cause 捕获到的异常
+     */
+    private void propagateException(Exception cause) {
+        AbstractChannelHandlerContext n = next;
+        if (n != null) {
+            n.invokeChannelProcess(ChannelState.CHANNEL_EXCEPTION, cause);
+        }
+        // next == null 时说明已到达 tail 哨兵，tail 的 DefaultChannelHandler.exceptionCaught
+        // 会记录日志并终止传播链，此处无需额外处理
     }
 }

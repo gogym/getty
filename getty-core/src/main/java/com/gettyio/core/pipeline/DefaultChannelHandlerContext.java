@@ -35,8 +35,8 @@ class DefaultChannelHandlerContext extends AbstractChannelHandlerContext {
     /**
      * 构造处理器上下文。
      *
-     * @param channel 底层通道
-     * @param handler 绑定的处理器
+     * @param channel  底层通道
+     * @param handler  绑定的处理器
      */
     DefaultChannelHandlerContext(AbstractSocketChannel channel, ChannelHandler handler) {
         this.channel = channel;

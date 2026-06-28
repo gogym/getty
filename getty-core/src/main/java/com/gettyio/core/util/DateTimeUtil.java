@@ -53,17 +53,6 @@ public final class DateTimeUtil {
     }
 
     /**
-     * 使用指定格式获取当前系统时间
-     *
-     * @param pattern 日期时间格式，如 "yyyy-MM-dd"
-     * @return 格式化后的当前时间字符串
-     */
-    public static String getCurrentTime(String pattern) {
-        SimpleDateFormat sdf = new SimpleDateFormat(pattern);
-        return sdf.format(new Date());
-    }
-
-    /**
      * 将时间戳格式化为默认格式的字符串
      *
      * @param timestamp 毫秒时间戳
