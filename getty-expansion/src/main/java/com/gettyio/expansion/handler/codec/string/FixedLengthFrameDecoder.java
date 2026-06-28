@@ -54,14 +54,14 @@ public class FixedLengthFrameDecoder extends ByteToMessageDecoder {
         PooledByteBuffer buf = (PooledByteBuffer) in;
         // 零分配：通过 readArray() 一次性获取底层数组并消费全部可读数据
         int len = buf.readableBytes();
-        int offset = buf.readerIndex();
+        int offset = buf.arrayOffset();
         cumulation.writeBytes(buf.readArray(), offset, len);
 
         while (cumulation.readableBytes() >= frameLength) {
             byte[] frame = new byte[frameLength];
             cumulation.readBytes(frame);
-            cumulation.discardReadBytes();
             super.channelRead(ctx, frame);
         }
+        cumulation.discardReadBytes();
     }
 }

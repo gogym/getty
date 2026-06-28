@@ -562,7 +562,7 @@ class RetainableByteBuffer {
      * 避免调用方忘记推进 readerIndex。适用于需要一次性拷贝全部可读数据到目标缓冲区的场景。
      * </p>
      * <p>
-     * 调用方通过 {@code readerIndex()}（调用前的值）和 {@code readableBytes()}（调用前的值）
+     * 调用方通过 {@code arrayOffset()} 和 {@code readableBytes()}（调用前的值）
      * 确定数组中可读数据的起始偏移和长度。
      * </p>
      *

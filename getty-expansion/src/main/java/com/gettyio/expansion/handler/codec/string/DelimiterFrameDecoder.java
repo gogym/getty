@@ -66,17 +66,14 @@ public class DelimiterFrameDecoder extends ByteToMessageDecoder {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) in;
-        // 零分配：通过 readArray() 一次性获取底层数组并消费全部可读数据
+        // 零拷贝：直接引用 buf 底层数组，省掉 byte[] 分配和 arraycopy
+        // 输入来自 buf 数组，输出写到 preBuffer，两者是不同对象，读写隔离
         int len = buf.readableBytes();
-        int offset = buf.readerIndex();
-        preBuffer.writeBytes(buf.readArray(), offset, len);
-
-        // 锁定原始数据边界：后续 writeByte 回写分隔符字节会增大 readableBytes，
-        // 必须用固定值防止循环越界。分隔符匹配后 clear 时需重新计算。
-        int dataLen = preBuffer.readableBytes();
+        int offset = buf.arrayOffset();
+        byte[] bytes = buf.readArray();
         int index = 0;
-        while (index < dataLen) {
-            byte data = preBuffer.array()[preBuffer.readerIndex() + index];
+        while (index < len) {
+            byte data = bytes[offset + index];
             if (data == delimiter[matchIndex]) {
                 matchIndex++;
                 if (matchIndex == delimiter.length) {
@@ -84,9 +81,6 @@ public class DelimiterFrameDecoder extends ByteToMessageDecoder {
                     super.channelRead(ctx, preBuffer.allWriteBytesArray());
                     preBuffer.clear();
                     matchIndex = 0;
-                    // clear 后原始数据已清空，重新计算数据边界
-                    dataLen = preBuffer.readableBytes();
-                    index = 0;
                 }
             } else {
                 // 匹配失败：将之前已匹配的分隔符字节写入缓冲区
