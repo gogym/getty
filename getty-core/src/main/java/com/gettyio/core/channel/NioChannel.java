@@ -240,9 +240,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         pendingBufs.clear();
 
         // 通知关闭监听器
-        if (channelFutureListener != null) {
-            channelFutureListener.operationComplete(this);
-        }
+        fireChannelFutureListeners();
 
         // 仅客户端连接的 EventLoop 需要关闭（服务端的 EventLoop 是共享的）
         if (nioEventLoop != null && config.isClient()) {

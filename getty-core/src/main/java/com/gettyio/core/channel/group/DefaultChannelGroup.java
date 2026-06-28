@@ -9,26 +9,25 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
  * License for the specific language governing permissions and limitations
  * under the License.
  */
 package com.gettyio.core.channel.group;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
-import com.gettyio.core.util.ConcurrentSafeMap;
 
 import java.util.AbstractSet;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ChannelGroup 默认实现。
  * <p>
- * 内部使用 {@link ConcurrentSafeMap} 存储通道（以通道 ID 为 key），
- * 支持按 ID 快速查找。添加通道时自动注册关闭监听器，
- * 通道关闭后自动从组中移除。
+ * 内部使用 {@link ConcurrentHashMap} 存储通道（以通道 ID 为 key），
+ * 读操作完全无锁（volatile read），广播遍历性能最优。
+ * 添加通道时自动注册关闭监听器，通道关闭后自动从组中移除。
  * </p>
  *
  * @author gogym
@@ -38,11 +37,11 @@ public class DefaultChannelGroup extends AbstractSet<AbstractSocketChannel> impl
     /** 组名称 */
     private final String name;
 
-    /** 通道存储（channelId → channel） */
-    private final ConcurrentSafeMap<String, AbstractSocketChannel> channels = new ConcurrentSafeMap<>();
+    /** 通道存储（channelId → channel），无锁读 */
+    private final ConcurrentHashMap<String, AbstractSocketChannel> channels;
 
     /**
-     * 默认构造（组名为 "default"）。
+     * 默认构造（组名为 "defaultChannelGroup"）。
      */
     public DefaultChannelGroup() {
         this("defaultChannelGroup");
@@ -58,10 +57,11 @@ public class DefaultChannelGroup extends AbstractSet<AbstractSocketChannel> impl
             throw new NullPointerException("name");
         }
         this.name = name;
+        this.channels = new ConcurrentHashMap<>();
     }
 
     @Override
-    public String name() {
+    public final String name() {
         return name;
     }
 
@@ -71,63 +71,92 @@ public class DefaultChannelGroup extends AbstractSet<AbstractSocketChannel> impl
     }
 
     @Override
-    public boolean isEmpty() {
+    public final boolean isEmpty() {
         return channels.isEmpty();
     }
 
     @Override
-    public int size() {
+    public final int size() {
         return channels.size();
     }
 
     @Override
     public boolean contains(Object o) {
-        if (o instanceof AbstractSocketChannel) {
-            return channels.containsValue(o);
+        if (!(o instanceof AbstractSocketChannel)) {
+            return false;
         }
-        return false;
+        AbstractSocketChannel ch = (AbstractSocketChannel) o;
+        return ch == channels.get(ch.getChannelId());
     }
 
     @Override
     public boolean add(AbstractSocketChannel channel) {
-        boolean added = channels.putIfAbsent(channel.getChannelId(), channel) == null;
-        if (added) {
-            // 注册关闭监听器，通道关闭时自动从组中移除
-            channel.setChannelFutureListener(autoRemover);
+        AbstractSocketChannel old = channels.putIfAbsent(channel.getChannelId(), channel);
+        if (old != null) {
+            return false;
         }
-        return added;
+        // 注册关闭监听器，通道关闭时自动从组中移除
+        channel.addChannelFutureListener(autoRemover);
+        return true;
     }
 
     @Override
     public boolean remove(Object o) {
-        AbstractSocketChannel removed = null;
-        if (o instanceof String) {
-            removed = channels.remove(o);
-        } else if (o instanceof AbstractSocketChannel) {
+        AbstractSocketChannel removed;
+        if (o instanceof AbstractSocketChannel) {
             removed = channels.remove(((AbstractSocketChannel) o).getChannelId());
+        } else if (o instanceof String) {
+            removed = channels.remove((String) o);
+        } else {
+            return false;
         }
         if (removed == null) {
             return false;
         }
-        removed.setChannelFutureListener(null);
+        removed.removeChannelFutureListener(autoRemover);
         return true;
     }
 
     @Override
     public void clear() {
+        // 先清理每个通道的监听器引用，再批量移除
+        for (AbstractSocketChannel ch : channels.values()) {
+            ch.removeChannelFutureListener(autoRemover);
+        }
         channels.clear();
     }
 
     @Override
-    public <T> T[] toArray(T[] a) {
-        Collection<AbstractSocketChannel> snapshot = new ArrayList<>(size());
-        snapshot.addAll(channels.values());
-        return snapshot.toArray(a);
+    public Object[] toArray() {
+        return channels.values().toArray();
     }
 
     @Override
+    public <T> T[] toArray(T[] a) {
+        return channels.values().toArray(a);
+    }
+
+    /**
+     * 返回通道集合的迭代器。
+     * <p>
+     * 直接委托给 {@link ConcurrentHashMap#values()} 的迭代器，
+     * 弱一致性（不抛 ConcurrentModificationException），零分配开销。
+     * </p>
+     */
+    @Override
     public Iterator<AbstractSocketChannel> iterator() {
         return channels.values().iterator();
+    }
+
+    @Override
+    public void writeToAll(Object msg) {
+        for (AbstractSocketChannel ch : channels.values()) {
+            try {
+                ch.writeAndFlush(msg);
+            } catch (Exception e) {
+                // 单个通道失败不影响其他通道
+            }
+        }
     }
 
     @Override
@@ -136,14 +165,35 @@ public class DefaultChannelGroup extends AbstractSet<AbstractSocketChannel> impl
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ChannelGroup)) {
+            return false;
+        }
+        // ChannelGroup 按名称唯一标识
+        return name.equals(((ChannelGroup) o).name());
+    }
+
+    @Override
     public int compareTo(ChannelGroup o) {
-        int cmp = name().compareTo(o.name());
-        return cmp != 0 ? cmp : System.identityHashCode(this) - System.identityHashCode(o);
+        if (o == this) {
+            return 0;
+        }
+        int cmp = name.compareTo(o.name());
+        if (cmp != 0) {
+            return cmp;
+        }
+        // 同名不同实例：用 identityHashCode 区分，避免溢出
+        int h1 = System.identityHashCode(this);
+        int h2 = System.identityHashCode(o);
+        return Integer.compare(h1, h2);
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "(name: " + name() + ", size: " + size() + ')';
+        return getClass().getSimpleName() + "(name: " + name + ", size: " + size() + ')';
     }
 
     /**

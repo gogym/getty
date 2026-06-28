@@ -31,6 +31,8 @@ import com.gettyio.core.util.ConcurrentSafeMap;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * I/O 通道的抽象基类。
@@ -83,8 +85,15 @@ public abstract class AbstractSocketChannel {
     /** 管道（责任链），惰性初始化 */
     protected ChannelPipeline channelPipeline;
 
-    /** 通道关闭监听器 */
-    protected ChannelFutureListener channelFutureListener;
+    /**
+     * 通道关闭监听器列表。
+     * <p>
+     * 使用 {@link CopyOnWriteArrayList} 保证线程安全：
+     * 添加/移除监听器时拷贝底层数组，遍历（close 时触发）零锁开销。
+     * 通道通常只有 0~2 个监听器（ChannelGroup 场景），写时拷贝开销可忽略。
+     * </p>
+     */
+    private final List<ChannelFutureListener> channelFutureListeners = new CopyOnWriteArrayList<>();
 
     /** 通道属性（读写安全的 Map） */
     protected ConcurrentSafeMap<String, Object> channelAttribute = new ConcurrentSafeMap<>();
@@ -274,8 +283,62 @@ public abstract class AbstractSocketChannel {
         return config;
     }
 
-    public void setChannelFutureListener(ChannelFutureListener channelFutureListener) {
-        this.channelFutureListener = channelFutureListener;
+    /**
+     * 添加通道关闭监听器。
+     * <p>
+     * 支持同一通道注册多个监听器（如加入多个 ChannelGroup）。
+     * </p>
+     *
+     * @param listener 待添加的监听器
+     */
+    public final void addChannelFutureListener(ChannelFutureListener listener) {
+        if (listener != null) {
+            channelFutureListeners.add(listener);
+        }
+    }
+
+    /**
+     * 移除通道关闭监听器。
+     *
+     * @param listener 待移除的监听器
+     */
+    public final void removeChannelFutureListener(ChannelFutureListener listener) {
+        if (listener != null) {
+            channelFutureListeners.remove(listener);
+        }
+    }
+
+    /**
+     * 设置通道关闭监听器（便捷方法）。
+     * <p>
+     * 清空已有监听器并设置新的。等价于先 removeAll 再 add。
+     * 传入 null 则清空所有监听器。
+     * </p>
+     *
+     * @param listener 监听器，null 表示清空
+     */
+    public void setChannelFutureListener(ChannelFutureListener listener) {
+        channelFutureListeners.clear();
+        if (listener != null) {
+            channelFutureListeners.add(listener);
+        }
+    }
+
+    /**
+     * 触发所有通道关闭监听器。
+     * <p>
+     * 由子类 close() 方法调用。CopyOnWriteArrayList 的 iterator
+     * 是快照迭代器，遍历期间不受并发修改影响，无锁开销。
+     * </p>
+     */
+    protected final void fireChannelFutureListeners() {
+        for (ChannelFutureListener listener : channelFutureListeners) {
+            try {
+                listener.operationComplete(this);
+            } catch (Exception e) {
+                logger.error("channelFutureListener error", e);
+            }
+        }
     }
 
     public ConcurrentSafeMap<String, Object> getChannelAttribute() {

@@ -282,9 +282,7 @@ public class UdpChannel extends AbstractSocketChannel implements FlushNotifier {
             logger.error("close datagramChannel failed", e);
         }
 
-        if (channelFutureListener != null) {
-            channelFutureListener.operationComplete(this);
-        }
+        fireChannelFutureListeners();
 
         // 触发关闭事件
         try {

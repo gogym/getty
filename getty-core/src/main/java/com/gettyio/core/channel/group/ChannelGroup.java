@@ -44,4 +44,15 @@ public interface ChannelGroup extends Set<AbstractSocketChannel>, Comparable<Cha
      * @return 匹配的通道，未找到返回 null
      */
     AbstractSocketChannel find(String id);
+
+    /**
+     * 向组内所有通道广播消息。
+     * <p>
+     * 对每个通道调用 {@link AbstractSocketChannel#writeAndFlush(Object)}，
+     * 单个通道失败不影响其他通道的广播。
+     * </p>
+     *
+     * @param msg 待广播的消息
+     */
+    void writeToAll(Object msg);
 }

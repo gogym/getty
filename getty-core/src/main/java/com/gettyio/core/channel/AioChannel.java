@@ -475,9 +475,7 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             logger.error("close bufferWriter failed", e);
         }
 
-        if (channelFutureListener != null) {
-            channelFutureListener.operationComplete(this);
-        }
+        fireChannelFutureListeners();
 
         try {
             channel.shutdownInput();
