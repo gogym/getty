@@ -72,7 +72,8 @@ public abstract class AbstractBufferWriter {
      *
      * @param list 用于接收弹出元素的列表（调用方传入，避免每次分配）
      */
-    public abstract void pollAll(List<Object> list);
+    @SuppressWarnings("unchecked")
+    public abstract void pollAll(List list);
 
     /**
      * 获取队列中缓冲区数量

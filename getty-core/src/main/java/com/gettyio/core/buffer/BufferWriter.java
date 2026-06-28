@@ -101,8 +101,9 @@ public final class BufferWriter extends AbstractBufferWriter {
         return closed;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void pollAll(List<Object> list) {
+    public void pollAll(List list) {
         Object msg;
         while ((msg = messageQueue.poll()) != null) {
             list.add(msg);

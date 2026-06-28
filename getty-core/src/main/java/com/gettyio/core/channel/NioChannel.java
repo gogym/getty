@@ -40,11 +40,10 @@ import java.util.List;
  * <p>
  * 基于 {@link SocketChannel} 配合 Selector 实现非阻塞读写。
  * 写出采用 BufferWriter 队列缓存 + Gathering Write 设计：
- * 业务线程将编码器产出的 byte[] 追加到队列后立即返回，
- * EventLoop 在 OP_WRITE 就绪时拉取 byte[]，通过
- * {@code ByteBuffer.wrap(byte[])} 零拷贝构建 ByteBuffer 数组，
- * 使用 {@code channel.write(ByteBuffer[])} 批量写出。
- * 整个过程无 PooledByteBuffer 中转，零额外内存拷贝。
+ * 业务线程将编码器产出的 {@link PooledByteBuffer} 追加到队列后立即返回，
+ * EventLoop 在 OP_WRITE 就绪时拉取缓冲区，直接从池化缓冲区获取底层
+ * {@code ByteBuffer} 视图构建数组，使用 {@code channel.write(ByteBuffer[])}
+ * 批量写出。写完后释放池化缓冲区（跨线程走 MPSC 队列回收）。
  * </p>
  *
  * @author gogym
@@ -61,10 +60,10 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     private final BufferWriter bufferWriter;
 
     /**
-     * 部分写出时残留的 byte[] 列表（仅 EventLoop 线程访问）。
-     * 全部写出后清空，等待下一轮 drain。
+     * 部分写出时残留的 PooledByteBuffer 列表（仅 EventLoop 线程访问）。
+     * 全部写出后释放并清空，等待下一轮 drain。
      */
-    private final List<Object> pendingBytes = new ArrayList<>();
+    private final List<PooledByteBuffer> pendingBufs = new ArrayList<>();
 
     /** SSL 处理器 */
     private SSLHandler sslHandler;
@@ -189,18 +188,19 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 管道终点：将消息入队，由 EventLoop 在 OP_WRITE 就绪时拉取并写出。
      * <p>
-     * 仅接受 {@code byte[]} 类型。管道链中的编码器须将消息转为 byte[] 再到达此处。
+     * 仅接受 {@link PooledByteBuffer} 类型。编码器须直接输出 PooledByteBuffer。
      * </p>
      */
     @Override
     public void writeToSocket(Object msg) {
         try {
-            if (msg instanceof byte[]) {
-                byte[] bytes = (byte[]) msg;
-                if (bytes.length == 0) {
+            if (msg instanceof PooledByteBuffer) {
+                PooledByteBuffer buf = (PooledByteBuffer) msg;
+                if (!buf.isReadable()) {
+                    buf.release();
                     return;
                 }
-                bufferWriter.write(bytes);
+                bufferWriter.write(buf);
             }
         } catch (Exception e) {
             logger.error("writeToSocket failed", e);
@@ -216,6 +216,12 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         }
         // 先标记为已关闭，防止并发重入
         status = CHANNEL_STATUS_CLOSED;
+
+        // 释放残留的 PooledByteBuffer
+        for (PooledByteBuffer buf : pendingBufs) {
+            buf.release();
+        }
+        pendingBufs.clear();
 
         // 通知关闭监听器
         if (channelFutureListener != null) {
@@ -326,12 +332,12 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      * <p>
      * 处理流程：
      * <ol>
-     *   <li>从 BufferWriter 拉取所有 byte[]，直接用 {@code ByteBuffer.wrap()} 零拷贝构建数组</li>
+     *   <li>从 BufferWriter 拉取所有 PooledByteBuffer，直接获取底层 ByteBuffer 视图构建数组</li>
      *   <li>使用 {@code SocketChannel.write(ByteBuffer[])} Gathering Write 一次性写出</li>
-     *   <li>部分写出时保留剩余 byte[] 在 pendingBytes 中，等待下次 OP_WRITE 继续写出</li>
-     *   <li>全部写完后再次检查新数据，有数据则继续写出，无数据才移除 OP_WRITE</li>
+     *   <li>部分写出时保留剩余缓冲区在 pendingBufs 中，等待下次 OP_WRITE 继续写出</li>
+     *   <li>全部写完后释放所有 PooledByteBuffer（跨线程走 MPSC 队列回收到业务线程缓存）</li>
+     *   <li>再次检查新数据，有数据则继续写出，无数据才移除 OP_WRITE</li>
      * </ol>
-     * 整个过程不涉及 PooledByteBuffer 分配/释放，零额外内存拷贝。
      * </p>
      */
     public void doWrite() {
@@ -341,41 +347,49 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
 
         try {
             // 1. 从 BufferWriter 拉取新数据
-            if (pendingBytes.isEmpty()) {
-                bufferWriter.pollAll(pendingBytes);
+            if (pendingBufs.isEmpty()) {
+                bufferWriter.pollAll(pendingBufs);
             }
 
-            if (pendingBytes.isEmpty()) {
+            if (pendingBufs.isEmpty()) {
                 removeOpWrite();
                 return;
             }
 
-            // 2. 零拷贝构建 ByteBuffer 数组
-            ByteBuffer[] bbArray = new ByteBuffer[pendingBytes.size()];
-            for (int i = 0; i < pendingBytes.size(); i++) {
-                bbArray[i] = ByteBuffer.wrap((byte[]) pendingBytes.get(i));
+            // 2. 从 PooledByteBuffer 获取底层 ByteBuffer 视图
+            ByteBuffer[] bbArray = new ByteBuffer[pendingBufs.size()];
+            for (int i = 0; i < pendingBufs.size(); i++) {
+                PooledByteBuffer pBuf = pendingBufs.get(i);
+                ByteBuffer bb = pBuf.getBuffer();
+                bb.position(pBuf.readerIndex());
+                bb.limit(pBuf.writerIndex());
+                bbArray[i] = bb;
             }
 
             // 3. Gathering Write
             channel.write(bbArray);
 
-            // 4. 检查写出状态，移除已完全写出的 byte[]
+            // 4. 同步 readerIndex，释放已完全写出的缓冲区
             int remaining = 0;
-            for (int i = 0; i < bbArray.length; i++) {
-                if (bbArray[i].hasRemaining()) {
-                    remaining = bbArray.length - i;
-                    // 保留未写完的 byte[]（从当前位置开始）
+            for (int i = 0; i < pendingBufs.size(); i++) {
+                PooledByteBuffer pBuf = pendingBufs.get(i);
+                pBuf.readerIndex(bbArray[i].position());
+                if (pBuf.isReadable()) {
+                    remaining = pendingBufs.size() - i;
+                    // 将未写完的缓冲区前移
                     for (int j = 0; j < remaining; j++) {
-                        pendingBytes.set(j, pendingBytes.get(i + j));
+                        pendingBufs.set(j, pendingBufs.get(i + j));
                     }
                     break;
                 }
+                // 已完全写出，释放（跨线程走 MPSC 队列）
+                pBuf.release();
             }
 
             if (remaining > 0) {
-                // 部分写出 → 保留 pendingBytes，保持 OP_WRITE
-                while (pendingBytes.size() > remaining) {
-                    pendingBytes.remove(pendingBytes.size() - 1);
+                // 部分写出 → 保留 pendingBufs，保持 OP_WRITE
+                while (pendingBufs.size() > remaining) {
+                    pendingBufs.remove(pendingBufs.size() - 1);
                 }
                 if (!keepAlive) {
                     close();
@@ -383,11 +397,11 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
                 return;
             }
 
-            pendingBytes.clear();
+            pendingBufs.clear();
 
             // 5. 全部写完，再检查一次新数据（防止竞争窗口）
-            bufferWriter.pollAll(pendingBytes);
-            if (!pendingBytes.isEmpty()) {
+            bufferWriter.pollAll(pendingBufs);
+            if (!pendingBufs.isEmpty()) {
                 return; // 有新数据，保持 OP_WRITE
             }
 
@@ -398,7 +412,11 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
             }
         } catch (IOException e) {
             logger.error("doWrite gathering write failed", e);
-            pendingBytes.clear();
+            // 释放残留缓冲区
+            for (PooledByteBuffer buf : pendingBufs) {
+                buf.release();
+            }
+            pendingBufs.clear();
             close();
         }
     }

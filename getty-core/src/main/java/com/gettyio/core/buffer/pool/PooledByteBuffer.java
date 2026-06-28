@@ -178,7 +178,12 @@ public class PooledByteBuffer extends RetainableByteBuffer {
     /**
      * 将缓冲区归还给池。
      * <p>
-     * 重置底层 ByteBuffer 的状态，然后归还给 ThreadCache 或 Arena。
+     * 重置底层 ByteBuffer 的状态，然后根据当前线程是否是分配线程：
+     * <ul>
+     *   <li><b>同线程（快速路径）</b>：直接归还给 ThreadCache 的 ArrayDeque（无锁，~2ns）</li>
+     *   <li><b>跨线程（MPSC 路径）</b>：通过无锁 MPSC 队列传递给 owner 线程，
+     *       owner 线程在下次 allocate 时批量 drain 回本地缓存（~10ns CAS）</li>
+     * </ul>
      * </p>
      */
     private void recycle() {
@@ -188,8 +193,14 @@ public class PooledByteBuffer extends RetainableByteBuffer {
         }
 
         if (threadCache != null) {
-            // 归还给线程缓存（快速路径）
-            threadCache.recycle(buf, chunk, chunkOffset, normCapacity);
+            if (threadCache.isOwnerThread()) {
+                // 同线程快速路径：直接归还给 ThreadCache 的 ArrayDeque（无锁）
+                threadCache.recycle(buf, chunk, chunkOffset, normCapacity);
+            } else {
+                // 跨线程 MPSC 路径：入队，owner 线程下次 allocate 时 drain（~10ns CAS）
+                threadCache.crossThreadRecycle(
+                        new PoolThreadCache.CacheEntry(buf, chunk, chunkOffset, normCapacity));
+            }
         } else if (chunk != null && chunk.parent != null) {
             // 无线程缓存，直接归还给 Arena（慢速路径）
             chunk.parent.free(chunk, chunkOffset, normCapacity);

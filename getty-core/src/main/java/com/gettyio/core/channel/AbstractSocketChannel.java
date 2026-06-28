@@ -164,12 +164,12 @@ public abstract class AbstractSocketChannel {
      * <p>
      * 支持的消息类型：
      * <ul>
-     *   <li>{@code byte[]}：编码器直出或管道透传（TCP/UDP 通用）</li>
+     *   <li>{@link PooledByteBuffer}：编码器直出的池化缓冲区（TCP 通道）</li>
      *   <li>{@code DatagramPacket}：UDP 数据报（仅 UdpChannel 处理）</li>
      * </ul>
      * </p>
      *
-     * @param msg 待写出的消息（byte[]、DatagramPacket 等）
+     * @param msg 待写出的消息（PooledByteBuffer、DatagramPacket 等）
      * @throws IOException 写出失败时抛出
      */
     public abstract void writeToSocket(Object msg) throws IOException;

@@ -17,6 +17,7 @@ package com.gettyio.core.buffer.pool;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
+import com.gettyio.core.util.queue.MpscLinkedQueue;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -144,6 +145,21 @@ public class PoolThreadCache {
      */
     private long cacheMissCount;
 
+    // ======================== 跨线程回收 ========================
+
+    /**
+     * 创建此 PoolThreadCache 的线程。
+     * 跨线程释放时通过此字段判断是否走 MPSC 队列。
+     */
+    private final Thread ownerThread;
+
+    /**
+     * 跨线程回收队列（MPSC，无锁）。
+     * 其他线程调用 {@link #crossThreadRecycle(CacheEntry)} 时将 CacheEntry 入此队列，
+     * owner 线程在 {@link #allocate(int, boolean)} 前批量 drain 到本地缓存。
+     */
+    private final MpscLinkedQueue<CacheEntry> crossThreadRecycleQueue = new MpscLinkedQueue<>();
+
     // ======================== 构造 ========================
 
     /**
@@ -156,6 +172,7 @@ public class PoolThreadCache {
     public PoolThreadCache(PoolArena heapArena, PoolArena directArena) {
         this.heapArena = heapArena;
         this.directArena = directArena;
+        this.ownerThread = Thread.currentThread();
 
         // 初始化 Tiny 缓存：31 个槽位（16B, 32B, ..., 496B）
         this.tinyCaches = new Deque[31];
@@ -186,6 +203,9 @@ public class PoolThreadCache {
      * @return 分配的 ByteBuffer（已 clear，position=0, limit=capacity）
      */
     public ByteBuffer allocate(int capacity, boolean direct) {
+        // 批量接收其他线程跨线程归还的缓冲区（owner 线程执行，无锁）
+        drainCrossThreadQueue();
+
         int normCapacity = normalizeCapacity(capacity);
         int cacheIndex = getCacheIndex(normCapacity);
 
@@ -432,6 +452,58 @@ public class PoolThreadCache {
                 arena.free(entry.chunk, entry.offset, entry.normCapacity);
             }
         }
+    }
+
+    // ======================== 跨线程回收 API ========================
+
+    /**
+     * 判断当前线程是否是此 PoolThreadCache 的所有者。
+     * <p>
+     * 用于 {@link PooledByteBuffer#release()} 判断走快速路径还是跨线程 MPSC 队列。
+     * </p>
+     *
+     * @return true 如果当前线程是 owner 线程
+     */
+    public boolean isOwnerThread() {
+        return Thread.currentThread() == ownerThread;
+    }
+
+    /**
+     * 跨线程回收缓冲区。
+     * <p>
+     * 由非 owner 线程调用（如 AIO 回调线程释放业务线程分配的缓冲区），
+     * 通过 MPSC 队列将 CacheEntry 安全传递给 owner 线程。
+     * owner 线程在下次 {@link #allocate(int, boolean)} 时批量 drain 回本地缓存。
+     * </p>
+     * <p>
+     * 成本：~10-20ns（一次 CAS 操作）。
+     * </p>
+     *
+     * @param entry 待回收的缓存条目
+     */
+    public void crossThreadRecycle(CacheEntry entry) {
+        crossThreadRecycleQueue.offer(entry);
+    }
+
+    /**
+     * 批量 drain 跨线程回收队列到本地缓存。
+     * <p>
+     * 必须由 owner 线程调用。在 {@link #allocate(int, boolean)} 开始时调用，
+     * 将其他线程归还的缓冲区批量移入本地 ArrayDeque，避免每次都走 MPSC。
+     * </p>
+     */
+    private void drainCrossThreadQueue() {
+        crossThreadRecycleQueue.drainTo(entry -> {
+            int cacheIndex = getCacheIndex(entry.normCapacity);
+            boolean cached = pushToCache(cacheIndex, entry.buffer, entry.chunk,
+                    entry.offset, entry.normCapacity);
+            if (!cached && entry.chunk != null) {
+                // 本地缓存已满，归还给 Arena（owner 线程执行，无锁问题）
+                PoolArena arena = entry.buffer.isDirect()
+                        ? (directArena != null ? directArena : heapArena) : heapArena;
+                arena.free(entry.chunk, entry.offset, entry.normCapacity);
+            }
+        });
     }
 
     // ======================== 统计 ========================
