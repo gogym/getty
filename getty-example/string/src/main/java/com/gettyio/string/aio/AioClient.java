@@ -20,7 +20,7 @@ public class AioClient {
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
         int i = 0;
-        while (i < 100) {
+        while (i < 1) {
             AioClient ac = new AioClient();
             ac.test(8888);
             i++;
@@ -95,7 +95,7 @@ public class AioClient {
                             String s = "12\r\n";
                             byte[] msgBody = s.getBytes();
 
-                            while (i < 1000) {
+                            while (i < 1000000) {
                                 long before = System.nanoTime();
                                 boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
                                 long elapsed = System.nanoTime() - before;
