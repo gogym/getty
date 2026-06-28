@@ -99,7 +99,7 @@ public class NioClient {
 
 
                         int i = 0;
-                        for (; i < 2000000; i++) {
+                        for (; i < 1000; i++) {
 //                            if (!channel.isInvalid()) {
                                 channel.writeAndFlush(msgBody);
                           //  }
