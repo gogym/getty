@@ -20,7 +20,7 @@ public class AioClient {
     public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
 
         int i = 0;
-        while (i < 1) {
+        while (i < 3) {
             AioClient ac = new AioClient();
             ac.test(8888);
             i++;

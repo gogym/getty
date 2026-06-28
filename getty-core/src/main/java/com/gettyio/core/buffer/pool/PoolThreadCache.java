@@ -17,7 +17,7 @@ package com.gettyio.core.buffer.pool;
 
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
-import com.gettyio.core.util.queue.MpscLinkedQueue;
+import com.gettyio.core.util.queue.MpscRecycleQueue;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -154,11 +154,11 @@ public class PoolThreadCache {
     private final Thread ownerThread;
 
     /**
-     * 跨线程回收队列（MPSC，无锁）。
-     * 其他线程调用 {@link #crossThreadRecycle(CacheEntry)} 时将 CacheEntry 入此队列，
+     * 跨线程回收队列（MPSC，无锁，零分配）。
+     * 其他线程调用 {@link #crossThreadRecycle} 时通过环形数组将 4 个字段入此队列，
      * owner 线程在 {@link #allocate(int, boolean)} 前批量 drain 到本地缓存。
      */
-    private final MpscLinkedQueue<CacheEntry> crossThreadRecycleQueue = new MpscLinkedQueue<>();
+    private final MpscRecycleQueue crossThreadRecycleQueue = new MpscRecycleQueue();
 
     // ======================== 构造 ========================
 
@@ -469,20 +469,31 @@ public class PoolThreadCache {
     }
 
     /**
-     * 跨线程回收缓冲区。
+     * 跨线程回收缓冲区。零对象分配。
      * <p>
      * 由非 owner 线程调用（如 AIO 回调线程释放业务线程分配的缓冲区），
-     * 通过 MPSC 队列将 CacheEntry 安全传递给 owner 线程。
+     * 通过环形数组 MPSC 队列将 4 个字段安全传递给 owner 线程。
      * owner 线程在下次 {@link #allocate(int, boolean)} 时批量 drain 回本地缓存。
      * </p>
      * <p>
-     * 成本：~10-20ns（一次 CAS 操作）。
+     * 成本：~5-10ns（一次 CAS 操作），无对象分配。
      * </p>
      *
-     * @param entry 待回收的缓存条目
+     * @param buffer       回收的 ByteBuffer
+     * @param chunk        所属 PoolChunk（可为 null）
+     * @param offset       Chunk 内偏移量
+     * @param normCapacity 规范化容量
      */
-    public void crossThreadRecycle(CacheEntry entry) {
-        crossThreadRecycleQueue.offer(entry);
+    public void crossThreadRecycle(ByteBuffer buffer, PoolChunk chunk, int offset, int normCapacity) {
+        boolean offered = crossThreadRecycleQueue.offer(buffer, chunk, offset, normCapacity);
+        if (!offered) {
+            // 队列满，降级为直接归还给 Arena（慢速路径）
+            if (chunk != null && chunk.parent != null) {
+                PoolArena arena = buffer.isDirect()
+                        ? (directArena != null ? directArena : heapArena) : heapArena;
+                arena.free(chunk, offset, normCapacity);
+            }
+        }
     }
 
     /**
@@ -493,15 +504,15 @@ public class PoolThreadCache {
      * </p>
      */
     private void drainCrossThreadQueue() {
-        crossThreadRecycleQueue.drainTo(entry -> {
-            int cacheIndex = getCacheIndex(entry.normCapacity);
-            boolean cached = pushToCache(cacheIndex, entry.buffer, entry.chunk,
-                    entry.offset, entry.normCapacity);
-            if (!cached && entry.chunk != null) {
+        crossThreadRecycleQueue.drainTo((buffer, chunk, offset, normCapacity) -> {
+            int cacheIndex = getCacheIndex(normCapacity);
+            boolean cached = pushToCache(cacheIndex, buffer, (PoolChunk) chunk,
+                    offset, normCapacity);
+            if (!cached && chunk != null) {
                 // 本地缓存已满，归还给 Arena（owner 线程执行，无锁问题）
-                PoolArena arena = entry.buffer.isDirect()
+                PoolArena arena = buffer.isDirect()
                         ? (directArena != null ? directArena : heapArena) : heapArena;
-                arena.free(entry.chunk, entry.offset, entry.normCapacity);
+                arena.free((PoolChunk) chunk, offset, normCapacity);
             }
         });
     }
