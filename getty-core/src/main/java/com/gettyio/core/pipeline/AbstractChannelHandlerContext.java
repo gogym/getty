@@ -15,7 +15,6 @@
  */
 package com.gettyio.core.pipeline;
 
-import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.channel.ChannelState;
 
 /**
@@ -64,11 +63,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext {
             if (p == null) {
                 // 已到达头哨兵，直接写入底层通道（核心性能优化：内联 isFirst 检查，
                 // 避免每次写操作都遍历链表调用 pipeline.isFirst()）
-                if (in instanceof byte[]) {
-                    channel().writeToSocket((byte[]) in);
-                } else {
-                    channel().writeToSocket((PooledByteBuffer) in);
-                }
+                channel().writeToSocket(in);
             } else {
                 p.invokeChannelProcess(channelState, in);
             }

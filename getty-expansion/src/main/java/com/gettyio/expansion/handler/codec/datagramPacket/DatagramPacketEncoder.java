@@ -18,17 +18,24 @@ package com.gettyio.expansion.handler.codec.datagramPacket;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 
+import java.net.DatagramPacket;
+
 /**
  * UDP 数据包编码器。
  * <p>
- * UDP 数据包由通道直接发出，此处理器仅作为占位节点，不执行额外处理。
+ * 将非 DatagramPacket 类型的消息自动包装为 DatagramPacket。
+ * 如果输入已是 DatagramPacket，则直接透传。
  * </p>
  */
 public class DatagramPacketEncoder extends MessageToByteEncoder {
 
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
-        // UDP 包直接由通道发出，此处理器不执行额外转换
-        super.channelWrite(ctx, obj);
+        if (obj instanceof DatagramPacket) {
+            // 已是 DatagramPacket，直接透传
+            super.channelWrite(ctx, obj);
+        } else {
+            throw new IllegalArgumentException("DatagramPacketEncoder only support DatagramPacket");
+        }
     }
 }

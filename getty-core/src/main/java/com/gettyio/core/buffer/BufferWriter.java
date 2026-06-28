@@ -22,9 +22,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * 控制数据输出。
  * <p>
- * 内部使用 {@link ConcurrentLinkedQueue}（无界锁队列）缓存待发送的
- * byte[]。写入线程通过 CAS 追加后立即返回，永不阻塞业务线程；
- * 消费线程（EventLoop / AIO 写线程）通过 {@link #pollAllBytes(List)} 从队列批量取出数据写出。
+ * 内部使用 {@link ConcurrentLinkedQueue}（无界锁队列）缓存待发送的消息
+ * （{@code byte[]}、{@code DatagramPacket} 等）。写入线程通过 CAS 追加后立即返回，
+ * 永不阻塞业务线程；消费线程（EventLoop / AIO 写线程 / UDP 写线程）
+ * 通过 {@link #pollAll(List)} 从队列批量取出数据写出。
  * </p>
  *
  * @author gogym
@@ -37,10 +38,10 @@ public final class BufferWriter extends AbstractBufferWriter {
     private final FlushNotifier flushNotifier;
 
     /**
-     * 无界锁队列，缓存待写出的 byte[]。
-     * 业务线程入队，IO 线程（EventLoop / AIO 写线程）出队并分配 PooledByteBuffer。
+     * 无界锁队列，缓存待写出的消息。
+     * 业务线程入队，IO 线程（EventLoop / AIO 写线程 / UDP 写线程）出队并发送。
      */
-    private final ConcurrentLinkedQueue<byte[]> byteQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<Object> messageQueue = new ConcurrentLinkedQueue<>();
 
     /**
      * 构造方法
@@ -52,20 +53,20 @@ public final class BufferWriter extends AbstractBufferWriter {
     }
 
     @Override
-    public void writeAndFlush(byte[] bytes) throws IOException {
-        write(bytes);
+    public void writeAndFlush(Object msg) throws IOException {
+        write(msg);
         flush();
     }
 
     @Override
-    public void write(byte[] bytes) throws IOException {
+    public void write(Object msg) throws IOException {
         if (closed) {
             throw new IOException("BufferWriter is closed");
         }
-        if (bytes == null) {
-            throw new NullPointerException("bytes is null");
+        if (msg == null) {
+            throw new NullPointerException("msg is null");
         }
-        byteQueue.offer(bytes);
+        messageQueue.offer(msg);
     }
 
     /**
@@ -83,7 +84,7 @@ public final class BufferWriter extends AbstractBufferWriter {
     /**
      * 关闭输出流。
      * <p>
-     * 标记为已关闭，清空队列中残留的缓冲区，防止资源泄漏。
+     * 标记为已关闭，清空队列中残留的消息，防止资源泄漏。
      * </p>
      */
     @Override
@@ -92,7 +93,7 @@ public final class BufferWriter extends AbstractBufferWriter {
             return;
         }
         closed = true;
-        byteQueue.clear();
+        messageQueue.clear();
     }
 
     @Override
@@ -101,20 +102,20 @@ public final class BufferWriter extends AbstractBufferWriter {
     }
 
     @Override
-    public void pollAllBytes(List<byte[]> list) {
-        byte[] bytes;
-        while ((bytes = byteQueue.poll()) != null) {
-            list.add(bytes);
+    public void pollAll(List<Object> list) {
+        Object msg;
+        while ((msg = messageQueue.poll()) != null) {
+            list.add(msg);
         }
     }
 
     /**
-     * 获取队列中待写出的 byte[] 数量。
+     * 获取队列中待写出的消息数量。
      *
      * @return 待写出数量
      */
     @Override
     public int getCount() {
-        return byteQueue.size();
+        return messageQueue.size();
     }
 }

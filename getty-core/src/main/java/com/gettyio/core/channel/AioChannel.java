@@ -224,7 +224,7 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     /**
      * 管道处理后触发写出。
      * <p>
-     * 数据已由 {@link #writeToSocket} 追加到 BufferWriter 链表，
+     * 数据已由 {@link #writeToSocket(Object)} 追加到 BufferWriter 链表，
      * </p>
      */
     @Override
@@ -269,45 +269,23 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 管道终点：将 PooledByteBuffer 数据入队（向后兼容仍输出 PooledByteBuffer 的编码器）。
+     * 管道终点：将消息入队，由写线程拉取并分配 PooledByteBuffer 提交 AIO 写出。
      * <p>
-     * 提取可读字节为 byte[] 入队，然后立即释放 PooledByteBuffer。
-     * 对于方案二（编码器直出 byte[]），使用 {@link #writeToSocket(byte[])} 更高效。
+     * 仅接受 {@code byte[]} 类型。管道链中的编码器须将消息转为 byte[] 再到达此处。
      * </p>
      */
     @Override
-    public void writeToSocket(PooledByteBuffer obj) {
+    public void writeToSocket(Object msg) {
         try {
-            int readable = obj.readableBytes();
-            if (readable <= 0) {
-                obj.release();
-                return;
+            if (msg instanceof byte[]) {
+                byte[] bytes = (byte[]) msg;
+                if (bytes.length == 0) {
+                    return;
+                }
+                bufferWriter.write(bytes);
             }
-            byte[] bytes = new byte[readable];
-            obj.readBytes(bytes);
-            obj.release();
-            bufferWriter.write(bytes);
         } catch (Exception e) {
             logger.error("writeToSocket failed", e);
-        }
-    }
-
-    /**
-     * 管道终点：将 byte[] 数据入队（方案二：编码器直出 byte[]）。
-     * <p>
-     * 编码器不分配 PooledByteBuffer，直接产出 byte[]。
-     * PooledByteBuffer 由写线程分配，确保分配和释放在同一线程，彻底消除跨线程回收。
-     * </p>
-     */
-    @Override
-    public void writeToSocket(byte[] bytes) {
-        try {
-            if (bytes == null || bytes.length == 0) {
-                return;
-            }
-            bufferWriter.write(bytes);
-        } catch (Exception e) {
-            logger.error("writeToSocket(byte[]) failed", e);
         }
     }
 
@@ -449,13 +427,14 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 从 BufferWriter 拉取所有 byte[]，分配 PooledByteBuffer 并写入目标列表。
+     * 从 BufferWriter 拉取所有消息，分配 PooledByteBuffer 并写入目标列表。
      * 分配在写线程的 PoolThreadCache 上进行，确保 AIO 回调释放时回到同一 cache。
      */
     private void drainAndAllocate(List<PooledByteBuffer> target) {
-        List<byte[]> bytesList = new ArrayList<>();
-        bufferWriter.pollAllBytes(bytesList);
-        for (byte[] b : bytesList) {
+        List<Object> msgList = new ArrayList<>();
+        bufferWriter.pollAll(msgList);
+        for (Object obj : msgList) {
+            byte[] b = (byte[]) obj;
             PooledByteBuffer buf = byteBufferPool.acquire(b.length);
             buf.writeBytes(b);
             target.add(buf);

@@ -52,27 +52,27 @@ public abstract class AbstractBufferWriter {
     public abstract boolean isClosed();
 
     /**
-     * 写入 byte[] 数据并立即刷新。
+     * 写入消息并立即刷新。
      *
-     * @param bytes 待写出的字节数组
+     * @param msg 待写出的消息（byte[]、DatagramPacket 等）
      * @throws IOException 写入或刷新异常
      */
-    public abstract void writeAndFlush(byte[] bytes) throws IOException;
+    public abstract void writeAndFlush(Object msg) throws IOException;
 
     /**
-     * 写入 byte[] 数据（不触发 flush）。
+     * 写入消息（不触发 flush）。
      *
-     * @param bytes 待写出的字节数组
+     * @param msg 待写出的消息（byte[]、DatagramPacket 等）
      * @throws IOException 写入异常
      */
-    public abstract void write(byte[] bytes) throws IOException;
+    public abstract void write(Object msg) throws IOException;
 
     /**
-     * 从队列中批量弹出所有可用 byte[]。
+     * 从队列中批量弹出所有可用消息。
      *
      * @param list 用于接收弹出元素的列表（调用方传入，避免每次分配）
      */
-    public abstract void pollAllBytes(List<byte[]> list);
+    public abstract void pollAll(List<Object> list);
 
     /**
      * 获取队列中缓冲区数量

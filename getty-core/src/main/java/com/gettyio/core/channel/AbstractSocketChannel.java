@@ -142,7 +142,7 @@ public abstract class AbstractSocketChannel {
     /**
      * 经过责任链编码后追加到写缓冲区链表，不触发实际写出。
      * <p>
-     * 数据经管道编码后到达 {@link #writeToSocket(PooledByteBuffer)}，
+     * 数据经管道编码后到达 {@link #writeToSocket(Object)}，
      * 仅追加到 BufferWriter 链表，需配合 {@link #flush()} 使用才能实际发出。
      * </p>
      *
@@ -161,23 +161,18 @@ public abstract class AbstractSocketChannel {
 
     /**
      * 直接写到输出器，跳过责任链。仅追加到 BufferWriter 链表。
-     *
-     * @param obj 待写出的池化缓冲区
-     * @throws IOException 写出失败时抛出
-     */
-    public abstract void writeToSocket(PooledByteBuffer obj) throws IOException;
-
-    /**
-     * 直接写出 byte[] 数据，跳过责任链。
      * <p>
-     * 用于方案二（编码器直出 byte[]）场景，避免编码器分配 PooledByteBuffer。
-     * PooledByteBuffer 由写线程分配，确保分配和释放在同一线程，消除跨线程回收问题。
+     * 支持的消息类型：
+     * <ul>
+     *   <li>{@code byte[]}：编码器直出或管道透传（TCP/UDP 通用）</li>
+     *   <li>{@code DatagramPacket}：UDP 数据报（仅 UdpChannel 处理）</li>
+     * </ul>
      * </p>
      *
-     * @param bytes 待写出的字节数组
+     * @param msg 待写出的消息（byte[]、DatagramPacket 等）
      * @throws IOException 写出失败时抛出
      */
-    public abstract void writeToSocket(byte[] bytes) throws IOException;
+    public abstract void writeToSocket(Object msg) throws IOException;
 
     /**
      * 获取本地地址。

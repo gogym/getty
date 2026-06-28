@@ -138,9 +138,9 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             ssl.decrypt(buffer);
             // 解密后 buffer 中可能包含握手响应数据
             if (buffer.hasRemaining()) {
-                PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(buffer.remaining());
-                buf.writeBytes(buffer);
-                channelHandlerContext().channel().writeToSocket(buf);
+                byte[] bytes = new byte[buffer.remaining()];
+                buffer.get(bytes);
+                channelHandlerContext().channel().writeToSocket(bytes);
             }
         } catch (Exception e) {
             logger.error("SSL handshake data processing failed", e);
@@ -238,10 +238,9 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     /** 将加密数据写入底层通道 */
     private void emitToChannel(ByteBuffer wrappedBytes) {
         try {
-            PooledByteBuffer buf = channelHandlerContext().channel().getByteBufferPool().acquire(wrappedBytes.remaining());
-            // 单次拷贝：直接从 ByteBuffer 写入 PooledByteBuffer
-            buf.writeBytes(wrappedBytes);
-            channelHandlerContext().channel().writeToSocket(buf);
+            byte[] bytes = new byte[wrappedBytes.remaining()];
+            wrappedBytes.get(bytes);
+            channelHandlerContext().channel().writeToSocket(bytes);
         } catch (Exception e) {
             logger.error("Failed to write SSL wrapped data to channel", e);
         }

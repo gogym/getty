@@ -64,7 +64,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
      * 部分写出时残留的 byte[] 列表（仅 EventLoop 线程访问）。
      * 全部写出后清空，等待下一轮 drain。
      */
-    private final List<byte[]> pendingBytes = new ArrayList<>();
+    private final List<Object> pendingBytes = new ArrayList<>();
 
     /** SSL 处理器 */
     private SSLHandler sslHandler;
@@ -187,46 +187,23 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
     }
 
     /**
-     * 管道终点：将 PooledByteBuffer 数据转为 byte[] 入队（向后兼容仍输出 PooledByteBuffer 的编码器）。
+     * 管道终点：将消息入队，由 EventLoop 在 OP_WRITE 就绪时拉取并写出。
      * <p>
-     * 提取可读字节为 byte[] 入队，然后立即释放 PooledByteBuffer。
-     * 对于方案二（编码器直出 byte[]），使用 {@link #writeToSocket(byte[])} 更高效。
+     * 仅接受 {@code byte[]} 类型。管道链中的编码器须将消息转为 byte[] 再到达此处。
      * </p>
      */
     @Override
-    public void writeToSocket(PooledByteBuffer obj) {
+    public void writeToSocket(Object msg) {
         try {
-            int readable = obj.readableBytes();
-            if (readable <= 0) {
-                obj.release();
-                return;
+            if (msg instanceof byte[]) {
+                byte[] bytes = (byte[]) msg;
+                if (bytes.length == 0) {
+                    return;
+                }
+                bufferWriter.write(bytes);
             }
-            byte[] bytes = new byte[readable];
-            obj.readBytes(bytes);
-            obj.release();
-            bufferWriter.write(bytes);
         } catch (Exception e) {
             logger.error("writeToSocket failed", e);
-        }
-    }
-
-    /**
-     * 管道终点：将 byte[] 数据入队（方案二：编码器直出 byte[]）。
-     * <p>
-     * 编码器不分配 PooledByteBuffer，直接产出 byte[]。
-     * PooledByteBuffer 由 EventLoop 在 {@link #doWrite()} 中分配，
-     * 确保分配和释放在同一线程，彻底消除跨线程回收。
-     * </p>
-     */
-    @Override
-    public void writeToSocket(byte[] bytes) {
-        try {
-            if (bytes == null || bytes.length == 0) {
-                return;
-            }
-            bufferWriter.write(bytes);
-        } catch (Exception e) {
-            logger.error("writeToSocket(byte[]) failed", e);
         }
     }
 
@@ -365,7 +342,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
         try {
             // 1. 从 BufferWriter 拉取新数据
             if (pendingBytes.isEmpty()) {
-                bufferWriter.pollAllBytes(pendingBytes);
+                bufferWriter.pollAll(pendingBytes);
             }
 
             if (pendingBytes.isEmpty()) {
@@ -376,7 +353,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
             // 2. 零拷贝构建 ByteBuffer 数组
             ByteBuffer[] bbArray = new ByteBuffer[pendingBytes.size()];
             for (int i = 0; i < pendingBytes.size(); i++) {
-                bbArray[i] = ByteBuffer.wrap(pendingBytes.get(i));
+                bbArray[i] = ByteBuffer.wrap((byte[]) pendingBytes.get(i));
             }
 
             // 3. Gathering Write
@@ -409,7 +386,7 @@ public class NioChannel extends AbstractSocketChannel implements FlushNotifier {
             pendingBytes.clear();
 
             // 5. 全部写完，再检查一次新数据（防止竞争窗口）
-            bufferWriter.pollAllBytes(pendingBytes);
+            bufferWriter.pollAll(pendingBytes);
             if (!pendingBytes.isEmpty()) {
                 return; // 有新数据，保持 OP_WRITE
             }
