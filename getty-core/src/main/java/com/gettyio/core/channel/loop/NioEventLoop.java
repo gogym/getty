@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -96,10 +96,17 @@ public class NioEventLoop implements EventLoop {
                     LOGGER.error("select() error", e);
                 }
 
-                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                while (it.hasNext()) {
-                    SelectionKey sk = it.next();
-                    it.remove();
+                Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                int readyCount = selectedKeys.size();
+                if (readyCount == 0) {
+                    continue;
+                }
+
+                SelectionKey[] keys = selectedKeys.toArray(new SelectionKey[readyCount]);
+                selectedKeys.clear();
+
+                for (int i = 0; i < readyCount; i++) {
+                    SelectionKey sk = keys[i];
 
                     Object attachment = sk.attachment();
                     if (!(attachment instanceof NioChannel)) {
