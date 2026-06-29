@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.handler.ssl.facade;
 
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
@@ -109,7 +110,7 @@ public class SSLFacade {
     }
 
     /**
-     * 加密明文数据。
+     * 加密明文数据（ByteBuffer 版本）。
      * <p>加密后的密文通过 {@link SSLDataListener#onWrappedData} 回调传递。</p>
      *
      * @param plainData 待加密的明文
@@ -119,12 +120,34 @@ public class SSLFacade {
     }
 
     /**
-     * 解密密文数据。
+     * 加密明文数据（PooledByteBuffer 零拷贝版本）。
+     * <p>直接从 PooledByteBuffer 底层数组读取，消除中间 byte[] 分配。
+     * 加密后的密文通过 {@link SSLDataListener#onWrappedData} 回调传递。</p>
+     *
+     * @param plainData 待加密的明文（PooledByteBuffer）
+     */
+    public void encrypt(PooledByteBuffer plainData) throws SSLException {
+        worker.wrap(plainData);
+    }
+
+    /**
+     * 解密密文数据（ByteBuffer 版本）。
      * <p>解密后的明文通过 {@link SSLDataListener#onPlainData} 回调传递。</p>
      *
      * @param encryptedData 待解密的密文
      */
     public void decrypt(ByteBuffer encryptedData) throws SSLException {
+        handshaker.handleDecrypt(worker.unwrap(encryptedData));
+    }
+
+    /**
+     * 解密密文数据（PooledByteBuffer 零拷贝版本）。
+     * <p>直接从 PooledByteBuffer 底层数组读取，消除中间 byte[] 分配。
+     * 解密后的明文通过 {@link SSLDataListener#onPlainData} 回调传递。</p>
+     *
+     * @param encryptedData 待解密的密文（PooledByteBuffer）
+     */
+    public void decrypt(PooledByteBuffer encryptedData) throws SSLException {
         handshaker.handleDecrypt(worker.unwrap(encryptedData));
     }
 

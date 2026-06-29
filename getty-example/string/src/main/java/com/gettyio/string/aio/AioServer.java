@@ -3,6 +3,8 @@ package com.gettyio.string.aio;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioServerStarter;
+import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.expansion.handler.codec.string.StringDecoder;
 import com.gettyio.expansion.handler.codec.string.StringEncoder;
@@ -34,6 +36,19 @@ public class AioServer {
                 @Override
                 public void initChannel(AbstractSocketChannel channel) throws Exception {
                     ChannelPipeline pipeline = channel.getChannelPipeline();
+
+                    // ----如需 SSL，取消以下注释----
+                     String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
+                     SSLConfig sslConfig = new SSLConfig();
+                     sslConfig.setKeyFile(pkPath);
+                     sslConfig.setKeyPassword("123456");
+                     sslConfig.setKeystorePassword("123456");
+                     sslConfig.setTrustFile(pkPath);
+                     sslConfig.setTrustPassword("123456");
+                     sslConfig.setClientMode(false);
+                     sslConfig.setClientAuthRequired(false);
+                     pipeline.addFirst(new SSLHandler(sslConfig));
+                    // ----SSL END----
 
                     // 空闲检测：读空闲 60 秒超时（可选，演示心跳机制）
                     pipeline.addLast(new IdleStateHandler(60, 0));

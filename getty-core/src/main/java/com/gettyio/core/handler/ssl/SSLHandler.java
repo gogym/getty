@@ -96,13 +96,10 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     @Override
     public void channelWrite(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) obj;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         if (!ssl.isHandshakeCompleted()) {
-            processHandshake(bytes);
+            processHandshake(buf);
         } else {
-            ssl.encrypt(byteBuffer);
+            ssl.encrypt(buf);
         }
     }
 
@@ -111,13 +108,10 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
         PooledByteBuffer buf = (PooledByteBuffer) obj;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
         if (!ssl.isHandshakeCompleted()) {
-            processHandshake(bytes);
+            processHandshake(buf);
         } else {
-            ssl.decrypt(byteBuffer);
+            ssl.decrypt(buf);
         }
     }
 
@@ -125,14 +119,14 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
 
     /**
      * 处理握手阶段的 TLS 数据包。
-     * <p>解密收到的握手消息，并将产生的握手响应数据写回通道。</p>
+     * <p>解密收到的握手消息，并将产生的握手响应数据写回通道。
+     * 直接传递 PooledByteBuffer，消除中间 byte[] + ByteBuffer.wrap() 分配。</p>
      *
-     * @param tlsData TLS 协议数据
+     * @param tlsData TLS 协议数据（PooledByteBuffer）
      */
-    private void processHandshake(byte[] tlsData) {
-        ByteBuffer buffer = ByteBuffer.wrap(tlsData);
+    private void processHandshake(PooledByteBuffer tlsData) {
         try {
-            ssl.decrypt(buffer);
+            ssl.decrypt(tlsData);
             // 握手响应数据已通过 onWrappedData 回调 → emitToChannel 发送，无需额外处理
         } catch (Exception e) {
             logger.error("SSL handshake data processing failed", e);
@@ -150,7 +144,9 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             KeyManager[] keyManagers = null;
             if (config.getKeyFile() != null) {
                 KeyStore ks = KeyStore.getInstance("JKS");
-                ks.load(new FileInputStream(config.getKeyFile()), config.getKeystorePassword().toCharArray());
+                try (FileInputStream fis = new FileInputStream(config.getKeyFile())) {
+                    ks.load(fis, config.getKeystorePassword().toCharArray());
+                }
                 KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
                 kmf.init(ks, config.getKeyPassword().toCharArray());
                 keyManagers = kmf.getKeyManagers();
@@ -159,7 +155,9 @@ public class SSLHandler extends ChannelAllBoundHandlerAdapter {
             TrustManager[] trustManagers;
             if (config.getTrustFile() != null) {
                 KeyStore ts = KeyStore.getInstance("JKS");
-                ts.load(new FileInputStream(config.getTrustFile()), config.getTrustPassword().toCharArray());
+                try (FileInputStream fis = new FileInputStream(config.getTrustFile())) {
+                    ts.load(fis, config.getTrustPassword().toCharArray());
+                }
                 TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
                 tmf.init(ts);
                 trustManagers = tmf.getTrustManagers();

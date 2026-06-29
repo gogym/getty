@@ -274,8 +274,12 @@ class RetainableByteBuffer {
      */
     public RetainableByteBuffer readBytes(byte[] bytes, int offset, int length) {
         checkReadableBytes(length);
-        for (int i = 0; i < length; i++) {
-            bytes[offset + i] = buffer.get(readerIndex + i);
+        if (buffer.hasArray()) {
+            System.arraycopy(buffer.array(), buffer.arrayOffset() + readerIndex, bytes, offset, length);
+        } else {
+            for (int i = 0; i < length; i++) {
+                bytes[offset + i] = buffer.get(readerIndex + i);
+            }
         }
         readerIndex += length;
         return this;
@@ -369,8 +373,12 @@ class RetainableByteBuffer {
             throw new IndexOutOfBoundsException(
                     "writeBytes: " + length + " > writableBytes: " + writableBytes());
         }
-        for (int i = 0; i < length; i++) {
-            buffer.put(writerIndex + i, bytes[offset + i]);
+        if (buffer.hasArray()) {
+            System.arraycopy(bytes, offset, buffer.array(), buffer.arrayOffset() + writerIndex, length);
+        } else {
+            for (int i = 0; i < length; i++) {
+                buffer.put(writerIndex + i, bytes[offset + i]);
+            }
         }
         writerIndex += length;
         return this;
@@ -384,8 +392,13 @@ class RetainableByteBuffer {
      */
     public RetainableByteBuffer writeBytes(RetainableByteBuffer src) {
         int length = src.readableBytes();
-        for (int i = 0; i < length; i++) {
-            buffer.put(writerIndex + i, src.buffer.get(src.readerIndex + i));
+        if (buffer.hasArray() && src.buffer.hasArray()) {
+            System.arraycopy(src.buffer.array(), src.buffer.arrayOffset() + src.readerIndex,
+                    buffer.array(), buffer.arrayOffset() + writerIndex, length);
+        } else {
+            for (int i = 0; i < length; i++) {
+                buffer.put(writerIndex + i, src.buffer.get(src.readerIndex + i));
+            }
         }
         src.readerIndex += length;
         this.writerIndex += length;
@@ -404,8 +417,14 @@ class RetainableByteBuffer {
             throw new IndexOutOfBoundsException(
                     "writeBytes: " + length + " > writableBytes: " + writableBytes());
         }
-        for (int i = 0; i < length; i++) {
-            buffer.put(writerIndex + i, src.get());
+        if (buffer.hasArray() && src.hasArray()) {
+            System.arraycopy(src.array(), src.arrayOffset() + src.position(),
+                    buffer.array(), buffer.arrayOffset() + writerIndex, length);
+            src.position(src.position() + length);
+        } else {
+            for (int i = 0; i < length; i++) {
+                buffer.put(writerIndex + i, src.get());
+            }
         }
         writerIndex += length;
         return this;

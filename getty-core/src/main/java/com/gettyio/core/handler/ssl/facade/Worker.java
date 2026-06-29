@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.handler.ssl.facade;
 
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
@@ -31,6 +32,9 @@ import java.nio.ByteBuffer;
  * 避免虚方法调用开销。</p>
  */
 class Worker {
+
+    /** 预分配的空缓冲区常量，用于 unwrap 递归处理缓存数据时作为占位参数，避免每次 allocate(0)。 */
+    private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
 
     private final SSLEngine engine;
     private final Buffers buffers;
@@ -80,7 +84,7 @@ class Worker {
     // ---- 核心操作 ----
 
     /**
-     * 加密明文数据。
+     * 加密明文数据（ByteBuffer 版本）。
      * <p>将明文加载到出站缓冲区，调用 SSLEngine.wrap()，
      * 并将产生的密文通过 {@link SSLFacade.SSLDataListener#onWrappedData} 回调传递。</p>
      *
@@ -89,6 +93,25 @@ class Worker {
      */
     SSLEngineResult wrap(ByteBuffer plainData) throws SSLException {
         buffers.prepareForWrap(plainData);
+        return doWrap();
+    }
+
+    /**
+     * 加密明文数据（PooledByteBuffer 零拷贝版本）。
+     * <p>直接从 PooledByteBuffer 底层数组写入内部缓冲区，消除中间 byte[] 分配。</p>
+     *
+     * @param plainData 待加密的明文（PooledByteBuffer）
+     * @return SSLEngine 的操作结果
+     */
+    SSLEngineResult wrap(PooledByteBuffer plainData) throws SSLException {
+        buffers.prepareForWrap(plainData);
+        return doWrap();
+    }
+
+    /**
+     * 执行 SSLEngine.wrap() 并处理结果状态。
+     */
+    private SSLEngineResult doWrap() throws SSLException {
         SSLEngineResult result = engine.wrap(
                 buffers.get(BufferType.OUT_PLAIN),
                 buffers.get(BufferType.OUT_CIPHER));
@@ -100,10 +123,10 @@ class Worker {
             throw new SSLException("BUFFER_UNDERFLOW during wrap");
         } else if (status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
             buffers.grow(BufferType.OUT_CIPHER);
-            if (plainData != null && plainData.hasRemaining()) {
-                plainData.position(result.bytesConsumed());
-                ByteBuffer remaining = BufferUtils.slice(plainData);
-                wrap(remaining);
+            ByteBuffer plainBuf = buffers.get(BufferType.OUT_PLAIN);
+            // engine.wrap() 后 position/limit 已精确标记剩余数据，直接传递，无需 slice 拷贝
+            if (plainBuf.hasRemaining()) {
+                wrap(plainBuf);
             }
         } else if (status == SSLEngineResult.Status.CLOSED) {
             notifySessionClosed();
@@ -112,7 +135,7 @@ class Worker {
     }
 
     /**
-     * 解密密文数据。
+     * 解密密文数据（ByteBuffer 版本）。
      * <p>将密文加载到入站缓冲区，调用 SSLEngine.unwrap()，
      * 并将产生的明文通过 {@link SSLFacade.SSLDataListener#onPlainData} 回调传递。</p>
      *
@@ -122,31 +145,54 @@ class Worker {
     SSLEngineResult unwrap(ByteBuffer encryptedData) throws SSLException {
         ByteBuffer allData = buffers.prependCached(encryptedData);
         buffers.prepareForUnwrap(allData);
+        return doUnwrap();
+    }
+
+    /**
+     * 解密密文数据（PooledByteBuffer 零拷贝版本）。
+     * <p>缓存合并已由 {@link Buffers#prepareForUnwrap(PooledByteBuffer)} 内部处理，
+     * 此处直接委托，无需中间 byte[] 转换。</p>
+     *
+     * @param encryptedData 待解密的密文（PooledByteBuffer）
+     * @return SSLEngine 的操作结果
+     */
+    SSLEngineResult unwrap(PooledByteBuffer encryptedData) throws SSLException {
+        buffers.prepareForUnwrap(encryptedData);
+        return doUnwrap();
+    }
+
+    /**
+     * 执行 SSLEngine.unwrap() 并处理结果状态。
+     * <p>调用前 IN_CIPHER 已加载数据并处于读模式（flip 后）。
+     * unwrap 后通过 IN_CIPHER.position() 计算未处理数据偏移。</p>
+     */
+    private SSLEngineResult doUnwrap() throws SSLException {
         SSLEngineResult result = engine.unwrap(
                 buffers.get(BufferType.IN_CIPHER),
                 buffers.get(BufferType.IN_PLAIN));
 
-        allData.position(result.bytesConsumed());
-        ByteBuffer unprocessed = BufferUtils.slice(allData);
+        // IN_CIPHER 引用，engine.unwrap() 后 position/limit 已精确标记未处理数据
+        ByteBuffer inCipher = buffers.get(BufferType.IN_CIPHER);
 
         emitPlainData(result);
 
         switch (result.getStatus()) {
             case BUFFER_UNDERFLOW:
-                buffers.cache(unprocessed);
+                // 未处理数据缓存，等待下次到达更多数据
+                if (inCipher.hasRemaining()) {
+                    buffers.cache(inCipher);
+                }
                 break;
             case BUFFER_OVERFLOW:
                 buffers.grow(BufferType.IN_PLAIN);
-                if (unprocessed == null) {
-                    throw new SSLException("BUFFER_OVERFLOW but all data consumed");
-                }
-                unwrap(unprocessed);
+                // IN_CIPHER 中必有未处理数据（OVERFLOW 意味着数据未完全消费），直接传递
+                unwrap(inCipher);
                 break;
             case OK:
-                if (unprocessed == null) {
-                    buffers.clearCache();
+                if (inCipher.hasRemaining()) {
+                    buffers.cache(inCipher);
                 } else {
-                    buffers.cache(unprocessed);
+                    buffers.clearCache();
                 }
                 break;
             case CLOSED:
@@ -155,7 +201,7 @@ class Worker {
         if (!buffers.isCacheEmpty()
                 && result.getStatus() == SSLEngineResult.Status.OK
                 && result.bytesConsumed() > 0) {
-            result = unwrap(ByteBuffer.allocate(0));
+            result = unwrap(EMPTY_BUFFER);
         }
         return result;
     }
@@ -167,7 +213,7 @@ class Worker {
     void close() {
         engine.closeOutbound();
         try {
-            wrap(null);
+            wrap((ByteBuffer) null);
             engine.closeInbound();
         } catch (SSLException ignored) {
             // 关闭过程中的异常可忽略
@@ -178,19 +224,41 @@ class Worker {
 
     /**
      * 将加密后的密文数据通过回调传递。
+     * <p>直接传递内部缓冲区引用，消除 copyToExternal 的中间分配和拷贝。
+     * 回调结束后恢复缓冲区的 position/limit，保证内部状态不被破坏。</p>
      */
     private void emitWrappedData(SSLEngineResult result) {
         if (result.bytesProduced() > 0 && dataListener != null) {
-            dataListener.onWrappedData(copyToExternal(buffers.get(BufferType.OUT_CIPHER)));
+            ByteBuffer buf = buffers.get(BufferType.OUT_CIPHER);
+            int pos = buf.position();
+            int lim = buf.limit();
+            buf.flip();
+            try {
+                dataListener.onWrappedData(buf);
+            } finally {
+                buf.position(pos);
+                buf.limit(lim);
+            }
         }
     }
 
     /**
      * 将解密后的明文数据通过回调传递。
+     * <p>直接传递内部缓冲区引用，消除 copyToExternal 的中间分配和拷贝。
+     * 回调结束后恢复缓冲区的 position/limit，保证内部状态不被破坏。</p>
      */
     private void emitPlainData(SSLEngineResult result) {
         if (result.bytesProduced() > 0 && dataListener != null) {
-            dataListener.onPlainData(copyToExternal(buffers.get(BufferType.IN_PLAIN)));
+            ByteBuffer buf = buffers.get(BufferType.IN_PLAIN);
+            int pos = buf.position();
+            int lim = buf.limit();
+            buf.flip();
+            try {
+                dataListener.onPlainData(buf);
+            } finally {
+                buf.position(pos);
+                buf.limit(lim);
+            }
         }
     }
 
@@ -201,20 +269,5 @@ class Worker {
         if (sessionClosedCallback != null) {
             sessionClosedCallback.run();
         }
-    }
-
-    /**
-     * 将内部缓冲区的数据复制到新的外部 ByteBuffer。
-     * <p>创建独立副本供回调接收方安全使用，避免内部缓冲区被意外修改。</p>
-     *
-     * @param internalBuffer 内部缓冲区（flip 后 position=0, limit=数据长度）
-     * @return 包含相同数据的新 ByteBuffer
-     */
-    private static ByteBuffer copyToExternal(ByteBuffer internalBuffer) {
-        ByteBuffer external = ByteBuffer.allocate(internalBuffer.position());
-        internalBuffer.flip();
-        external.put(internalBuffer);
-        external.flip();
-        return external;
     }
 }

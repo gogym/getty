@@ -19,7 +19,7 @@ import java.nio.ByteBuffer;
 
 /**
  * ByteBuffer 工具类。
- * <p>提供 SSL 缓冲区操作中常用的复制和切片功能。</p>
+ * <p>提供 SSL 缓冲区操作中常用的复制功能。</p>
  */
 class BufferUtils {
 
@@ -35,20 +35,5 @@ class BufferUtils {
     static void copy(ByteBuffer from, ByteBuffer to) {
         to.put(from);
         to.flip();
-    }
-
-    /**
-     * 提取缓冲区中剩余数据为独立的字节数组包装缓冲区。
-     *
-     * @param data 源缓冲区
-     * @return 包含剩余数据的新 ByteBuffer（position=0），无剩余数据时返回 null
-     */
-    static ByteBuffer slice(ByteBuffer data) {
-        if (data.hasRemaining()) {
-            byte[] bytes = new byte[data.remaining()];
-            data.get(bytes);
-            return ByteBuffer.wrap(bytes);
-        }
-        return null;
     }
 }

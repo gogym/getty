@@ -5,6 +5,8 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.config.GettyConfig;
+import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.ChannelPipeline;
@@ -326,6 +328,19 @@ public class AioClient {
             @Override
             public void initChannel(AbstractSocketChannel channel) throws Exception {
                 ChannelPipeline pipeline = channel.getChannelPipeline();
+
+                // ----如需 SSL，取消以下注释----
+                 String pkPath = getClass().getClassLoader().getResource("clientStore.jks").getPath();
+                 SSLConfig sslConfig = new SSLConfig();
+                 sslConfig.setKeyFile(pkPath);
+                 sslConfig.setKeyPassword("123456");
+                 sslConfig.setKeystorePassword("123456");
+                 sslConfig.setTrustFile(pkPath);
+                 sslConfig.setTrustPassword("123456");
+                 sslConfig.setClientMode(true);
+                 pipeline.addFirst(new SSLHandler(sslConfig));
+                // ----SSL END----
+
                 pipeline.addLast(new StringEncoder());
                 pipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
                 pipeline.addLast(new StringDecoder());

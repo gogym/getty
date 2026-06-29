@@ -15,6 +15,7 @@
  */
 package com.gettyio.core.handler.ssl.facade;
 
+import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import javax.net.ssl.SSLSession;
 import java.nio.ByteBuffer;
 
@@ -90,7 +91,7 @@ class Buffers {
     }
 
     /**
-     * 为 unwrap 操作准备入站缓冲区。
+     * 为 unwrap 操作准备入站缓冲区（ByteBuffer 版本）。
      * <p>清空入站密文和明文缓冲区，将数据加载到密文缓冲区中。</p>
      *
      * @param data 待解密的密文数据，null 表示无新数据
@@ -105,7 +106,47 @@ class Buffers {
     }
 
     /**
-     * 为 wrap 操作准备出站缓冲区。
+     * 为 unwrap 操作准备入站缓冲区（PooledByteBuffer 版本）。
+     * <p>通过 System.arraycopy 直接从 PooledByteBuffer 底层数组拷贝到内部密文缓冲区，
+     * 消除中间 byte[] 分配，实现单次拷贝。SSLEngine 仅接触隔离的内部缓冲区。</p>
+     * <p>如有缓存的未处理数据，一并合并到密文缓冲区中。</p>
+     *
+     * @param src 待解密的密文数据（PooledByteBuffer）
+     */
+    void prepareForUnwrap(PooledByteBuffer src) {
+        clear(BufferType.IN_CIPHER, BufferType.IN_PLAIN);
+        int len = src.readableBytes();
+
+        // 优先检查缓存：有缓存时需将缓存数据与新数据合并
+        if (!unwrapCache.hasRemaining()) {
+            // 无缓存快速路径：直接从 PooledByteBuffer 拷贝到内部密文缓冲区
+            ByteBuffer cipherBuf = growIfNecessary(BufferType.IN_CIPHER, len);
+            System.arraycopy(src.array(), src.arrayOffset() + src.readerIndex(),
+                    cipherBuf.array(), cipherBuf.arrayOffset(), len);
+            src.readerIndex(src.readerIndex() + len);
+            cipherBuf.position(len);
+            cipherBuf.flip();
+            return;
+        }
+
+        // 有缓存路径：先拷贝缓存数据，再拷贝新数据
+        ByteBuffer cacheData = unwrapCache.get();
+        int cacheLen = cacheData.remaining();
+        ByteBuffer cipherBuf = growIfNecessary(BufferType.IN_CIPHER, cacheLen + len);
+        // 拷贝缓存数据到密文缓冲区
+        System.arraycopy(cacheData.array(), cacheData.arrayOffset() + cacheData.position(),
+                cipherBuf.array(), cipherBuf.arrayOffset(), cacheLen);
+        // 拷贝 PooledByteBuffer 数据到密文缓冲区（紧接缓存数据之后）
+        System.arraycopy(src.array(), src.arrayOffset() + src.readerIndex(),
+                cipherBuf.array(), cipherBuf.arrayOffset() + cacheLen, len);
+        src.readerIndex(src.readerIndex() + len);
+        unwrapCache.clear();
+        cipherBuf.position(cacheLen + len);
+        cipherBuf.flip();
+    }
+
+    /**
+     * 为 wrap 操作准备出站缓冲区（ByteBuffer 版本）。
      * <p>清空出站立文和密文缓冲区，将数据加载到明文缓冲区中。</p>
      *
      * @param data 待加密的明文数据，null 表示无新数据
@@ -117,6 +158,24 @@ class Buffers {
             plainBuf.put(data);
             plainBuf.flip();
         }
+    }
+
+    /**
+     * 为 wrap 操作准备出站缓冲区（PooledByteBuffer 版本）。
+     * <p>通过 System.arraycopy 直接从 PooledByteBuffer 底层数组拷贝到内部明文缓冲区，
+     * 消除中间 byte[] 分配，实现单次拷贝。SSLEngine 仅接触隔离的内部缓冲区。</p>
+     *
+     * @param src 待加密的明文数据（PooledByteBuffer）
+     */
+    void prepareForWrap(PooledByteBuffer src) {
+        clear(BufferType.OUT_PLAIN, BufferType.OUT_CIPHER);
+        int len = src.readableBytes();
+        ByteBuffer plainBuf = growIfNecessary(BufferType.OUT_PLAIN, len);
+        System.arraycopy(src.array(), src.arrayOffset() + src.readerIndex(),
+                plainBuf.array(), plainBuf.arrayOffset(), len);
+        src.readerIndex(src.readerIndex() + len);
+        plainBuf.position(len);
+        plainBuf.flip();
     }
 
     // ---- unwrap 缓存操作 ----

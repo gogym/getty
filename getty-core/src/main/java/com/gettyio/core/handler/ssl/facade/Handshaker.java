@@ -17,6 +17,7 @@ package com.gettyio.core.handler.ssl.facade;
 
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
+import java.nio.ByteBuffer;
 
 /**
  * SSL 握手管理器。
@@ -98,7 +99,7 @@ class Handshaker {
 
             case NEED_WRAP:
                 // 生成握手数据发送给对端
-                SSLEngineResult wrapResult = worker.wrap(null);
+                SSLEngineResult wrapResult = worker.wrap((ByteBuffer) null);
                 if (wrapResult.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED) {
                     finishHandshake();
                 } else {
@@ -109,7 +110,7 @@ class Handshaker {
             case NEED_UNWRAP:
                 // 需要等待对端数据，如果有缓存的数据则继续处理
                 if (worker.hasPendingData()) {
-                    SSLEngineResult unwrapResult = worker.unwrap(null);
+                    SSLEngineResult unwrapResult = worker.unwrap((ByteBuffer) null);
                     if (unwrapResult.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED) {
                         finishHandshake();
                     } else if (unwrapResult.getStatus() == SSLEngineResult.Status.OK) {
