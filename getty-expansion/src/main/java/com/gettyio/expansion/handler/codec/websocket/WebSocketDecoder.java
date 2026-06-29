@@ -89,6 +89,8 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
                 // SSL 模式下，握手信息需经 SSL 编码后直接发送，避免经过其他 encoder
                 ctx.channel().getSslHandler().channelWrite(ctx, responseBuf);
             }
+            // 唤醒写线程，确保握手响应立即发出
+            ctx.channel().flush();
             protocolVersion = requestInfo.getSecVersion();
             handShake = true;
             ctx.channel().setChannelAttribute(WebSocketConstants.WEB_SOCKET_HAND_SHAKE, true);
