@@ -72,7 +72,7 @@
 
     <name>getty</name>
     <url>https://github.com/gogym/getty</url>
-    <description>一个完全基于java 实现的，长得有点像netty的aio网络框架</description>
+    <description>Getty is a high-performance networking framework based entirely on Java NIO/AIO, supporting both AIO (NIO2) and NIO I/O models.</description>
 
     <licenses>
         <license>
@@ -233,15 +233,6 @@
                     <id>ossrh</id>
                     <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
                 </repository>
-
-                <!--<repository>-->
-                    <!--<id>nexus</id>-->
-                    <!--<url>http://47.112.166.17:8081/repository/maven-releases/</url>-->
-                <!--</repository>-->
-                <!--<snapshotRepository>-->
-                    <!--<id>nexus</id>-->
-                    <!--<url>http://47.112.166.17:8081/repository/maven-snapshots/</url>-->
-                <!--</snapshotRepository>-->
 
             </distributionManagement>
         </profile>
