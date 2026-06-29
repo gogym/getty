@@ -462,22 +462,7 @@ public class HttpHeaders {
 
     /**
      * Sets the value of the {@code "Connection"} header depending on the
-     * protocol version of the specified message.  This method sets or removes
-     * the {@code "Connection"} header depending on what the default keep alive
-     * mode of the message's protocol version is, as specified by
-     * {@link HttpVersion#isKeepAliveDefault()}.
-     * <ul>
-     * <li>If the connection is kept alive by default:
-     * <ul>
-     * <li>set to {@code "close"} if {@code keepAlive} is {@code false}.</li>
-     * <li>remove otherwise.</li>
-     * </ul></li>
-     * <li>If the connection is closed by default:
-     * <ul>
-     * <li>set to {@code "keep-alive"} if {@code keepAlive} is {@code true}.</li>
-     * <li>remove otherwise.</li>
-     * </ul></li>
-     * </ul>
+     * protocol version of the specified message.
      */
     public static void setKeepAlive(HttpMessage message, boolean keepAlive) {
         if (message.getHttpVersion().isKeepAliveDefault()) {
@@ -496,59 +481,8 @@ public class HttpHeaders {
     }
 
     /**
-     * Returns the header value with the specified header name.  If there are
-     * more than one header value for the specified header name, the first
-     * value is returned.
-     *
-     * @return the header value or {@code null} if there is no such header
-     */
-    public static String getHeader(HttpMessage message, String name) {
-        return message.getHeader(name);
-    }
-
-    /**
-     * Returns the header value with the specified header name.  If there are
-     * more than one header value for the specified header name, the first
-     * value is returned.
-     *
-     * @return the header value or the {@code defaultValue} if there is no such
-     * header
-     */
-    public static String getHeader(HttpMessage message, String name, String defaultValue) {
-        String value = message.getHeader(name);
-        if (value == null) {
-            return defaultValue;
-        }
-        return value;
-    }
-
-    /**
-     * Sets a new header with the specified name and value.  If there is an
-     * existing header with the same name, the existing header is removed.
-     */
-    public static void setHeader(HttpMessage message, String name, Object value) {
-        message.setHeader(name, value);
-    }
-
-    /**
-     * Sets a new header with the specified name and values.  If there is an
-     * existing header with the same name, the existing header is removed.
-     */
-    public static void setHeader(HttpMessage message, String name, Iterable<?> values) {
-        message.setHeader(name, values);
-    }
-
-    /**
-     * Adds a new header with the specified name and value.
-     */
-    public static void addHeader(HttpMessage message, String name, Object value) {
-        message.addHeader(name, value);
-    }
-
-
-    /**
      * Returns the length of the content.  Please note that this value is
-     * not retrieved from {@link HttpMessage#getContent()} but from the
+     * not retrieved from {@link HttpMessage#getHttpBody()} but from the
      * {@code "Content-Length"} header, and thus they are independent from each
      * other.
      *
@@ -560,10 +494,7 @@ public class HttpHeaders {
     }
 
     /**
-     * Returns the length of the content.  Please note that this value is
-     * not retrieved from {@link HttpMessage#getContent()} but from the
-     * {@code "Content-Length"} header, and thus they are independent from each
-     * other.
+     * Returns the length of the content.
      *
      * @return the content length or {@code defaultValue} if this message does
      * not have the {@code "Content-Length"} header
@@ -573,7 +504,6 @@ public class HttpHeaders {
         if (contentLength != null) {
             return Long.parseLong(contentLength);
         }
-
         return defaultValue;
     }
 
@@ -596,7 +526,11 @@ public class HttpHeaders {
      * header, the {@code defaultValue} is returned.
      */
     public static String getHost(HttpMessage message, String defaultValue) {
-        return getHeader(message, Names.HOST, defaultValue);
+        String value = message.getHeader(Names.HOST);
+        if (value == null) {
+            return defaultValue;
+        }
+        return value;
     }
 
     /**
@@ -820,10 +754,42 @@ public class HttpHeaders {
         return all;
     }
 
+    /**
+     * 返回所有头部条目的 Iterable 视图，不创建新列表，适合遍历场景。
+     */
+    Iterable<Map.Entry<String, String>> entries() {
+        return () -> new java.util.Iterator<Map.Entry<String, String>>() {
+            Entry current = head.after;
+
+            @Override
+            public boolean hasNext() {
+                return current != head;
+            }
+
+            @Override
+            public Map.Entry<String, String> next() {
+                Entry e = current;
+                current = current.after;
+                return e;
+            }
+        };
+    }
+
+    /**
+     * 判断是否包含指定名称的头部。
+     *
+     * @param name 头部名称（不区分大小写）
+     * @return 是否包含
+     */
     boolean containsHeader(String name) {
         return getHeader(name) != null;
     }
 
+    /**
+     * 获取所有头部名称的集合。
+     *
+     * @return 头部名称集合（不区分大小写排序）
+     */
     Set<String> getHeaderNames() {
         Set<String> names = new TreeSet<String>(CaseIgnoringComparator.INSTANCE);
 
@@ -835,6 +801,12 @@ public class HttpHeaders {
         return names;
     }
 
+    /**
+     * 将对象转换为字符串，null 返回 null。
+     *
+     * @param value 对象
+     * @return 字符串表示，或 null
+     */
     private static String toString(Object value) {
         if (value == null) {
             return null;
@@ -842,24 +814,47 @@ public class HttpHeaders {
         return value.toString();
     }
 
+    /**
+     * 头部条目内部实现，同时作为哈希链表节点和 Map.Entry。
+     */
     private static final class Entry implements Map.Entry<String, String> {
+        /** 哈希值 */
         final int hash;
+        /** 头部名称 */
         final String key;
+        /** 头部值 */
         String value;
+        /** 哈希冲突链表的下一个节点 */
         Entry next;
+        /** 双向链表前驱节点 */
         Entry before, after;
 
+        /**
+         * 创建头部条目。
+         *
+         * @param hash  哈希值
+         * @param key   头部名称
+         * @param value 头部值
+         */
         Entry(int hash, String key, String value) {
             this.hash = hash;
             this.key = key;
             this.value = value;
         }
 
+        /**
+         * 从双向链表中移除自身。
+         */
         void remove() {
             before.after = after;
             after.before = before;
         }
 
+        /**
+         * 将自身插入到指定节点之前。
+         *
+         * @param e 目标节点
+         */
         void addBefore(Entry e) {
             after = e;
             before = e.before;

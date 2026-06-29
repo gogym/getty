@@ -36,6 +36,8 @@ public class HttpResponseDecoder extends ByteToMessageDecoder {
     private final AutoByteBuffer autoByteBuffer = AutoByteBuffer.newByteBuffer();
     /** 当前正在解析的响应对象 */
     private HttpResponse httpResponse;
+    /** 解析状态（由 Decoder 持有，不属于 HttpMessage） */
+    private final HttpDecodeSerializer.ParseState parseState = new HttpDecodeSerializer.ParseState();
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
@@ -46,11 +48,10 @@ public class HttpResponseDecoder extends ByteToMessageDecoder {
 
         if (httpResponse == null) {
             httpResponse = new HttpResponse();
-            httpResponse.setReadStatus(HttpDecodeSerializer.READ_LINE);
+            parseState.reset();
         }
 
-
-        boolean flag = HttpDecodeSerializer.read(autoByteBuffer, httpResponse);
+        boolean flag = HttpDecodeSerializer.read(autoByteBuffer, httpResponse, parseState);
         if (flag) {
             super.channelRead(ctx, httpResponse);
             autoByteBuffer.clear();
