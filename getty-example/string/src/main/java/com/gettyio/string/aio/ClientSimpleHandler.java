@@ -5,25 +5,32 @@ import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 
+/**
+ * AIO 客户端业务处理器（简单示例）
+ * <p>
+ * 最基础的客户端 Handler 示例，仅打印收到的消息。
+ * 综合测试场景请使用 {@link AioClient}。
+ * </p>
+ */
 public class ClientSimpleHandler extends SimpleChannelInboundHandler<String> {
+
     @Override
     public void channelAdded(ChannelHandlerContext ctx) {
-        System.out.println("连接成功");
+        System.out.println("[AIO-Client] 连接建立");
     }
 
     @Override
     public void channelClosed(ChannelHandlerContext ctx) {
-        System.out.println("连接关闭了");
-    }
-
-
-    @Override
-    public void channelRead0(AbstractSocketChannel aioChannel, String str) {
-        System.out.println("收到服务器端消息:" + str);
+        System.out.println("[AIO-Client] 连接关闭");
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("出错了");
+    public void channelRead0(AbstractSocketChannel channel, String msg) {
+        System.out.println("[AIO-Client] 收到: " + msg);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        System.err.println("[AIO-Client] 异常: " + cause.getMessage());
     }
 }

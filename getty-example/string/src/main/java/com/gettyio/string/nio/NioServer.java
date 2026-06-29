@@ -3,79 +3,54 @@ package com.gettyio.string.nio;
 
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
-import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.NioServerStarter;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.expansion.handler.codec.string.StringDecoder;
 import com.gettyio.expansion.handler.codec.string.StringEncoder;
-import com.gettyio.core.handler.ssl.SSLConfig;
-import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 
+/**
+ * NIO TCP 服务器示例
+ * <p>
+ * 基于 Java NIO（非阻塞IO）的 TCP 服务端演示。
+ * 使用 DelimiterFrameDecoder 按 "\r\n" 进行消息分帧，
+ * StringDecoder/StringEncoder 负责字符串编解码。
+ * </p>
+ * <p>
+ * 启动后可运行 {@link NioClient} 进行功能测试。
+ * </p>
+ */
 public class NioServer {
 
+    /** 默认监听端口 */
+    private static final int PORT = 8888;
 
     public static void main(String[] args) {
-        NioServer ns = new NioServer();
-        ns.test(8888);
-        // ns.test(8889);
-    }
-
-
-    public void test(int port) {
         try {
-            //初始化配置对象
-            GettyConfig aioServerConfig = new GettyConfig();
-            //设置host,不设置默认localhost
-            aioServerConfig.setHost("127.0.0.1");
-            //设置端口号
-            aioServerConfig.setPort(port);
-            //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
-            //aioServerConfig.setBufferWriterQueueSize(10*1024*1024);
-            //设置读取缓存块大小，一般不用设置这个参数，默认128字节
-
-
-            NioServerStarter server = new NioServerStarter(port);
+            // 创建 NIO 服务端启动器
+            NioServerStarter server = new NioServerStarter(PORT);
             server.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
                 @Override
                 public void initChannel(AbstractSocketChannel channel) throws Exception {
-                    //获取责任链对象
-                    ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
+                    ChannelPipeline pipeline = channel.getChannelPipeline();
 
-                    //获取证书
-                    String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
-                    //ssl配置
-                    SSLConfig sSLConfig = new SSLConfig();
-                    sSLConfig.setKeyFile(pkPath);
-                    sSLConfig.setKeyPassword("123456");
-                    sSLConfig.setKeystorePassword("123456");
-                    sSLConfig.setTrustFile(pkPath);
-                    sSLConfig.setTrustPassword("123456");
-                    //设置服务器模式
-                    sSLConfig.setClientMode(false);
-                    //设置单向验证或双向验证
-                    sSLConfig.setClientAuthRequired(true);
-                    //初始化ssl服务
-                    //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                    // 字符串编码器：将 String 编码为字节写出
+                    pipeline.addLast(new StringEncoder());
+                    // 分隔符分帧器：按 "\r\n" 切分粘包/半包
+                    pipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
+                    // 字符串解码器：将字节解码为 String
+                    pipeline.addLast(new StringDecoder());
 
-                    defaultChannelPipeline.addLast(new StringEncoder());
-                    //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
-                    defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
-                    //添加字符串解码器
-                    defaultChannelPipeline.addLast(new StringDecoder());
-                    //添加自定义的简单消息处理器
-                    defaultChannelPipeline.addLast(new SimpleHandler());
+                    // 自定义业务处理器
+                    pipeline.addLast(new SimpleHandler());
                 }
             }).start();
 
-
-            System.out.println("启动了NIO TCP");
-
+            System.out.println("NIO TCP 服务器已启动，端口: " + PORT);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
 }

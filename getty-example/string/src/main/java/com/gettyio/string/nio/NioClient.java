@@ -1,125 +1,333 @@
 package com.gettyio.string.nio;
 
+
 import com.gettyio.core.channel.AbstractSocketChannel;
 import com.gettyio.core.channel.SocketMode;
 import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.channel.starter.NioClientStarter;
+import com.gettyio.core.pipeline.ChannelInitializer;
+import com.gettyio.core.pipeline.ChannelPipeline;
+import com.gettyio.core.pipeline.in.SimpleChannelInboundHandler;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.expansion.handler.codec.string.StringDecoder;
 import com.gettyio.expansion.handler.codec.string.StringEncoder;
-import com.gettyio.core.handler.ssl.SSLConfig;
-import com.gettyio.core.handler.ssl.SSLHandler;
-import com.gettyio.core.pipeline.ChannelInitializer;
-import com.gettyio.core.pipeline.ChannelPipeline;
 
-import java.io.IOException;
-import java.net.StandardSocketOptions;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * NIO TCP 综合测试客户端
+ * <p>
+ * 包含 5 个测试场景，覆盖基本收发、中文、大包、多客户端并发、批量吞吐。
+ * 需要先启动 {@link NioServer}，再运行本类。
+ * </p>
+ *
+ * <pre>
+ * 场景1：基本收发   - 发送英文消息，验证 Echo 回复
+ * 场景2：中文消息   - 发送中文消息，验证 UTF-8 编解码
+ * 场景3：大包测试   - 发送 10KB 消息，验证分片/组帧
+ * 场景4：多客户端   - 5 个客户端同时连接并通信
+ * 场景5：批量吞吐   - 单连接发送 10 万条消息，统计吞吐量
+ * </pre>
+ */
 public class NioClient {
 
+    /** 服务器地址 */
+    private static final String HOST = "127.0.0.1";
+    /** 服务器端口 */
+    private static final int PORT = 8888;
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException, IOException {
+    public static void main(String[] args) throws Exception {
+        System.out.println("========== NIO TCP 综合测试 ==========\n");
 
+        test1_BasicEcho();
+        test2_ChineseMessage();
+        test3_LargePacket();
+        test4_MultiClient();
+        test5_BatchThroughput();
 
-        int i = 0;
-        while (i < 1) {
-
-            //if(i%2==0){
-            NioClient ac = new NioClient();
-            ac.test(8888);
-//            }else {
-//                NioClient ac = new NioClient();
-//                ac.test(8889);
-//            }
-            i++;
-        }
+        System.out.println("\n========== 全部测试完成 ==========");
+        System.exit(0);
     }
 
+    // ======================== 场景1：基本收发 ========================
 
-    private void test(int port) {
+    /**
+     * 场景1：基本收发
+     * 发送一条英文消息，等待服务端 Echo 回复，验证内容正确。
+     */
+    private static void test1_BasicEcho() throws Exception {
+        System.out.println("--- 场景1：基本收发 ---");
 
-        final ConnectHandler ch = new ConnectHandlerImp();
+        CountDownLatch latch = new CountDownLatch(1);
+        String[] received = {null};
 
-        GettyConfig aioConfig = new GettyConfig();
-        aioConfig.setHost("127.0.0.1");
-        aioConfig.setPort(port);
-        //aioConfig.setBufferWriterQueueSize(1024 * 1024);
-        aioConfig.setOption(StandardSocketOptions.SO_SNDBUF, 1024);
-
-
-        NioClientStarter client = new NioClientStarter(aioConfig);
-        client.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
+        NioClientStarter client = createClient(new SimpleChannelInboundHandler<String>() {
             @Override
-            public void initChannel(AbstractSocketChannel channel) throws Exception {
-                //责任链
-                ChannelPipeline defaultChannelPipeline = channel.getChannelPipeline();
-
-
-                //获取证书
-                String pkPath = getClass().getClassLoader().getResource("clientStore.jks").getPath();
-                //ssl配置
-                SSLConfig sSLConfig = new SSLConfig();
-                sSLConfig.setKeyFile(pkPath);
-                sSLConfig.setKeyPassword("123456");
-                sSLConfig.setKeystorePassword("123456");
-                sSLConfig.setTrustFile(pkPath);
-                sSLConfig.setTrustPassword("123456");
-                //设置服务器模式
-                sSLConfig.setClientMode(true);
-                //初始化ssl服务
-                //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
-
-                defaultChannelPipeline.addLast(new StringEncoder());
-                //指定结束符解码器
-                defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
-                //字符串解码器
-                defaultChannelPipeline.addLast(new StringDecoder());
-                //定义消息解码器
-                defaultChannelPipeline.addLast(new ClientSimpleHandler());
+            public void channelRead0(AbstractSocketChannel channel, String msg) {
+                received[0] = msg;
+                latch.countDown();
             }
         });
 
-        client.start(ch);
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(AbstractSocketChannel channel) {
+                channel.writeAndFlush("Hello, Getty NIO!\r\n");
+            }
+
+            @Override
+            public void onFailed(Throwable exc) {
+                System.err.println("  连接失败: " + exc.getMessage());
+                latch.countDown();
+            }
+        });
+
+        boolean completed = latch.await(5, TimeUnit.SECONDS);
+        if (completed && received[0] != null) {
+            System.out.println("  收到回复: " + received[0]);
+            System.out.println("  结果: " + ("Echo: Hello, Getty NIO!".equals(received[0]) ? "PASS ✓" : "FAIL ✗"));
+        } else {
+            System.out.println("  结果: FAIL ✗ (超时)");
+        }
+        System.out.println();
+        Thread.sleep(300);
     }
 
+    // ======================== 场景2：中文消息 ========================
 
-    class ConnectHandlerImp implements ConnectHandler {
-        @Override
-        public void onCompleted(final AbstractSocketChannel channel) {
+    /**
+     * 场景2：中文消息
+     * 发送包含中文的消息，验证 UTF-8 编解码不会乱码或丢字节。
+     */
+    private static void test2_ChineseMessage() throws Exception {
+        System.out.println("--- 场景2：中文消息 ---");
 
-            new Thread(new Runnable() {
+        CountDownLatch latch = new CountDownLatch(1);
+        String[] received = {null};
+
+        NioClientStarter client = createClient(new SimpleChannelInboundHandler<String>() {
+            @Override
+            public void channelRead0(AbstractSocketChannel channel, String msg) {
+                received[0] = msg;
+                latch.countDown();
+            }
+        });
+
+        String chineseMsg = "你好，Getty框架！NIO模式支持中文消息。\r\n";
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(AbstractSocketChannel channel) {
+                channel.writeAndFlush(chineseMsg);
+            }
+
+            @Override
+            public void onFailed(Throwable exc) {
+                System.err.println("  连接失败: " + exc.getMessage());
+                latch.countDown();
+            }
+        });
+
+        boolean completed = latch.await(5, TimeUnit.SECONDS);
+        if (completed && received[0] != null) {
+            System.out.println("  发送: " + chineseMsg.trim());
+            System.out.println("  收到: " + received[0]);
+            String expected = "Echo: " + chineseMsg.trim();
+            System.out.println("  结果: " + (expected.equals(received[0]) ? "PASS ✓" : "FAIL ✗"));
+        } else {
+            System.out.println("  结果: FAIL ✗ (超时)");
+        }
+        System.out.println();
+        Thread.sleep(300);
+    }
+
+    // ======================== 场景3：大包测试 ========================
+
+    /**
+     * 场景3：大包测试
+     * 发送 10KB 的大消息，验证框架的分片/组帧能力。
+     */
+    private static void test3_LargePacket() throws Exception {
+        System.out.println("--- 场景3：大包测试（10KB） ---");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        String[] received = {null};
+
+        NioClientStarter client = createClient(new SimpleChannelInboundHandler<String>() {
+            @Override
+            public void channelRead0(AbstractSocketChannel channel, String msg) {
+                received[0] = msg;
+                latch.countDown();
+            }
+        });
+
+        // 构造 10KB 的消息体
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 1000; i++) {
+            sb.append("0123456789");  // 每轮 10 字符，1000 轮 = 10000 字符 ≈ 10KB
+        }
+        String largeMsg = sb.toString();
+
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(AbstractSocketChannel channel) {
+                channel.writeAndFlush(largeMsg + "\r\n");
+            }
+
+            @Override
+            public void onFailed(Throwable exc) {
+                System.err.println("  连接失败: " + exc.getMessage());
+                latch.countDown();
+            }
+        });
+
+        boolean completed = latch.await(10, TimeUnit.SECONDS);
+        if (completed && received[0] != null) {
+            String expected = "Echo: " + largeMsg;
+            boolean match = expected.equals(received[0]);
+            System.out.println("  发送大小: " + largeMsg.length() + " 字符");
+            System.out.println("  收到大小: " + received[0].length() + " 字符");
+            System.out.println("  结果: " + (match ? "PASS ✓" : "FAIL ✗ (内容不匹配)"));
+        } else {
+            System.out.println("  结果: FAIL ✗ (超时)");
+        }
+        System.out.println();
+        Thread.sleep(300);
+    }
+
+    // ======================== 场景4：多客户端并发 ========================
+
+    /**
+     * 场景4：多客户端并发
+     * 同时启动 5 个客户端连接，每个发送一条消息，验证全部收到正确回复。
+     */
+    private static void test4_MultiClient() throws Exception {
+        System.out.println("--- 场景4：多客户端并发（5个） ---");
+
+        int clientCount = 5;
+        CountDownLatch doneLatch = new CountDownLatch(clientCount);
+        String[] results = new String[clientCount];
+
+        for (int i = 0; i < clientCount; i++) {
+            final int index = i;
+            NioClientStarter client = createClient(new SimpleChannelInboundHandler<String>() {
                 @Override
-                public void run() {
-                    try {
-                        String s = "12\r\n";
-                        byte[] msgBody = s.getBytes("utf-8");
-                        long ct = System.currentTimeMillis();
-
-
-                        int i = 0;
-                        for (; i < 1000; i++) {
-//                            if (!channel.isInvalid()) {
-                                channel.writeAndFlush(msgBody);
-                          //  }
-                        }
-
-                        long lt = System.currentTimeMillis();
-                        System.out.printf("总耗时(ms)：" + (lt - ct) + "\r\n");
-                        System.out.printf("发送消息数量：" + i + "条\r\n");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                public void channelRead0(AbstractSocketChannel channel, String msg) {
+                    results[index] = msg;
+                    doneLatch.countDown();
                 }
-            }).start();
+            });
 
+            client.start(new ConnectHandler() {
+                @Override
+                public void onCompleted(AbstractSocketChannel channel) {
+                    channel.writeAndFlush("Client-" + index + " 发来消息\r\n");
+                }
 
+                @Override
+                public void onFailed(Throwable exc) {
+                    doneLatch.countDown();
+                }
+            });
         }
 
-        @Override
-        public void onFailed(Throwable exc) {
-            exc.printStackTrace();
+        boolean allDone = doneLatch.await(10, TimeUnit.SECONDS);
+        int passCount = 0;
+        for (int i = 0; i < clientCount; i++) {
+            if (results[i] != null && results[i].equals("Echo: Client-" + i + " 发来消息")) {
+                passCount++;
+            }
         }
+        System.out.println("  成功回复: " + passCount + "/" + clientCount);
+        System.out.println("  结果: " + (allDone && passCount == clientCount ? "PASS ✓" : "FAIL ✗"));
+        System.out.println();
+        Thread.sleep(300);
+    }
+
+    // ======================== 场景5：批量吞吐测试 ========================
+
+    /**
+     * 场景5：批量吞吐测试
+     * 单连接发送 10 万条消息，统计总耗时和吞吐量。
+     * 不等待回复（fire-and-forget），纯测发送性能。
+     */
+    private static void test5_BatchThroughput() throws Exception {
+        System.out.println("--- 场景5：批量吞吐测试（10万条） ---");
+
+        int totalMessages = 100000;
+        CountDownLatch connectLatch = new CountDownLatch(1);
+        AbstractSocketChannel[] channelRef = {null};
+
+        NioClientStarter client = createClient(new SimpleChannelInboundHandler<String>() {
+            @Override
+            public void channelRead0(AbstractSocketChannel channel, String msg) {
+                // 批量测试不处理回复
+            }
+        });
+
+        client.start(new ConnectHandler() {
+            @Override
+            public void onCompleted(AbstractSocketChannel channel) {
+                channelRef[0] = channel;
+                connectLatch.countDown();
+            }
+
+            @Override
+            public void onFailed(Throwable exc) {
+                System.err.println("  连接失败: " + exc.getMessage());
+                connectLatch.countDown();
+            }
+        });
+
+        connectLatch.await(5, TimeUnit.SECONDS);
+        if (channelRef[0] == null) {
+            System.out.println("  结果: FAIL ✗ (无法连接)");
+            return;
+        }
+
+        // 开始批量发送
+        String msg = " throughput-test-msg \r\n";
+        long startTime = System.currentTimeMillis();
+
+        for (int i = 0; i < totalMessages; i++) {
+            channelRef[0].writeAndFlush(msg);
+        }
+
+        long elapsed = System.currentTimeMillis() - startTime;
+        double tps = totalMessages * 1000.0 / Math.max(elapsed, 1);
+
+        System.out.println("  发送消息数: " + totalMessages);
+        System.out.println("  总耗时: " + elapsed + " ms");
+        System.out.println("  吞吐量: " + String.format("%.0f", tps) + " msg/s");
+        System.out.println("  结果: PASS ✓ (完成发送)");
+        System.out.println();
+    }
+
+    // ======================== 工具方法 ========================
+
+    /**
+     * 创建一个配置好的 NIO 客户端（不含 SSL）
+     *
+     * @param businessHandler 业务处理器，用于接收服务端回复
+     * @return 配置完成的 NioClientStarter 实例
+     */
+    private static NioClientStarter createClient(SimpleChannelInboundHandler<String> businessHandler) {
+        GettyConfig config = new GettyConfig();
+        config.setHost(HOST);
+        config.setPort(PORT);
+
+        NioClientStarter client = new NioClientStarter(config);
+        client.socketMode(SocketMode.TCP).channelInitializer(new ChannelInitializer() {
+            @Override
+            public void initChannel(AbstractSocketChannel channel) throws Exception {
+                ChannelPipeline pipeline = channel.getChannelPipeline();
+                pipeline.addLast(new StringEncoder());
+                pipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
+                pipeline.addLast(new StringDecoder());
+                pipeline.addLast(businessHandler);
+            }
+        });
+        return client;
     }
 }

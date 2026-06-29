@@ -2,98 +2,58 @@ package com.gettyio.string.aio;
 
 
 import com.gettyio.core.channel.AbstractSocketChannel;
-import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.AioServerStarter;
-import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
 import com.gettyio.expansion.handler.codec.string.StringDecoder;
 import com.gettyio.expansion.handler.codec.string.StringEncoder;
-import com.gettyio.core.handler.ssl.SSLConfig;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.timeout.IdleStateHandler;
 
+/**
+ * AIO TCP 服务器示例
+ * <p>
+ * 基于 Java AIO（异步IO）的 TCP 服务端演示。
+ * 使用 DelimiterFrameDecoder 按 "\r\n" 进行消息分帧，
+ * StringDecoder/StringEncoder 负责字符串编解码。
+ * </p>
+ * <p>
+ * 启动后可运行 {@link AioClient} 进行功能测试。
+ * </p>
+ */
 public class AioServer {
 
+    /** 默认监听端口 */
+    private static final int PORT = 8888;
 
     public static void main(String[] args) {
         try {
-            //初始化配置对象
-            GettyConfig aioServerConfig = new GettyConfig();
-            //设置host,不设置默认localhost
-            aioServerConfig.setHost("127.0.0.1");
-            //设置端口号
-            aioServerConfig.setPort(8888);
-            //设置服务器端内存池最大可分配空间大小，默认256mb，内存池空间可以根据吞吐量设置。
-            // 尽量可以设置大一点，因为这不会真正的占用系统内存，只有真正使用时才会分配
-            //设置数据输出器队列大小，一般不用设置这个参数，默认是10*1024*1024
-            //aioServerConfig.setBufferWriterQueueSize(1024 * 1024);
-            //设置读取缓存块大小，一般不用设置这个参数，默认64字节
-            //aioServerConfig.setReadBufferSize(64);
-            //设置SocketOptions
-            //aioServerConfig.setOption(StandardSocketOptions.SO_RCVBUF, 8192);
-
-            AioServerStarter server = new AioServerStarter(8888);
+            // 创建 AIO 服务端启动器
+            AioServerStarter server = new AioServerStarter(PORT);
             server.channelInitializer(new ChannelInitializer() {
-
                 @Override
-                public void initChannel(AbstractSocketChannel abstractSocketChannel) throws Exception {
+                public void initChannel(AbstractSocketChannel channel) throws Exception {
+                    ChannelPipeline pipeline = channel.getChannelPipeline();
 
-                    //获取责任链对象
-                    ChannelPipeline defaultChannelPipeline = abstractSocketChannel.getChannelPipeline();
-                    //获取证书
-                    String pkPath = getClass().getClassLoader().getResource("serverStore.jks").getPath();
-                    //ssl配置
-                    SSLConfig sSLConfig = new SSLConfig();
-                    sSLConfig.setKeyFile(pkPath);
-                    sSLConfig.setKeyPassword("123456");
-                    sSLConfig.setKeystorePassword("123456");
-                    //sSLConfig.setTrustFile(pkPath);
-                    //sSLConfig.setTrustPassword("123456");
-                    //设置服务器模式
-                    sSLConfig.setClientMode(false);
-                    //设置单向验证或双向验证
-                    sSLConfig.setClientAuthRequired(true);
-                    //初始化ssl服务
-                    defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                    // 空闲检测：读空闲 60 秒超时（可选，演示心跳机制）
+                    pipeline.addLast(new IdleStateHandler(60, 0));
 
-                    //流量统计
-//                    ChannelTrafficShapingHandler channelTrafficShapingHandler = new ChannelTrafficShapingHandler(5000, new TrafficShapingHandler() {
-//                        @Override
-//                        public void callback(long totalRead, long totalWrite, long intervalTotalRead, long intervalTotalWrite, long totalReadCount, long totalWriteCount) {
-//                            System.out.println("totalRead:"+totalRead);
-//                            System.out.println("totalWrite:"+totalWrite);
-//                            System.out.println("intervalTotalRead:"+intervalTotalRead);
-//                            System.out.println("intervalTotalWrite:"+intervalTotalWrite);
-//                            System.out.println("totalReadCount:"+totalReadCount);
-//                            System.out.println("totalWriteCount:"+totalWriteCount);
-//                        }
-//                    });
-                   // defaultChannelPipeline.addLast(channelTrafficShapingHandler);
+                    // 字符串编码器：将 String 编码为字节写出
+                    pipeline.addLast(new StringEncoder());
+                    // 分隔符分帧器：按 "\r\n" 切分粘包/半包
+                    pipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
+                    // 字符串解码器：将字节解码为 String
+                    pipeline.addLast(new StringDecoder());
 
-
-
-                    defaultChannelPipeline.addLast(new IdleStateHandler(3,0));
-                    //defaultChannelPipeline.addLast(new HeartBeatTimeOutHandler());
-
-
-                    defaultChannelPipeline.addLast(new StringEncoder());
-                    //添加 分隔符字符串处理器  按 "\r\n\" 进行消息分割
-                    defaultChannelPipeline.addLast(new DelimiterFrameDecoder(DelimiterFrameDecoder.LINE_DELIMITER));
-                    //添加字符串解码器
-                    defaultChannelPipeline.addLast(new StringDecoder());
-
-                    //添加自定义的简单消息处理器
-                    defaultChannelPipeline.addLast(new SimpleHandler());
+                    // 自定义业务处理器
+                    pipeline.addLast(new SimpleHandler());
                 }
             }).start();
 
-            System.out.println("启动了TCP");
-
+            System.out.println("AIO TCP 服务器已启动，端口: " + PORT);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
 }

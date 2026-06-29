@@ -15,7 +15,7 @@
         <module>string</module>
         <module>netty</module>
         <module>protobuf</module>
-        <module>test</module>
+        <module>http</module>
         <module>websocket</module>
         <module>mqtt</module>
     </modules>
