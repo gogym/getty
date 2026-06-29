@@ -396,6 +396,11 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             // 3. 全部写完，释放写权限
             drainBufs.clear();
             writeInFlight.set(false);
+
+            // 4. 非保活连接，写完后关闭通道（HTTP 短连接等场景）
+            if (!keepAlive) {
+                close();
+            }
         } finally {
             writeThread.wakeup();
         }
@@ -427,6 +432,10 @@ public class AioChannel extends AbstractSocketChannel implements FlushNotifier {
             if (drainBufs.isEmpty()) {
                 // 无数据，释放写权限
                 writeInFlight.set(false);
+                // 非保活连接，写完后关闭通道（HTTP 短连接等场景）
+                if (!keepAlive) {
+                    close();
+                }
             } else {
                 submitWrite(drainBufs);
             }

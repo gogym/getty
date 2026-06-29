@@ -20,6 +20,7 @@ import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpDecodeSerializer;
+import com.gettyio.expansion.handler.codec.http.HttpHeaders;
 
 /**
  * HTTP 请求解码器。
@@ -53,6 +54,8 @@ public class HttpRequestDecoder extends ByteToMessageDecoder {
 
         boolean flag = HttpDecodeSerializer.read(autoByteBuffer, httpRequest, parseState);
         if (flag) {
+            // 根据请求的 Connection 头部自动设置通道的 keepAlive 状态
+            ctx.channel().setKeepAlive(HttpHeaders.isKeepAlive(httpRequest));
             super.channelRead(ctx, httpRequest);
             autoByteBuffer.clear();
             httpRequest = null;

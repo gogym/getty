@@ -20,6 +20,7 @@ import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.expansion.handler.codec.http.HttpEncodeSerializer;
+import com.gettyio.expansion.handler.codec.http.HttpHeaders;
 
 /**
  * HTTP 响应编码器。
@@ -42,6 +43,10 @@ public class HttpResponseEncoder extends MessageToByteEncoder {
             byte[] bytes = buffer.readableBytesArray();
             PooledByteBuffer buf = ctx.channel().getByteBufferPool().acquire(bytes.length);
             buf.writeBytes(bytes);
+
+            // 根据响应的 Connection 头部同步通道的 keepAlive 状态
+            ctx.channel().setKeepAlive(HttpHeaders.isKeepAlive(httpResponse));
+
             obj = buf;
         }
         super.channelWrite(ctx, obj);

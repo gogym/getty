@@ -62,7 +62,7 @@ public class HttpTestHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
     @Override
     public void channelRead0(AbstractSocketChannel channel, HttpRequest request) {
-        channel.setKeepAlive(false);
+        //channel.setKeepAlive(false);
         String uri = request.getRequestUri();
         // 去掉查询参数部分，只保留路径
         String path = uri;
