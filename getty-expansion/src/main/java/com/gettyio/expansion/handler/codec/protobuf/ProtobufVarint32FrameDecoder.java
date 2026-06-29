@@ -67,9 +67,9 @@ public class ProtobufVarint32FrameDecoder extends ByteToMessageDecoder {
 
             byte[] frame = new byte[length];
             cumulation.readBytes(frame);
-            cumulation.discardReadBytes();
             super.channelRead(ctx, frame);
         }
+        cumulation.discardReadBytes();
     }
 
     /**

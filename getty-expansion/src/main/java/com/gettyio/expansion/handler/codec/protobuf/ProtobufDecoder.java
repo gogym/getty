@@ -15,11 +15,11 @@
  */
 package com.gettyio.expansion.handler.codec.protobuf;
 
-import com.gettyio.core.buffer.pool.PooledByteBuffer;
 import com.gettyio.core.handler.codec.ByteToMessageDecoder;
 import com.gettyio.core.logging.InternalLogger;
 import com.gettyio.core.logging.InternalLoggerFactory;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
+import com.gettyio.core.pipeline.in.ChannelInboundHandlerAdapter;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -74,9 +74,7 @@ public class ProtobufDecoder extends ByteToMessageDecoder {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object in) throws Exception {
-        PooledByteBuffer buf = (PooledByteBuffer) in;
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
+        byte[] bytes = (byte[]) in;
         if (bytes.length == 0) {
             return;
         }
