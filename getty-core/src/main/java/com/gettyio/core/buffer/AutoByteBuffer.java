@@ -487,7 +487,7 @@ public class AutoByteBuffer {
     // ======================== 内部方法 ========================
 
     /**
-     * 确保可写入空间足够。采用指数增长策略（倍增），均摊 O(1)。
+     * 确保可写入空间足够。采用 1.5 倍增长策略，均摊 O(1)。
      *
      * @param needed 需要的字节数
      */
@@ -496,16 +496,17 @@ public class AutoByteBuffer {
         if (available >= needed) {
             return;
         }
-        // 指数增长：每次至少翻倍，直到满足需求
+        // 1.5 倍增长：newCap = oldCap + (oldCap >> 1)，减少内存浪费
         int newCapacity = data.length;
         int minCapacity = writerIndex + needed;
         while (newCapacity < minCapacity) {
-            newCapacity <<= 1;
-            // 防溢出
-            if (newCapacity < 0) {
+            int grown = newCapacity + (newCapacity >> 1);
+            // 防溢出：如果 1.5 倍后反而变小（整数溢出），直接取 minCapacity
+            if (grown <= newCapacity) {
                 newCapacity = minCapacity;
                 break;
             }
+            newCapacity = grown;
         }
         byte[] newData = new byte[newCapacity];
         System.arraycopy(data, 0, newData, 0, writerIndex);
