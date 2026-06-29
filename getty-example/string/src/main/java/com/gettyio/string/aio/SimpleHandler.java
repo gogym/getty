@@ -30,6 +30,7 @@ public class SimpleHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
         System.out.println("出错了");
     }
 }

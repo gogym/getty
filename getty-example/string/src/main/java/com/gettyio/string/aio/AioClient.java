@@ -5,6 +5,7 @@ import com.gettyio.core.channel.config.GettyConfig;
 import com.gettyio.core.channel.starter.AioClientStarter;
 import com.gettyio.core.channel.starter.ConnectHandler;
 import com.gettyio.core.handler.ssl.SSLConfig;
+import com.gettyio.core.handler.ssl.SSLHandler;
 import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.string.DelimiterFrameDecoder;
@@ -58,7 +59,7 @@ public class AioClient {
                 //设置服务器模式
                 sSLConfig.setClientMode(true);
                 //初始化ssl服务
-                //defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
+                defaultChannelPipeline.addFirst(new SSLHandler(sSLConfig));
 
                 defaultChannelPipeline.addLast(new ReConnectHandler(new ConnectHandler() {
                     @Override
@@ -97,12 +98,12 @@ public class AioClient {
 
                             while (i < 1000000) {
                                 long before = System.nanoTime();
-                                boolean flag = abstractSocketChannel.writeAndFlush(msgBody);
+                                abstractSocketChannel.writeAndFlush(msgBody);
                                 long elapsed = System.nanoTime() - before;
                                 i++;
-                                if (i % 1000 == 0) {
-                                    Thread.yield();
-                                }
+//                                if (i % 1000 == 0) {
+//                                    Thread.yield();
+//                                }
 //                                if (i % 100 == 0) {
 //                                    System.out.println("[biz] 已发送 " + i + " 条, 单次耗时: " + elapsed / 1000 + "us, 通道状态: " + abstractSocketChannel.isInvalid());
 //                                }
@@ -111,6 +112,7 @@ public class AioClient {
 //                                    System.out.println("[biz] 警告: 第 " + i + " 次 writeAndFlush 耗时 " + elapsed / 1_000_000 + "ms，疑似阻塞！");
 //                                }
                             }
+                            //abstractSocketChannel.flush();
 
                         } catch (Throwable e) {
                             System.err.println("Thread-0 异常退出，已发送: " + i);
