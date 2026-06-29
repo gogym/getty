@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License, version 2.0 (the
+ * The Getty Project licenses this file to you under the Apache License, version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
  *
@@ -31,15 +31,6 @@ public enum MqttQoS {
 
     private final int value;
 
-    /** 按 QoS 值索引的查找表，覆盖 0~2 和 0x80 */
-    private static final MqttQoS[] LOOKUP = new MqttQoS[0x81];
-
-    static {
-        for (MqttQoS q : values()) {
-            LOOKUP[q.value] = q;
-        }
-    }
-
     MqttQoS(int value) {
         this.value = value;
     }
@@ -56,9 +47,12 @@ public enum MqttQoS {
      * @throws IllegalArgumentException 无效的 QoS 值
      */
     public static MqttQoS valueOf(int value) {
-        if (value >= 0 && value < LOOKUP.length && LOOKUP[value] != null) {
-            return LOOKUP[value];
+        switch (value) {
+            case 0: return AT_MOST_ONCE;
+            case 1: return AT_LEAST_ONCE;
+            case 2: return EXACTLY_ONCE;
+            case 0x80: return FAILURE;
+            default: throw new IllegalArgumentException("invalid QoS: " + value);
         }
-        throw new IllegalArgumentException("invalid QoS: " + value);
     }
 }

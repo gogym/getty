@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -23,7 +23,7 @@ import com.gettyio.core.util.ObjectUtil;
  * MQTT CONNECT 消息的负载部分。
  * <p>包含客户端标识、遗嘱主题/消息、用户名和密码。</p>
  *
- * @see MqttConnectMessage
+ * @see MqttMessage
  */
 public final class MqttConnectPayload {
 

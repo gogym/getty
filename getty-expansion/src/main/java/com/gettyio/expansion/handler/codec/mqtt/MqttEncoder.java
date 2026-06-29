@@ -22,6 +22,8 @@ import com.gettyio.core.handler.codec.MessageToByteEncoder;
 import com.gettyio.core.pipeline.ChannelHandlerContext;
 import com.gettyio.core.util.CharsetUtil;
 
+import java.util.List;
+
 import static com.gettyio.expansion.handler.codec.mqtt.MqttCodecUtil.isValidClientId;
 
 
@@ -69,22 +71,22 @@ public final class MqttEncoder extends MessageToByteEncoder {
 
         switch (message.fixedHeader().messageType()) {
             case CONNECT:
-                return encodeConnectMessage((MqttConnectMessage) message);
+                return encodeConnectMessage(message);
 
             case CONNACK:
-                return encodeConnAckMessage((MqttConnAckMessage) message);
+                return encodeConnAckMessage(message);
 
             case PUBLISH:
-                return encodePublishMessage((MqttPublishMessage) message);
+                return encodePublishMessage(message);
 
             case SUBSCRIBE:
-                return encodeSubscribeMessage((MqttSubscribeMessage) message);
+                return encodeSubscribeMessage(message);
 
             case UNSUBSCRIBE:
-                return encodeUnsubscribeMessage((MqttUnsubscribeMessage) message);
+                return encodeUnsubscribeMessage(message);
 
             case SUBACK:
-                return encodeSubAckMessage((MqttSubAckMessage) message);
+                return encodeSubAckMessage(message);
 
             case UNSUBACK:
             case PUBACK:
@@ -103,12 +105,12 @@ public final class MqttEncoder extends MessageToByteEncoder {
         }
     }
 
-    private static AutoByteBuffer encodeConnectMessage(MqttConnectMessage message) {
+    private static AutoByteBuffer encodeConnectMessage(MqttMessage message) {
         int payloadBufferSize = 0;
 
         MqttFixedHeader mqttFixedHeader = message.fixedHeader();
-        MqttConnectVariableHeader variableHeader = message.variableHeader();
-        MqttConnectPayload payload = message.payload();
+        MqttConnectVariableHeader variableHeader = (MqttConnectVariableHeader) message.variableHeader();
+        MqttConnectPayload payload = (MqttConnectPayload) message.payload();
         MqttVersion mqttVersion = MqttVersion.fromProtocolNameAndLevel(variableHeader.name(), (byte) variableHeader.version());
 
         // as MQTT 3.1 & 3.1.1 spec, If the User Name Flag is set to 0, the Password Flag MUST be set to 0
@@ -119,7 +121,7 @@ public final class MqttEncoder extends MessageToByteEncoder {
         // Client id
         String clientIdentifier = payload.clientIdentifier();
         if (!isValidClientId(mqttVersion, clientIdentifier)) {
-            throw new MqttIdentifierRejectedException("invalid clientIdentifier: " + clientIdentifier);
+            throw new IllegalArgumentException("invalid clientIdentifier: " + clientIdentifier);
         }
         byte[] clientIdentifierBytes = encodeStringUtf8(clientIdentifier);
         payloadBufferSize += 2 + clientIdentifierBytes.length;
@@ -203,29 +205,33 @@ public final class MqttEncoder extends MessageToByteEncoder {
         return flagByte;
     }
 
-    private static AutoByteBuffer encodeConnAckMessage(MqttConnAckMessage message) {
+    private static AutoByteBuffer encodeConnAckMessage(MqttMessage message) {
         AutoByteBuffer buf = AutoByteBuffer.newByteBuffer(4);
         buf.write(getFixedHeaderByte1(message.fixedHeader()));
         buf.write(2);
-        buf.write(message.variableHeader().isSessionPresent() ? 0x01 : 0x00);
-        buf.write(message.variableHeader().connectReturnCode().byteValue());
+        MqttConnAckVariableHeader variableHeader = (MqttConnAckVariableHeader) message.variableHeader();
+        buf.write(variableHeader.isSessionPresent() ? 0x01 : 0x00);
+        buf.write(variableHeader.connectReturnCode().byteValue());
 
         return buf;
     }
 
-    private static AutoByteBuffer encodeSubscribeMessage(MqttSubscribeMessage message) {
+    private static AutoByteBuffer encodeSubscribeMessage(MqttMessage message) {
         int variableHeaderBufferSize = 2;
         int payloadBufferSize = 0;
 
         MqttFixedHeader mqttFixedHeader = message.fixedHeader();
-        MqttMessageIdVariableHeader variableHeader = message.variableHeader();
-        MqttSubscribePayload payload = message.payload();
+        MqttMessageIdVariableHeader variableHeader = (MqttMessageIdVariableHeader) message.variableHeader();
+        MqttSubscribePayload payload = (MqttSubscribePayload) message.payload();
 
-        for (MqttTopicSubscription topic : payload.topicSubscriptions()) {
-            String topicName = topic.topicName();
-            byte[] topicNameBytes = encodeStringUtf8(topicName);
-            payloadBufferSize += 2 + topicNameBytes.length;
-            payloadBufferSize += 1;
+        // 预计算负载大小并缓存 UTF-8 字节，避免重复遍历
+        List<MqttTopicSubscription> topics = payload.topicSubscriptions();
+        String[] topicNames = new String[topics.size()];
+        byte[][] topicNameBytesArr = new byte[topics.size()][];
+        for (int i = 0; i < topics.size(); i++) {
+            topicNames[i] = topics.get(i).topicName();
+            topicNameBytesArr[i] = encodeStringUtf8(topicNames[i]);
+            payloadBufferSize += 2 + topicNameBytesArr[i].length + 1;
         }
 
         int variablePartSize = variableHeaderBufferSize + payloadBufferSize;
@@ -236,28 +242,25 @@ public final class MqttEncoder extends MessageToByteEncoder {
         writeVariableLengthInt(buf, variablePartSize);
 
         // Variable Header
-        int messageId = variableHeader.messageId();
-        buf.writeShort(messageId);
+        buf.writeShort(variableHeader.messageId());
 
-        // Payload
-        for (MqttTopicSubscription topic : payload.topicSubscriptions()) {
-            String topicName = topic.topicName();
-            byte[] topicNameBytes = encodeStringUtf8(topicName);
-            buf.writeShort(topicNameBytes.length);
-            buf.writeBytes(topicNameBytes, 0, topicNameBytes.length);
-            buf.write(topic.qualityOfService().value());
+        // Payload（使用缓存的数据，无需重复遍历）
+        for (int i = 0; i < topics.size(); i++) {
+            buf.writeShort(topicNameBytesArr[i].length);
+            buf.writeBytes(topicNameBytesArr[i], 0, topicNameBytesArr[i].length);
+            buf.write(topics.get(i).qualityOfService().value());
         }
 
         return buf;
     }
 
-    private static AutoByteBuffer encodeUnsubscribeMessage(MqttUnsubscribeMessage message) {
+    private static AutoByteBuffer encodeUnsubscribeMessage(MqttMessage message) {
         int variableHeaderBufferSize = 2;
         int payloadBufferSize = 0;
 
         MqttFixedHeader mqttFixedHeader = message.fixedHeader();
-        MqttMessageIdVariableHeader variableHeader = message.variableHeader();
-        MqttUnsubscribePayload payload = message.payload();
+        MqttMessageIdVariableHeader variableHeader = (MqttMessageIdVariableHeader) message.variableHeader();
+        MqttUnsubscribePayload payload = (MqttUnsubscribePayload) message.payload();
 
         for (String topicName : payload.topics()) {
             byte[] topicNameBytes = encodeStringUtf8(topicName);
@@ -285,27 +288,29 @@ public final class MqttEncoder extends MessageToByteEncoder {
         return buf;
     }
 
-    private static AutoByteBuffer encodeSubAckMessage(MqttSubAckMessage message) {
+    private static AutoByteBuffer encodeSubAckMessage(MqttMessage message) {
         int variableHeaderBufferSize = 2;
-        int payloadBufferSize = message.payload().grantedQoSLevels().size();
+        MqttMessageIdVariableHeader variableHeader = (MqttMessageIdVariableHeader) message.variableHeader();
+        MqttSubAckPayload payload = (MqttSubAckPayload) message.payload();
+        int payloadBufferSize = payload.grantedQoSLevels().size();
         int variablePartSize = variableHeaderBufferSize + payloadBufferSize;
         int fixedHeaderBufferSize = 1 + getVariableLengthInt(variablePartSize);
         AutoByteBuffer buf = AutoByteBuffer.newByteBuffer(fixedHeaderBufferSize + variablePartSize);
         buf.write(getFixedHeaderByte1(message.fixedHeader()));
         writeVariableLengthInt(buf, variablePartSize);
-        buf.writeShort(message.variableHeader().messageId());
-        for (int qos : message.payload().grantedQoSLevels()) {
+        buf.writeShort(variableHeader.messageId());
+        for (int qos : payload.grantedQoSLevels()) {
             buf.write(qos);
         }
 
         return buf;
     }
 
-    private static AutoByteBuffer encodePublishMessage(MqttPublishMessage message) {
+    private static AutoByteBuffer encodePublishMessage(MqttMessage message) {
         MqttFixedHeader mqttFixedHeader = message.fixedHeader();
-        MqttPublishVariableHeader variableHeader = message.variableHeader();
+        MqttPublishVariableHeader variableHeader = (MqttPublishVariableHeader) message.variableHeader();
         //复制一份数据
-        AutoByteBuffer payload = message.payload().duplicate();
+        AutoByteBuffer payload = ((AutoByteBuffer) message.payload()).duplicate();
 
         String topicName = variableHeader.topicName();
         byte[] topicNameBytes = encodeStringUtf8(topicName);

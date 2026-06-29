@@ -6,7 +6,7 @@ import com.gettyio.core.pipeline.ChannelInitializer;
 import com.gettyio.core.pipeline.ChannelPipeline;
 import com.gettyio.expansion.handler.codec.mqtt.MqttDecoder;
 import com.gettyio.expansion.handler.codec.mqtt.MqttEncoder;
-import com.gettyio.mqtt.client.SimpleHandler;
+import com.gettyio.mqtt.server.SimpleHandler;
 
 
 /**

@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -32,10 +32,12 @@ public enum MqttVersion {
 
     private final String name;
     private final byte level;
+    private final byte[] nameBytes;
 
     MqttVersion(String protocolName, byte protocolLevel) {
         name = ObjectUtil.checkNotNull(protocolName, "protocolName");
         level = protocolLevel;
+        nameBytes = protocolName.getBytes(CharsetUtil.UTF_8);
     }
 
     /**
@@ -53,7 +55,7 @@ public enum MqttVersion {
      * @return 协议名称字节数组
      */
     public byte[] protocolNameBytes() {
-        return name.getBytes(CharsetUtil.UTF_8);
+        return nameBytes;
     }
 
     /**
@@ -79,11 +81,11 @@ public enum MqttVersion {
                 if (mv.level == protocolLevel) {
                     return mv;
                 } else {
-                    throw new MqttUnacceptableProtocolVersionException(
+                    throw new IllegalArgumentException(
                             protocolName + " and " + protocolLevel + " do not match");
                 }
             }
         }
-        throw new MqttUnacceptableProtocolVersionException(protocolName + " is unknown protocol name");
+        throw new IllegalArgumentException(protocolName + " is unknown protocol name");
     }
 }

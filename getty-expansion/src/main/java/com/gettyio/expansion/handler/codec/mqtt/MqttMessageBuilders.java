@@ -1,7 +1,7 @@
 /*
- * Copyright 2017 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -66,10 +66,10 @@ public final class MqttMessageBuilders {
             return this;
         }
 
-        public MqttPublishMessage build() {
+        public MqttMessage build() {
             MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false, qos, retained, 0);
             MqttPublishVariableHeader mqttVariableHeader = new MqttPublishVariableHeader(topic, messageId);
-            return new MqttPublishMessage(mqttFixedHeader, mqttVariableHeader, AutoByteBuffer.newByteBuffer().writeBytes(payload));
+            return MqttMessage.newMessage(mqttFixedHeader, mqttVariableHeader, AutoByteBuffer.newByteBuffer().writeBytes(payload));
         }
     }
 
@@ -162,7 +162,7 @@ public final class MqttMessageBuilders {
             return this;
         }
 
-        public MqttConnectMessage build() {
+        public MqttMessage build() {
             MqttFixedHeader mqttFixedHeader =
                     new MqttFixedHeader(MqttMessageType.CONNECT, false, MqttQoS.AT_MOST_ONCE, false, 0);
             MqttConnectVariableHeader mqttConnectVariableHeader =
@@ -178,7 +178,7 @@ public final class MqttMessageBuilders {
                             keepAliveSecs);
             MqttConnectPayload mqttConnectPayload =
                     new MqttConnectPayload(clientId, willTopic, willMessage, username, password);
-            return new MqttConnectMessage(mqttFixedHeader, mqttConnectVariableHeader, mqttConnectPayload);
+            return MqttMessage.newMessage(mqttFixedHeader, mqttConnectVariableHeader, mqttConnectPayload);
         }
     }
 
@@ -206,12 +206,12 @@ public final class MqttMessageBuilders {
             return this;
         }
 
-        public MqttSubscribeMessage build() {
+        public MqttMessage build() {
             MqttFixedHeader mqttFixedHeader =
                     new MqttFixedHeader(MqttMessageType.SUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0);
             MqttMessageIdVariableHeader mqttVariableHeader = MqttMessageIdVariableHeader.from(messageId);
             MqttSubscribePayload mqttSubscribePayload = new MqttSubscribePayload(subscriptions);
-            return new MqttSubscribeMessage(mqttFixedHeader, mqttVariableHeader, mqttSubscribePayload);
+            return MqttMessage.newMessage(mqttFixedHeader, mqttVariableHeader, mqttSubscribePayload);
         }
     }
 
@@ -239,12 +239,12 @@ public final class MqttMessageBuilders {
             return this;
         }
 
-        public MqttUnsubscribeMessage build() {
+        public MqttMessage build() {
             MqttFixedHeader mqttFixedHeader =
                     new MqttFixedHeader(MqttMessageType.UNSUBSCRIBE, false, MqttQoS.AT_LEAST_ONCE, false, 0);
             MqttMessageIdVariableHeader mqttVariableHeader = MqttMessageIdVariableHeader.from(messageId);
             MqttUnsubscribePayload mqttSubscribePayload = new MqttUnsubscribePayload(topicFilters);
-            return new MqttUnsubscribeMessage(mqttFixedHeader, mqttVariableHeader, mqttSubscribePayload);
+            return MqttMessage.newMessage(mqttFixedHeader, mqttVariableHeader, mqttSubscribePayload);
         }
     }
 
@@ -269,12 +269,12 @@ public final class MqttMessageBuilders {
             return this;
         }
 
-        public MqttConnAckMessage build() {
+        public MqttMessage build() {
             MqttFixedHeader mqttFixedHeader =
                     new MqttFixedHeader(MqttMessageType.CONNACK, false, MqttQoS.AT_MOST_ONCE, false, 0);
             MqttConnAckVariableHeader mqttConnAckVariableHeader =
                     new MqttConnAckVariableHeader(returnCode, sessionPresent);
-            return new MqttConnAckMessage(mqttFixedHeader, mqttConnAckVariableHeader);
+            return MqttMessage.newMessage(mqttFixedHeader, mqttConnAckVariableHeader, null);
         }
     }
 

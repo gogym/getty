@@ -76,37 +76,7 @@ public final class MqttDecoder extends ByteToMessageDecoder {
     private Object variableHeader;
     private int bytesRemainingInVariablePart;
     private final int maxBytesInMessage;
-    private DecoderState state;
-
-    /**
-     * 获取当前解码器状态
-     *
-     * @return 当前状态
-     */
-    private DecoderState state() {
-        return state;
-    }
-
-    /**
-     * 设置解码器状态
-     *
-     * @param newState 新状态
-     * @return 旧状态
-     */
-    private DecoderState state(DecoderState newState) {
-        DecoderState oldState = state;
-        state = newState;
-        return oldState;
-    }
-
-    /**
-     * 更新解码器状态（检查点）
-     *
-     * @param state 新状态
-     */
-    private void checkpoint(DecoderState state) {
-        state(state);
-    }
+    private DecoderState state = DecoderState.READ_FIXED_HEADER;
 
 
     public MqttDecoder() {
@@ -119,7 +89,6 @@ public final class MqttDecoder extends ByteToMessageDecoder {
      * @param maxBytesInMessage 单条消息最大字节数，超过此值将拒绝消息
      */
     public MqttDecoder(int maxBytesInMessage) {
-        state = DecoderState.READ_FIXED_HEADER;
         this.maxBytesInMessage = maxBytesInMessage;
     }
 
@@ -130,69 +99,75 @@ public final class MqttDecoder extends ByteToMessageDecoder {
         byte[] bytes = new byte[buf.readableBytes()];
         buf.readBytes(bytes);
         AutoByteBuffer buffer = AutoByteBuffer.newByteBuffer().writeBytes(bytes);
-        MqttMessage mqttMessage = null;
-        switch (state()) {
-            case READ_FIXED_HEADER:
-                try {
-                    mqttFixedHeader = decodeFixedHeader(buffer);
-                    bytesRemainingInVariablePart = mqttFixedHeader.remainingLength();
-                    checkpoint(DecoderState.READ_VARIABLE_HEADER);
-                    // fall through
-                } catch (Exception cause) {
-                    mqttMessage = invalidMessage(cause);
-                    break;
-                }
 
-            case READ_VARIABLE_HEADER:
-                try {
-                    final Result<?> decodedVariableHeader = decodeVariableHeader(buffer, mqttFixedHeader);
-                    variableHeader = decodedVariableHeader.value;
-                    if (bytesRemainingInVariablePart > maxBytesInMessage) {
-                        throw new DecoderException("too large message: " + bytesRemainingInVariablePart + " bytes");
+        // 循环解码，处理一次 read 中包含多条 MQTT 消息的情况
+        while (buffer.hasRemaining()) {
+            MqttMessage mqttMessage = null;
+            switch (state) {
+                case READ_FIXED_HEADER:
+                    try {
+                        mqttFixedHeader = decodeFixedHeader(buffer);
+                        bytesRemainingInVariablePart = mqttFixedHeader.remainingLength();
+                        state = DecoderState.READ_VARIABLE_HEADER;
+                        // fall through
+                    } catch (Exception cause) {
+                        mqttMessage = invalidMessage(cause);
+                        break;
                     }
-                    bytesRemainingInVariablePart -= decodedVariableHeader.numberOfBytesConsumed;
-                    checkpoint(DecoderState.READ_PAYLOAD);
-                    // fall through
-                } catch (Exception cause) {
-                    mqttMessage = invalidMessage(cause);
-                    break;
-                }
 
-            case READ_PAYLOAD:
-                try {
-                    final Result<?> decodedPayload = decodePayload(buffer, mqttFixedHeader.messageType(), bytesRemainingInVariablePart, variableHeader);
-                    bytesRemainingInVariablePart -= decodedPayload.numberOfBytesConsumed;
-                    if (bytesRemainingInVariablePart != 0) {
-                        throw new DecoderException("non-zero remaining payload bytes: " + bytesRemainingInVariablePart + " (" + mqttFixedHeader.messageType() + ')');
+                case READ_VARIABLE_HEADER:
+                    try {
+                        final Result<?> decodedVariableHeader = decodeVariableHeader(buffer, mqttFixedHeader);
+                        variableHeader = decodedVariableHeader.value;
+                        if (bytesRemainingInVariablePart > maxBytesInMessage) {
+                            throw new DecoderException("too large message: " + bytesRemainingInVariablePart + " bytes");
+                        }
+                        bytesRemainingInVariablePart -= decodedVariableHeader.numberOfBytesConsumed;
+                        state = DecoderState.READ_PAYLOAD;
+                        // fall through
+                    } catch (Exception cause) {
+                        mqttMessage = invalidMessage(cause);
+                        break;
                     }
-                    checkpoint(DecoderState.READ_FIXED_HEADER);
-                    mqttMessage = MqttMessageFactory.newMessage(mqttFixedHeader, variableHeader, decodedPayload.value);
-                    mqttFixedHeader = null;
-                    variableHeader = null;
-                    break;
-                } catch (Exception cause) {
-                    mqttMessage = invalidMessage(cause);
-                    break;
-                }
 
-            case BAD_MESSAGE:
-                // Keep discarding until disconnection.
-                buffer.skipBytes(buffer.readableBytes());
-                break;
+                case READ_PAYLOAD:
+                    try {
+                        final Result<?> decodedPayload = decodePayload(buffer, mqttFixedHeader.messageType(), bytesRemainingInVariablePart, variableHeader);
+                        bytesRemainingInVariablePart -= decodedPayload.numberOfBytesConsumed;
+                        if (bytesRemainingInVariablePart != 0) {
+                            throw new DecoderException("non-zero remaining payload bytes: " + bytesRemainingInVariablePart + " (" + mqttFixedHeader.messageType() + ')');
+                        }
+                        state = DecoderState.READ_FIXED_HEADER;
+                        mqttMessage = MqttMessage.newMessage(mqttFixedHeader, variableHeader, decodedPayload.value);
+                        mqttFixedHeader = null;
+                        variableHeader = null;
+                        break;
+                    } catch (Exception cause) {
+                        mqttMessage = invalidMessage(cause);
+                        break;
+                    }
 
-            default:
-                // Shouldn't reach here.
-                throw new Error();
+                case BAD_MESSAGE:
+                    // Keep discarding until disconnection.
+                    buffer.skipBytes(buffer.readableBytes());
+                    break;
+
+                default:
+                    // Shouldn't reach here.
+                    throw new Error();
+            }
+            if (mqttMessage != null) {
+                super.channelRead(ctx, mqttMessage);
+            }
         }
-        super.channelRead(ctx,mqttMessage);
     }
 
     /**
      * 创建无效消息并切换解码器到 {@code BAD_MESSAGE} 状态
      */
     private MqttMessage invalidMessage(Throwable cause) {
-        checkpoint(DecoderState.BAD_MESSAGE);
-        return MqttMessageFactory.newInvalidMessage(mqttFixedHeader, variableHeader, cause);
+        state = DecoderState.BAD_MESSAGE;
+        return MqttMessage.newInvalidMessage(mqttFixedHeader, variableHeader, cause);
     }
 
     /**
@@ -385,7 +360,7 @@ public final class MqttDecoder extends ByteToMessageDecoder {
         final String decodedClientIdValue = decodedClientId.value;
         final MqttVersion mqttVersion = MqttVersion.fromProtocolNameAndLevel(mqttConnectVariableHeader.name(), (byte) mqttConnectVariableHeader.version());
         if (!isValidClientId(mqttVersion, decodedClientIdValue)) {
-            throw new MqttIdentifierRejectedException("invalid clientIdentifier: " + decodedClientIdValue);
+            throw new IllegalArgumentException("invalid clientIdentifier: " + decodedClientIdValue);
         }
         int numberOfBytesConsumed = decodedClientId.numberOfBytesConsumed;
 

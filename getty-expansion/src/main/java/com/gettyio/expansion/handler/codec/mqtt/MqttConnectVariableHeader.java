@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 The Netty Project
+ * Copyright 2019 The Getty Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The Getty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -23,7 +23,7 @@ import com.gettyio.core.util.ObjectUtil;
  * MQTT CONNECT 消息的可变头部。
  * <p>包含协议名称、版本、连接标志位（用户名/密码/遗嘱/Clean Session）和保活时间。</p>
  *
- * @see MqttConnectMessage
+ * @see MqttMessage
  */
 public final class MqttConnectVariableHeader {
 
