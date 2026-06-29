@@ -167,6 +167,11 @@ public class NioClientStarter extends NioStarter {
                 try {
                     nioChannel = new NioChannel(config, socketChannel, nioEventLoop, byteBufferPool, channelInitializer);
 
+                    // 先注册读事件到 EventLoop 的 Selector（确保 channel.keyFor() 可用）
+                    // 必须在 connectHandler 回调之前执行，否则回调中的 writeAndFlush
+                    // 调用 notifyFlush() 时 keyFor() 返回 null，导致 OP_WRITE 无法注册，数据滞留队列
+                    ((NioChannel) nioChannel).register();
+
                     if (connectHandler != null) {
                         if (nioChannel.getSslHandler() != null) {
                             nioChannel.setSslHandshakeListener(new IHandshakeListener() {
@@ -185,9 +190,6 @@ public class NioClientStarter extends NioStarter {
                             connectHandler.onCompleted(nioChannel);
                         }
                     }
-
-                    // 注册读事件到 EventLoop 的 Selector
-                    ((NioChannel) nioChannel).register();
                 } catch (Exception e) {
                     LOGGER.error("create NioChannel failed", e);
                     closeChannel(socketChannel);
