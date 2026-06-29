@@ -116,10 +116,11 @@ public class WebSocketDecoder extends ByteToMessageDecoder {
                 // 解析新帧：获取 opcode 并构建对应帧类型
                 byte bt = buffer.read(0);
                 byte opcode = (byte) (bt & 0x0F);
-                if (Opcode.valueOf(opcode) == null) {
+                Opcode op = Opcode.valueOf(opcode);
+                if (op == null) {
                     return null;
                 }
-                switch (Opcode.valueOf(opcode)) {
+                switch (op) {
                     case CONTINUATION:
                         messageFrame = new ContinuationWebSocketFrame();
                         break;

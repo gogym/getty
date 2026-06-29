@@ -16,9 +16,6 @@
 package com.gettyio.expansion.handler.codec.websocket;
 
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * WebSocket 握手请求信息载体。
  * <p>
@@ -51,12 +48,12 @@ class WebSocketRequest {
     private String digest;
     /** Sec-WebSocket-Version，默认 0 */
     private int secVersion = 0;
-    /** 请求头映射 */
-    private final Map<String, String> headers = new HashMap<>(8);
     /** 解析状态机状态 */
     private int readStatus;
     /** 行/头部解析用临时缓冲区 */
     private final StringBuilder sb = new StringBuilder();
+    /** 标记上次 readHeaders 调用时头部 \r\n 已消费但缓冲区耗尽 */
+    private boolean headersEndSeen;
 
     public boolean getConnection() {
         return connection;
@@ -150,11 +147,11 @@ class WebSocketRequest {
         return sb;
     }
 
-    public Map<String, String> getHeaders() {
-        return headers;
+    public boolean isHeadersEndSeen() {
+        return headersEndSeen;
     }
 
-    public void putHeader(String key, String value) {
-        this.headers.put(key, value);
+    public void setHeadersEndSeen(boolean headersEndSeen) {
+        this.headersEndSeen = headersEndSeen;
     }
 }

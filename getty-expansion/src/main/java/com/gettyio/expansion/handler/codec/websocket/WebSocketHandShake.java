@@ -173,9 +173,6 @@ public class WebSocketHandShake {
             sb.append("Upgrade: websocket\r\n");
             sb.append("Connection: Upgrade\r\n");
             sb.append("Sec-WebSocket-Accept: ").append(requestInfo.getDigest()).append("\r\n");
-            sb.append("Sec-WebSocket-Origin: ").append(requestInfo.getOrigin()).append("\r\n");
-            sb.append("Sec-WebSocket-Location: ").append(scheme)
-                    .append(requestInfo.getHost()).append(requestInfo.getRequestUri()).append("\r\n");
             sb.append("\r\n");
         }
         LOGGER.debug("handshake response: {}", sb);
@@ -192,12 +189,19 @@ public class WebSocketHandShake {
         while (buffer.hasRemaining()) {
             byte nextByte = buffer.readByte();
             if (nextByte == HttpConstants.CR) {
+                if (!buffer.hasRemaining()) {
+                    // CR 是缓冲区最后一个字节，保留它，等下次数据
+                    request.getSb().append((char) nextByte);
+                    return false;
+                }
                 nextByte = buffer.readByte();
                 if (nextByte == HttpConstants.LF) {
                     decodeQueryString(request.getSb().toString(), request);
                     request.getSb().setLength(0);
                     return true;
                 }
+                // CR 后不是 LF，保留两个字符
+                request.getSb().append((char) nextByte);
             } else {
                 request.getSb().append((char) nextByte);
             }
@@ -231,18 +235,50 @@ public class WebSocketHandShake {
      */
     private static boolean readHeaders(AutoByteBuffer buffer, WebSocketRequest request)
             throws HttpException, AutoByteBuffer.ByteBufferException {
+        // 上次调用在头部 \r\n 后缓冲区耗尽，检查是否紧接着 \r\n（头部结束标志）
+        if (request.isHeadersEndSeen()) {
+            request.setHeadersEndSeen(false);
+            if (!buffer.hasRemaining()) {
+                return false;
+            }
+            byte nextByte = buffer.readByte();
+            if (nextByte == HttpConstants.CR) {
+                if (!buffer.hasRemaining()) {
+                    request.setHeadersEndSeen(true);
+                    return false;
+                }
+                nextByte = buffer.readByte();
+                if (nextByte == HttpConstants.LF) {
+                    return true;
+                }
+            }
+            // 不是空行，该字节是新头部的开始
+            request.getSb().append((char) nextByte);
+        }
+
         while (buffer.hasRemaining()) {
             byte nextByte = buffer.readByte();
             if (nextByte == HttpConstants.CR) {
+                if (!buffer.hasRemaining()) {
+                    // CR 是缓冲区最后一个字节，保留它
+                    request.getSb().append((char) nextByte);
+                    return false;
+                }
                 nextByte = buffer.readByte();
                 if (nextByte == HttpConstants.LF) {
                     readHeader(request, request.getSb().toString());
                     request.getSb().setLength(0);
                     if (!buffer.hasRemaining()) {
+                        // 头部 \r\n 已消费，缓冲区耗尽，标记等待下次判断
+                        request.setHeadersEndSeen(true);
                         return false;
                     }
                     nextByte = buffer.readByte();
                     if (nextByte == HttpConstants.CR) {
+                        if (!buffer.hasRemaining()) {
+                            request.setHeadersEndSeen(true);
+                            return false;
+                        }
                         nextByte = buffer.readByte();
                         if (nextByte == HttpConstants.LF) {
                             return true;
@@ -250,6 +286,9 @@ public class WebSocketHandShake {
                     } else {
                         request.getSb().append((char) nextByte);
                     }
+                } else {
+                    // CR 后不是 LF，保留两个字符
+                    request.getSb().append((char) nextByte);
                 }
             } else {
                 request.getSb().append((char) nextByte);
@@ -262,18 +301,22 @@ public class WebSocketHandShake {
      * 解析单个请求头字段，提取 WebSocket 握手相关信息。
      */
     private static void readHeader(WebSocketRequest request, String header) {
+        if (header.isEmpty()) {
+            return;
+        }
         String[] kv = splitHeader(header);
+        // 只对 name 做 toLowerCase，value 保持原始大小写
+        // （Sec-WebSocket-Key 等 Base64 值对大小写敏感）
         String name = kv[0].toLowerCase();
-        String value = kv[1].toLowerCase();
-        request.putHeader(name, value);
+        String value = kv[1];
 
         switch (name) {
             case "upgrade":
                 // 只有值为 "websocket" 时才认为是有效的升级请求
-                request.setUpgrade("websocket".equals(value));
+                request.setUpgrade("websocket".equalsIgnoreCase(value));
                 break;
             case "connection":
-                if (!"upgrade".equals(value)) {
+                if (!"upgrade".equalsIgnoreCase(value)) {
                     LOGGER.debug("unexpected connection header value: {}", value);
                 }
                 request.setConnection(true);
@@ -285,17 +328,17 @@ public class WebSocketHandShake {
                 request.setOrigin(value);
                 break;
             case "sec-websocket-key1":
-                request.setKey1(parseHixieKey(kv[1]));
+                request.setKey1(parseHixieKey(value));
                 break;
             case "sec-websocket-key2":
-                request.setKey2(parseHixieKey(kv[1]));
+                request.setKey2(parseHixieKey(value));
                 break;
             case "cookie":
                 request.setCookie(value);
                 break;
             case "sec-websocket-key":
-                // RFC 6455（版本 4+）的握手密钥
-                request.setDigest(getKey(kv[1]));
+                // RFC 6455（版本 4+）的握手密钥，保持原始大小写
+                request.setDigest(getKey(value));
                 break;
             case "sec-websocket-version":
                 request.setSecVersion(Integer.parseInt(value.trim()));

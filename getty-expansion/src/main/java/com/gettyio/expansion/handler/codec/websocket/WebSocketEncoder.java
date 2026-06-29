@@ -85,6 +85,7 @@ public class WebSocketEncoder extends MessageToByteEncoder {
      * 将负载数据编码为 RFC 6455 WebSocket 帧。
      * <p>
      * 服务端发送的帧不做掩码处理（MASK=0）。
+     * 直接计算精确大小分配 byte[]，避免 AutoByteBuffer 扩容开销。
      * </p>
      *
      * @param payload 负载数据
@@ -93,28 +94,44 @@ public class WebSocketEncoder extends MessageToByteEncoder {
      */
     private static byte[] encodeFrame(byte[] payload, byte opcode) {
         int len = payload.length;
-        AutoByteBuffer buf = AutoByteBuffer.newByteBuffer();
+        int headerLen;
+        int extLen;
 
+        // 计算帧头大小
+        if (len < 126) {
+            headerLen = 2;
+            extLen = 0;
+        } else if (len <= 0xFFFF) {
+            headerLen = 2;
+            extLen = 2;
+        } else {
+            headerLen = 2;
+            extLen = 8;
+        }
+
+        // 精确分配，一次到位
+        byte[] frame = new byte[headerLen + extLen + len];
         // 第 1 字节：FIN=1 + RSV=0 + opcode
-        buf.writeByte((byte) (WebSocketFrame.FIN | opcode));
+        frame[0] = (byte) (WebSocketFrame.FIN | opcode);
 
+        int offset = headerLen;
         // 第 2 字节及后续：MASK=0 + payload length
         if (len < 126) {
-            buf.writeByte((byte) len);
+            frame[1] = (byte) len;
         } else if (len <= 0xFFFF) {
             // 16 位扩展长度
-            buf.writeByte((byte) 126);
-            buf.writeByte((byte) (len >> 8));
-            buf.writeByte((byte) len);
+            frame[1] = (byte) 126;
+            frame[2] = (byte) (len >> 8);
+            frame[3] = (byte) len;
         } else {
             // 64 位扩展长度
-            buf.writeByte((byte) 127);
+            frame[1] = (byte) 127;
             for (int i = 56; i >= 0; i -= 8) {
-                buf.writeByte((byte) (len >> i));
+                frame[offset++] = (byte) (len >> i);
             }
         }
 
-        buf.writeBytes(payload);
-        return buf.readableBytesArray();
+        System.arraycopy(payload, 0, frame, headerLen + extLen, len);
+        return frame;
     }
 }

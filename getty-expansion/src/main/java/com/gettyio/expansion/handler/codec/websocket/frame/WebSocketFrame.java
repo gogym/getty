@@ -227,13 +227,15 @@ public class WebSocketFrame {
         if (this.getPayloadDataLen() == this.payloadData.readableBytes()) {
             setReadFinish(true);
             if (isMask()) {
-                // 做加密处理
+                // 做加密处理：readableBytesArray() 返回拷贝，修改不影响内部数组
                 byte[] bytes = this.payloadData.readableBytesArray();
-                for (int i = 0; i < this.getPayloadData().length; i++) {
-                    bytes[i] ^= getMaskingKey()[(i % 4)];
+                byte[] maskingKey = getMaskingKey();
+                for (int i = 0; i < bytes.length; i++) {
+                    bytes[i] ^= maskingKey[(i % 4)];
                 }
-                this.payloadData.reset();
-                setPayloadData(bytes);
+                // 用解密后的数据覆盖缓冲区
+                this.payloadData.clear();
+                this.payloadData.writeBytes(bytes);
             }
         }
     }
@@ -355,11 +357,13 @@ public class WebSocketFrame {
 
 
     /**
-     * 读取负载数据到缓冲区。
+     * 读取负载数据到缓冲区（不超过帧声明的负载长度）。
      */
     private void parsePayloadData(AutoByteBuffer buffer) {
-        if (buffer.hasRemaining()) {
-            this.payloadData.writeBytes(buffer);
+        int remaining = (int) this.getPayloadDataLen() - this.payloadData.readableBytes();
+        if (remaining > 0 && buffer.hasRemaining()) {
+            int toRead = Math.min(remaining, buffer.readableBytes());
+            this.payloadData.writeBytes(buffer, toRead);
         }
     }
 }
