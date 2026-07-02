@@ -10,6 +10,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>getty-expansion</artifactId>
+    <name>Getty Expansion</name>
+    <description>Expansion module of Getty networking framework</description>
 
 
     <dependencies>

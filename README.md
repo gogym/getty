@@ -182,22 +182,22 @@ channel.getChannelPipeline()
 <dependency>
     <groupId>com.gettyio</groupId>
     <artifactId>getty-core</artifactId>
-    <version>2.2.0</version>
+    <version>3.0.0</version>
 </dependency>
 
 <!-- 可选：协议编解码扩展 -->
 <dependency>
     <groupId>com.gettyio</groupId>
     <artifactId>getty-expansion</artifactId>
-    <version>2.2.0</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'com.gettyio:getty-core:2.2.0'
-implementation 'com.gettyio:getty-expansion:2.2.0'
+implementation 'com.gettyio:getty-core:3.0.0'
+implementation 'com.gettyio:getty-expansion:3.0.0'
 ```
 
 ### AIO 服务端

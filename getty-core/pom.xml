@@ -10,6 +10,8 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>getty-core</artifactId>
     <packaging>jar</packaging>
+    <name>Getty Core</name>
+    <description>Core module of Getty networking framework</description>
 
 
     <dependencies>
