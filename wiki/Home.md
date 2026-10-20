@@ -1,6 +1,6 @@
 # Getty 使用文档
 
-[**中文**](Home) | [English](en/Home)
+[**中文**](Home) | [English](Home-EN)
 
 欢迎使用 Getty —— 一个完全基于 Java NIO/AIO 实现的高性能网络框架。
 

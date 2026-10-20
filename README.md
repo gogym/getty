@@ -266,7 +266,7 @@ server.start();
 
 ## 更多详情与文档 / Documentation
 
-更多详情，请点击 **wiki**：[wiki](https://gitee.com/kokjuis/getty/wikis/pages) · [English wiki](wiki/en/Home.md)
+更多详情，请点击 **wiki**：[wiki](https://gitee.com/kokjuis/getty/wikis/pages) · [English wiki](https://github.com/gogym/getty/wiki/Home-EN)
 
 ---
 

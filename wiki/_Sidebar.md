@@ -1,6 +1,6 @@
 # Getty Wiki
 
-[**中文**](_Sidebar) | [English](en/_Sidebar)
+[**中文**](_Sidebar) | [English](Sidebar-EN)
 
 ## 文档目录
 

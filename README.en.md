@@ -262,7 +262,7 @@ server.start();
 
 ## Documentation
 
-For more details, see the **wiki**: [wiki](https://gitee.com/kokjuis/getty/wikis/pages) · [English wiki](wiki/en/Home.md)
+For more details, see the **wiki**: [wiki](https://gitee.com/kokjuis/getty/wikis/pages) · [English wiki](https://github.com/gogym/getty/wiki/Home-EN)
 
 ---
 
