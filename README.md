@@ -1,5 +1,7 @@
 # Getty
 
+[**中文**](README.md) | [English](README.en.md)
+
 一个完全基于 Java 实现的高性能网络框架。
 
 A high-performance networking framework based entirely on Java implementations.
@@ -264,7 +266,7 @@ server.start();
 
 ## 更多详情与文档 / Documentation
 
-更多详情，请点击 **wiki**：[wiki](https://gitee.com/kokjuis/getty/wikis/pages)
+更多详情，请点击 **wiki**：[wiki](https://gitee.com/kokjuis/getty/wikis/pages) · [English wiki](wiki/en/Home.md)
 
 ---
 

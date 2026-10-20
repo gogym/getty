@@ -26,3 +26,4 @@ target/
 getty-core/target/
 *.iml
 getty-example/**/target
+/wiki

@@ -1,5 +1,7 @@
 # Getty Wiki
 
+[**中文**](_Sidebar) | [English](en/_Sidebar)
+
 ## 文档目录
 
 ### 入门
